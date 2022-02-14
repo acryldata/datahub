@@ -256,7 +256,7 @@ def send_lineage_to_datahub(
                 models.DataJobInfoClass(
                     name=task.task_id,
                     type=models.AzkabanJobTypeClass.COMMAND,
-                    description=None,
+                    description=operator.doc or operator.doc_md or operator.doc_json or operator.doc_yaml or operator.doc_rst,
                     customProperties=job_property_bag,
                     externalUrl=job_url,
                 ),
