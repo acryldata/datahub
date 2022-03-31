@@ -271,7 +271,7 @@ Note that a `.` is used to denote nested fields in the YAML recipe.
 | `user_email_pattern.allow`      |          | *                                                                   | List of regex patterns for user emails to include in usage.                      |
 | `user_email_pattern.deny`       |          |                                                                     | List of regex patterns for user emails to exclude from usage.                    |
 | `user_email_pattern.ignoreCase` |          | `True`                                                              | Whether to ignore case sensitivity during pattern matching.                      |
-
+| `usage_custom_sql_template` |          |                                                                         | A custom SQL statement template which replaces the default `SNOWFLAKE_USAGE_SQL_TEMPLATE` (see source code for details).                      |
 :::caution
 
 User's without email address will be ignored from usage if you don't set `email_domain` property.
