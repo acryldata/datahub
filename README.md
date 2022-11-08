@@ -124,6 +124,7 @@ Here are the companies that have officially adopted DataHub. Please feel free to
 - [Moloco](https://www.moloco.com/en)
 - [Peloton](https://www.onepeloton.com)
 - [Razer](https://www.razer.com)
+- [Parimatch Tech](https://parimatch.tech)
 - [Saxo Bank](https://www.home.saxo)
 - [Stash](https://www.stash.com)
 - [Shanghai HuaRui Bank](https://www.shrbank.com)
