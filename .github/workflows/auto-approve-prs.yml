@@ -15,3 +15,5 @@ jobs:
     requires: auto-approve
     steps:
     - uses: alexwilson/enable-github-automerge-action@main
+      with:
+        merge-method: MERGE
