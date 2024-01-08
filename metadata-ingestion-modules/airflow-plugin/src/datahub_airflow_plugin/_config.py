@@ -41,8 +41,8 @@ class DatahubLineageConfig(ConfigModel):
     # The Airflow plugin behaves as if it were set to True.
     graceful_exceptions: bool = True
 
-    # Override the external urls of datajob as Airflow DAG page.
-    override_datajob_url: bool = False
+    # Override the external urls of datajob.
+    override_datajob_url: str = None
 
     def make_emitter_hook(self) -> "DatahubGenericHook":
         # This is necessary to avoid issues with circular imports.

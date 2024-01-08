@@ -273,7 +273,7 @@ class AirflowGenerator:
         config = get_lineage_backend_config()
 
         if config.override_datajob_url:
-            datajob.url = f"{base_url}/dags/{datajob.flow_urn.get_flow_id()}/grid?task_id={task.task_id}"
+            datajob.url = config.override_datajob_url.format(base_url=base_url, dag_id=datajob.flow_urn.get_flow_id(), task_id=task.task_id)
 
         if capture_owner and dag.owner:
             datajob.owners.add(dag.owner)
