@@ -13,6 +13,7 @@ from datahub.utilities.urns.data_flow_urn import DataFlowUrn
 from datahub.utilities.urns.data_job_urn import DataJobUrn
 
 from datahub_airflow_plugin._airflow_compat import AIRFLOW_PATCHED
+from datahub_airflow_plugin.lineage.datahub import get_lineage_backend_config
 
 assert AIRFLOW_PATCHED
 
@@ -268,6 +269,11 @@ class AirflowGenerator:
         datajob.properties = job_property_bag
         base_url = conf.get("webserver", "base_url")
         datajob.url = f"{base_url}/taskinstance/list/?flt1_dag_id_equals={datajob.flow_urn.get_flow_id()}&_flt_3_task_id={task.task_id}"
+
+        config = get_lineage_backend_config()
+
+        if config.override_datajob_url:
+            datajob.url = config.override_datajob_url.format(base_url=base_url, dag_id=datajob.flow_urn.get_flow_id(), task_id=task.task_id)
 
         if capture_owner and dag.owner:
             datajob.owners.add(dag.owner)
