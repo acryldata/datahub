@@ -98,24 +98,24 @@ sqlglot_lib = {
 }
 
 sql_common = (
-    {
-        # Required for all SQL sources.
-        # This is temporary lower bound that we're open to loosening/tightening as requirements show up
-        "sqlalchemy>=1.4.39, <2",
-        # Required for SQL profiling.
-        "great-expectations>=0.15.12, <=0.15.50",
-        *pydantic_no_v2,  # because of great-expectations
-        # scipy version restricted to reduce backtracking, used by great-expectations,
-        "scipy>=1.7.2",
-        # GE added handling for higher version of jinja2
-        # https://github.com/great-expectations/great_expectations/pull/5382/files
-        # datahub does not depend on traitlets directly but great expectations does.
-        # https://github.com/ipython/traitlets/issues/741
-        "traitlets<5.2.2",
-        "greenlet",
-    }
-    | usage_common
-    | sqlglot_lib
+        {
+            # Required for all SQL sources.
+            # This is temporary lower bound that we're open to loosening/tightening as requirements show up
+            "sqlalchemy>=1.4.39, <2",
+            # Required for SQL profiling.
+            "great-expectations>=0.15.12, <=0.15.50",
+            *pydantic_no_v2,  # because of great-expectations
+            # scipy version restricted to reduce backtracking, used by great-expectations,
+            "scipy>=1.7.2",
+            # GE added handling for higher version of jinja2
+            # https://github.com/great-expectations/great_expectations/pull/5382/files
+            # datahub does not depend on traitlets directly but great expectations does.
+            # https://github.com/ipython/traitlets/issues/741
+            "traitlets<5.2.2",
+            "greenlet",
+        }
+        | usage_common
+        | sqlglot_lib
 )
 
 sqllineage_lib = {
@@ -129,6 +129,14 @@ sqllineage_lib = {
 aws_common = {
     # AWS Python SDK
     "boto3",
+    # Deal with a version incompatibility between botocore (used by boto3) and urllib3.
+    # See https://github.com/boto/botocore/pull/2563.
+    "botocore!=1.23.0",
+}
+
+aws_msk_iam_sasl_signer = {
+    # AWS MSK IAM SASL Singer
+    "aws-msk-iam-sasl-signer-python",
     # Deal with a version incompatibility between botocore (used by boto3) and urllib3.
     # See https://github.com/boto/botocore/pull/2563.
     "botocore!=1.23.0",
@@ -286,14 +294,14 @@ plugins: Dict[str, Set[str]] = {
     # sqlalchemy-bigquery is included here since it provides an implementation of
     # a SQLalchemy-conform STRUCT type definition
     "athena": sql_common
-    | {"PyAthena[SQLAlchemy]>=2.6.0,<3.0.0", "sqlalchemy-bigquery>=1.4.1"},
+              | {"PyAthena[SQLAlchemy]>=2.6.0,<3.0.0", "sqlalchemy-bigquery>=1.4.1"},
     "azure-ad": set(),
     "bigquery": sql_common
-    | bigquery_common
-    | {
-        *sqlglot_lib,
-        "google-cloud-datacatalog-lineage==0.2.2",
-    },
+                | bigquery_common
+                | {
+                    *sqlglot_lib,
+                    "google-cloud-datacatalog-lineage==0.2.2",
+                },
     "clickhouse": sql_common | clickhouse_common,
     "clickhouse-usage": sql_common | usage_common | clickhouse_common,
     "datahub-lineage-file": set(),
@@ -317,19 +325,19 @@ plugins: Dict[str, Set[str]] = {
     "glue": aws_common,
     # hdbcli is supported officially by SAP, sqlalchemy-hana is built on top but not officially supported
     "hana": sql_common
-    | {
-        "sqlalchemy-hana>=0.5.0; platform_machine != 'aarch64' and platform_machine != 'arm64'",
-        "hdbcli>=2.11.20; platform_machine != 'aarch64' and platform_machine != 'arm64'",
-    },
+            | {
+                "sqlalchemy-hana>=0.5.0; platform_machine != 'aarch64' and platform_machine != 'arm64'",
+                "hdbcli>=2.11.20; platform_machine != 'aarch64' and platform_machine != 'arm64'",
+            },
     "hive": sql_common
-    | pyhive_common
-    | {
-        "databricks-dbapi",
-        # Due to https://github.com/great-expectations/great_expectations/issues/6146,
-        # we cannot allow 0.15.{23-26}. This was fixed in 0.15.27 by
-        # https://github.com/great-expectations/great_expectations/pull/6149.
-        "great-expectations != 0.15.23, != 0.15.24, != 0.15.25, != 0.15.26",
-    },
+            | pyhive_common
+            | {
+                "databricks-dbapi",
+                # Due to https://github.com/great-expectations/great_expectations/issues/6146,
+                # we cannot allow 0.15.{23-26}. This was fixed in 0.15.27 by
+                # https://github.com/great-expectations/great_expectations/pull/6149.
+                "great-expectations != 0.15.23, != 0.15.24, != 0.15.25, != 0.15.26",
+            },
     "iceberg": iceberg_common,
     "json-schema": set(),
     "kafka": kafka_common | kafka_protobuf,
@@ -342,10 +350,10 @@ plugins: Dict[str, Set[str]] = {
     "mode": {"requests", "tenacity>=8.0.1"} | sqllineage_lib,
     "mongodb": {"pymongo[srv]>=3.11", "packaging"},
     "mssql": sql_common
-    | {
-        "sqlalchemy-pytds>=0.3",
-        "pyOpenSSL",
-    },
+             | {
+                 "sqlalchemy-pytds>=0.3",
+                 "pyOpenSSL",
+             },
     "mssql-odbc": sql_common | {"pyodbc"},
     "mysql": mysql,
     # mariadb should have same dependency as mysql
@@ -355,15 +363,15 @@ plugins: Dict[str, Set[str]] = {
     "postgres": sql_common | {"psycopg2-binary", "GeoAlchemy2"},
     "presto": sql_common | pyhive_common | trino,
     "presto-on-hive": sql_common
-    | pyhive_common
-    | {"psycopg2-binary", "pymysql>=1.0.2"},
+                      | pyhive_common
+                      | {"psycopg2-binary", "pymysql>=1.0.2"},
     "pulsar": {"requests"},
     "redash": {"redash-toolbelt", "sql-metadata"} | sqllineage_lib,
     "redshift": sql_common
-    | redshift_common
-    | usage_common
-    | sqlglot_lib
-    | {"cachetools"},
+                | redshift_common
+                | usage_common
+                | sqlglot_lib
+                | {"cachetools"},
     "s3": {*s3_base, *data_lake_profiling},
     "gcs": {*s3_base, *data_lake_profiling},
     "sagemaker": aws_common,
@@ -381,9 +389,9 @@ plugins: Dict[str, Set[str]] = {
     # to remove that dependency.
     "tableau": {"tableauserverclient>=0.17.0"} | sqllineage_lib | sqlglot_lib,
     "teradata": sql_common
-    | usage_common
-    | sqlglot_lib
-    | {"teradatasqlalchemy>=17.20.0.0"},
+                | usage_common
+                | sqlglot_lib
+                | {"teradatasqlalchemy>=17.20.0.0"},
     "trino": sql_common | trino,
     "starburst-trino-usage": sql_common | usage_common | trino,
     "nifi": {"requests", "packaging", "requests-gssapi"},
@@ -731,13 +739,13 @@ See the [DataHub docs](https://datahubproject.io/docs/metadata-ingestion).
                 | (
                     plugin_common
                     if plugin
-                    not in {
-                        "airflow",
-                        "datahub-rest",
-                        "datahub-kafka",
-                        "sync-file-emitter",
-                        "sql-parser",
-                    }
+                       not in {
+                           "airflow",
+                           "datahub-rest",
+                           "datahub-kafka",
+                           "sync-file-emitter",
+                           "sql-parser",
+                       }
                     else set()
                 )
                 | dependencies
@@ -754,6 +762,7 @@ See the [DataHub docs](https://datahubproject.io/docs/metadata-ingestion).
             )
         ),
         "cloud": ["acryl-datahub-cloud"],
+        "aws-msk-iam-sasl-singer": list(aws_msk_iam_sasl_signer),
         "dev": list(dev_requirements),
         "testing-utils": list(test_api_requirements),  # To import `datahub.testing`
         "integration-tests": list(full_test_dev_requirements),

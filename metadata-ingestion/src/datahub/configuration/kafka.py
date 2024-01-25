@@ -2,6 +2,8 @@ from pydantic import Field, validator
 
 from datahub.configuration.common import ConfigModel
 from datahub.configuration.validate_host_port import validate_host_port
+from datahub.ingestion.api.registry import import_path
+from datahub.utilities.oauth_cb_providers.base_oauth_cb_provider import BaseOAuthCbProvider
 
 
 class _KafkaConnectionConfig(ConfigModel):
@@ -36,6 +38,10 @@ class KafkaConsumerConnectionConfig(_KafkaConnectionConfig):
         description="Extra consumer config serialized as JSON. These options will be passed into Kafka's DeserializingConsumer. See https://docs.confluent.io/platform/current/clients/confluent-kafka-python/html/index.html#deserializingconsumer and https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md .",
     )
 
+    if "oauth_cb_provider_class" in consumer_config:
+        oauth_cb_provider_class: BaseOAuthCbProvider = import_path(consumer_config["oauth_cb_provider_class"])
+        consumer_config["oauth_cb"] = oauth_cb_provider_class.oauth_cb
+
 
 class KafkaProducerConnectionConfig(_KafkaConnectionConfig):
     """Configuration class for holding connectivity information for Kafka producers"""
@@ -44,3 +50,8 @@ class KafkaProducerConnectionConfig(_KafkaConnectionConfig):
         default_factory=dict,
         description="Extra producer config serialized as JSON. These options will be passed into Kafka's SerializingProducer. See https://docs.confluent.io/platform/current/clients/confluent-kafka-python/html/index.html#serializingproducer and https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md .",
     )
+
+    if "oauth_cb_provider_class" in producer_config:
+        oauth_cb_provider_class: BaseOAuthCbProvider = import_path(producer_config["oauth_cb_provider_class"])
+        producer_config["oauth_cb"] = oauth_cb_provider_class.oauth_cb
+
