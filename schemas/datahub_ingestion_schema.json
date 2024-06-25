@@ -2846,8 +2846,8 @@
                     "description": "Usage related configs",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-06-21T07:57:25.517929+00:00",
-                        "start_time": "2024-06-20T00:00:00+00:00",
+                        "end_time": "2024-06-25T22:57:38.175259+00:00",
+                        "start_time": "2024-06-24T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -6338,10 +6338,28 @@
                     "default": true,
                     "type": "boolean"
                 },
+                "include_primary_keys": {
+                    "title": "Include Primary Keys",
+                    "description": "If enabled, populates the snowflake primary keys.",
+                    "default": true,
+                    "type": "boolean"
+                },
+                "include_foreign_keys": {
+                    "title": "Include Foreign Keys",
+                    "description": "If enabled, populates the snowflake foreign keys.",
+                    "default": true,
+                    "type": "boolean"
+                },
                 "include_column_lineage": {
                     "title": "Include Column Lineage",
                     "description": "Populates table->table and view->table column lineage. Requires appropriate grants given to the role and the Snowflake Enterprise Edition or above.",
                     "default": true,
+                    "type": "boolean"
+                },
+                "lazy_schema_resolver": {
+                    "title": "Lazy Schema Resolver",
+                    "description": "If enabled, uses lazy schema resolver to resolve schemas for tables and views. This is useful if you have a large number of schemas and want to avoid bulk fetching the schema for each table/view.",
+                    "default": false,
                     "type": "boolean"
                 },
                 "extract_tags": {
@@ -9389,8 +9407,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-06-21T07:57:41.234936+00:00",
-                        "start_time": "2024-06-20T00:00:00+00:00",
+                        "end_time": "2024-06-25T22:57:54.438472+00:00",
+                        "start_time": "2024-06-24T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -11783,8 +11801,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-06-21T07:57:40.735849+00:00",
-                        "start_time": "2024-06-20T00:00:00+00:00",
+                        "end_time": "2024-06-25T22:57:53.935988+00:00",
+                        "start_time": "2024-06-24T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -13721,10 +13739,7 @@
                     "description": "Catalog configuration where to find Iceberg tables.  Only one catalog specification is supported.  The format is the same as [pyiceberg's catalog configuration](https://py.iceberg.apache.org/configuration/), where the catalog name is specified as the object name and attributes are set as key-value pairs.",
                     "type": "object",
                     "additionalProperties": {
-                        "type": "object",
-                        "additionalProperties": {
-                            "type": "string"
-                        }
+                        "type": "object"
                     }
                 },
                 "table_pattern": {
