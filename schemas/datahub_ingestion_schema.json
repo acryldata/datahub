@@ -2846,8 +2846,8 @@
                     "description": "Usage related configs",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-06-28T19:54:27.314537+00:00",
-                        "start_time": "2024-06-27T00:00:00+00:00",
+                        "end_time": "2024-07-02T10:09:08.713215+00:00",
+                        "start_time": "2024-07-01T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -9407,8 +9407,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-06-28T19:54:43.092264+00:00",
-                        "start_time": "2024-06-27T00:00:00+00:00",
+                        "end_time": "2024-07-02T10:09:23.871700+00:00",
+                        "start_time": "2024-07-01T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -11495,6 +11495,33 @@
                     "description": "Whether to extract column level lineage. Works only if configs `native_query_parsing`, `enable_advance_lineage_sql_construct` & `extract_lineage` are enabled.Works for M-Query where native SQL is used for transformation.",
                     "default": false,
                     "type": "boolean"
+                },
+                "profile_pattern": {
+                    "title": "Profile Pattern",
+                    "description": "Regex patterns to filter tables for profiling during ingestion. Note that only tables allowed by the `table_pattern` will be considered. Matched format is 'workspacename.datasetname.tablename'",
+                    "default": {
+                        "allow": [
+                            ".*"
+                        ],
+                        "deny": [],
+                        "ignoreCase": true
+                    },
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/AllowDenyPattern"
+                        }
+                    ]
+                },
+                "profiling": {
+                    "title": "Profiling",
+                    "default": {
+                        "enabled": false
+                    },
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/PowerBiProfilingConfig"
+                        }
+                    ]
                 }
             },
             "required": [
@@ -11801,8 +11828,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-06-28T19:54:42.594931+00:00",
-                        "start_time": "2024-06-27T00:00:00+00:00",
+                        "end_time": "2024-07-02T10:09:23.391127+00:00",
+                        "start_time": "2024-07-01T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -16777,6 +16804,19 @@
                     "items": {
                         "type": "string"
                     }
+                }
+            },
+            "additionalProperties": false
+        },
+        "PowerBiProfilingConfig": {
+            "title": "PowerBiProfilingConfig",
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "title": "Enabled",
+                    "description": "Whether profiling of PowerBI datasets should be done",
+                    "default": false,
+                    "type": "boolean"
                 }
             },
             "additionalProperties": false
