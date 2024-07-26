@@ -246,8 +246,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-07-25T19:26:41.820657+00:00",
-                        "start_time": "2024-07-24T00:00:00+00:00",
+                        "end_time": "2024-07-26T10:00:08.238736+00:00",
+                        "start_time": "2024-07-25T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -6017,8 +6017,8 @@
                     "description": "Usage related configs",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-07-25T19:26:27.025823+00:00",
-                        "start_time": "2024-07-24T00:00:00+00:00",
+                        "end_time": "2024-07-26T09:59:54.390152+00:00",
+                        "start_time": "2024-07-25T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -6771,6 +6771,12 @@
                     "title": "Emit Used Explores Only",
                     "description": "When enabled, only explores that are used by a Dashboard/Look will be ingested.",
                     "default": true,
+                    "type": "boolean"
+                },
+                "include_platform_instance_in_urns": {
+                    "title": "Include Platform Instance In Urns",
+                    "description": "When enabled, platform instance will be added in dashboard and chart urn.",
+                    "default": false,
                     "type": "boolean"
                 }
             },
@@ -8029,8 +8035,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-07-25T19:26:42.329766+00:00",
-                        "start_time": "2024-07-24T00:00:00+00:00",
+                        "end_time": "2024-07-26T10:00:08.733317+00:00",
+                        "start_time": "2024-07-25T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
