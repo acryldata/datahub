@@ -246,7 +246,7 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-07-29T09:08:07.511260+00:00",
+                        "end_time": "2024-07-29T19:23:03.046461+00:00",
                         "start_time": "2024-07-28T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
@@ -6017,7 +6017,7 @@
                     "description": "Usage related configs",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-07-29T09:07:53.339297+00:00",
+                        "end_time": "2024-07-29T19:22:48.377893+00:00",
                         "start_time": "2024-07-28T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
@@ -8035,7 +8035,7 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-07-29T09:08:08.005344+00:00",
+                        "end_time": "2024-07-29T19:23:03.553003+00:00",
                         "start_time": "2024-07-28T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
@@ -15303,6 +15303,18 @@
             "title": "GlueProfilingConfig",
             "type": "object",
             "properties": {
+                "enabled": {
+                    "title": "Enabled",
+                    "description": "Whether profiling should be done.",
+                    "default": false,
+                    "type": "boolean"
+                },
+                "profile_table_level_only": {
+                    "title": "Profile Table Level Only",
+                    "description": "Whether to perform profiling at table-level only, or include column-level profiling as well.",
+                    "default": false,
+                    "type": "boolean"
+                },
                 "row_count": {
                     "title": "Row Count",
                     "description": "The parameter name for row count in glue table.",
