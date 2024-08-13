@@ -888,8 +888,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-08-06T09:10:09.486509+00:00",
-                        "start_time": "2024-08-05T00:00:00+00:00",
+                        "end_time": "2024-08-13T15:49:15.607884+00:00",
+                        "start_time": "2024-08-12T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -7252,8 +7252,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-08-06T09:10:09.988367+00:00",
-                        "start_time": "2024-08-05T00:00:00+00:00",
+                        "end_time": "2024-08-13T15:49:16.108845+00:00",
+                        "start_time": "2024-08-12T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -11454,8 +11454,8 @@
                     "description": "Usage related configs",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-08-06T09:09:55.187881+00:00",
-                        "start_time": "2024-08-05T00:00:00+00:00",
+                        "end_time": "2024-08-13T15:49:01.450396+00:00",
+                        "start_time": "2024-08-12T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
