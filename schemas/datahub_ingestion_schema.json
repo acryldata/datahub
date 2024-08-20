@@ -888,8 +888,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-08-14T08:22:46.146745+00:00",
-                        "start_time": "2024-08-13T00:00:00+00:00",
+                        "end_time": "2024-08-20T09:42:15.769354+00:00",
+                        "start_time": "2024-08-19T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -3866,6 +3866,16 @@
                     "description": "A dictionary containing Liquid variables and their corresponding values, utilized in SQL-defined derived views. The Liquid template will be resolved in view.derived_table.sql and view.sql_table_name. Defaults to an empty dictionary.",
                     "default": {},
                     "type": "object"
+                },
+                "looker_environment": {
+                    "title": "Looker Environment",
+                    "description": "A looker prod or dev environment. It helps to evaluate looker if comments i.e. -- if prod --. All if comments are evaluated to true for configured looker_environment value",
+                    "default": "prod",
+                    "enum": [
+                        "prod",
+                        "dev"
+                    ],
+                    "type": "string"
                 }
             },
             "additionalProperties": false
@@ -7252,8 +7262,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-08-14T08:22:46.635765+00:00",
-                        "start_time": "2024-08-13T00:00:00+00:00",
+                        "end_time": "2024-08-20T09:42:16.258452+00:00",
+                        "start_time": "2024-08-19T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -11454,8 +11464,8 @@
                     "description": "Usage related configs",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-08-14T08:22:32.118352+00:00",
-                        "start_time": "2024-08-13T00:00:00+00:00",
+                        "end_time": "2024-08-20T09:42:01.831785+00:00",
+                        "start_time": "2024-08-19T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -14485,6 +14495,11 @@
                     "additionalProperties": {
                         "$ref": "#/definitions/AllowDenyPattern"
                     }
+                },
+                "api_version": {
+                    "title": "Api Version",
+                    "description": "If specified, overrides default version used by the Salesforce package. Example value: '59.0'",
+                    "type": "string"
                 },
                 "profiling": {
                     "title": "Profiling",
