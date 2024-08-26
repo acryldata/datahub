@@ -270,7 +270,7 @@
                 },
                 "classification": {
                     "title": "Classification",
-                    "description": "For details, refer [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
+                    "description": "For details, refer to [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
                     "default": {
                         "enabled": false,
                         "sample_size": 100,
@@ -323,7 +323,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "stateful_ingestion": {
@@ -587,7 +587,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "stateful_ingestion": {
@@ -870,7 +870,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "query_file": {
@@ -888,8 +888,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-08-22T10:17:48.164607+00:00",
-                        "start_time": "2024-08-21T00:00:00+00:00",
+                        "end_time": "2024-08-26T09:01:48.209362+00:00",
+                        "start_time": "2024-08-25T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -1000,7 +1000,7 @@
                 },
                 "classification": {
                     "title": "Classification",
-                    "description": "For details, refer [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
+                    "description": "For details, refer to [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
                     "default": {
                         "enabled": false,
                         "sample_size": 100,
@@ -1053,7 +1053,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "stateful_ingestion": {
@@ -1232,7 +1232,7 @@
             "properties": {
                 "classification": {
                     "title": "Classification",
-                    "description": "For details, refer [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
+                    "description": "For details, refer to [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
                     "default": {
                         "enabled": false,
                         "sample_size": 100,
@@ -1430,7 +1430,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "stateful_ingestion": {
@@ -1823,7 +1823,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "stateful_ingestion": {
@@ -2206,7 +2206,7 @@
                 },
                 "classification": {
                     "title": "Classification",
-                    "description": "For details, refer [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
+                    "description": "For details, refer to [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
                     "default": {
                         "enabled": false,
                         "sample_size": 100,
@@ -2259,7 +2259,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "stateful_ingestion": {
@@ -2634,7 +2634,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "max_retries": {
@@ -3014,7 +3014,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "stateful_ingestion": {
@@ -3210,7 +3210,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "stateful_ingestion": {
@@ -3301,7 +3301,7 @@
                 },
                 "classification": {
                     "title": "Classification",
-                    "description": "For details, refer [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
+                    "description": "For details, refer to [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
                     "default": {
                         "enabled": false,
                         "sample_size": 100,
@@ -3354,7 +3354,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "stateful_ingestion": {
@@ -3667,7 +3667,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "explore_naming_pattern": {
@@ -3937,7 +3937,7 @@
                 },
                 "classification": {
                     "title": "Classification",
-                    "description": "For details, refer [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
+                    "description": "For details, refer to [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
                     "default": {
                         "enabled": false,
                         "sample_size": 100,
@@ -3990,7 +3990,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "stateful_ingestion": {
@@ -4204,7 +4204,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "bucket_duration": {
@@ -4334,7 +4334,7 @@
                 },
                 "classification": {
                     "title": "Classification",
-                    "description": "For details, refer [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
+                    "description": "For details, refer to [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
                     "default": {
                         "enabled": false,
                         "sample_size": 100,
@@ -4683,7 +4683,7 @@
             "properties": {
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "stateful_ingestion": {
@@ -4900,7 +4900,7 @@
                 },
                 "classification": {
                     "title": "Classification",
-                    "description": "For details, refer [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
+                    "description": "For details, refer to [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
                     "default": {
                         "enabled": false,
                         "sample_size": 100,
@@ -4953,7 +4953,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "stateful_ingestion": {
@@ -5128,7 +5128,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "stateful_ingestion": {
@@ -5251,6 +5251,12 @@
                     "title": "Sort Schema Fields",
                     "description": "Whether to sort schema fields by fieldPath when inferring schemas.",
                     "default": false,
+                    "type": "boolean"
+                },
+                "generate_partition_aspects": {
+                    "title": "Generate Partition Aspects",
+                    "description": "Whether to generate partition aspects for partitioned tables. On older servers for backward compatibility, this should be set to False. This flag will be removed in future versions.",
+                    "default": true,
                     "type": "boolean"
                 }
             },
@@ -5500,7 +5506,7 @@
                 },
                 "classification": {
                     "title": "Classification",
-                    "description": "For details, refer [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
+                    "description": "For details, refer to [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
                     "default": {
                         "enabled": false,
                         "sample_size": 100,
@@ -5553,7 +5559,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "stateful_ingestion": {
@@ -5807,7 +5813,7 @@
                 },
                 "classification": {
                     "title": "Classification",
-                    "description": "For details, refer [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
+                    "description": "For details, refer to [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
                     "default": {
                         "enabled": false,
                         "sample_size": 100,
@@ -5860,7 +5866,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "stateful_ingestion": {
@@ -6082,7 +6088,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "connect_uri": {
@@ -6194,7 +6200,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "connect_uri": {
@@ -6397,7 +6403,7 @@
                 },
                 "classification": {
                     "title": "Classification",
-                    "description": "For details, refer [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
+                    "description": "For details, refer to [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
                     "default": {
                         "enabled": false,
                         "sample_size": 100,
@@ -6450,7 +6456,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "stateful_ingestion": {
@@ -6682,7 +6688,7 @@
                 },
                 "classification": {
                     "title": "Classification",
-                    "description": "For details, refer [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
+                    "description": "For details, refer to [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
                     "default": {
                         "enabled": false,
                         "sample_size": 100,
@@ -6735,7 +6741,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "stateful_ingestion": {
@@ -6984,7 +6990,7 @@
                 },
                 "classification": {
                     "title": "Classification",
-                    "description": "For details, refer [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
+                    "description": "For details, refer to [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
                     "default": {
                         "enabled": false,
                         "sample_size": 100,
@@ -7037,7 +7043,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "stateful_ingestion": {
@@ -7262,8 +7268,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-08-22T10:17:48.982995+00:00",
-                        "start_time": "2024-08-21T00:00:00+00:00",
+                        "end_time": "2024-08-26T09:01:48.692905+00:00",
+                        "start_time": "2024-08-25T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -7386,7 +7392,7 @@
                 },
                 "classification": {
                     "title": "Classification",
-                    "description": "For details, refer [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
+                    "description": "For details, refer to [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
                     "default": {
                         "enabled": false,
                         "sample_size": 100,
@@ -7439,7 +7445,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "stateful_ingestion": {
@@ -7751,7 +7757,7 @@
                 },
                 "classification": {
                     "title": "Classification",
-                    "description": "For details, refer [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
+                    "description": "For details, refer to [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
                     "default": {
                         "enabled": false,
                         "sample_size": 100,
@@ -7804,7 +7810,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "stateful_ingestion": {
@@ -8009,7 +8015,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "host": {
@@ -8209,7 +8215,7 @@
                 },
                 "classification": {
                     "title": "Classification",
-                    "description": "For details, refer [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
+                    "description": "For details, refer to [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
                     "default": {
                         "enabled": false,
                         "sample_size": 100,
@@ -8262,7 +8268,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "stateful_ingestion": {
@@ -8526,7 +8532,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "stateful_ingestion": {
@@ -8714,7 +8720,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "stateful_ingestion": {
@@ -8972,7 +8978,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "stateful_ingestion": {
@@ -9409,7 +9415,7 @@
                 },
                 "classification": {
                     "title": "Classification",
-                    "description": "For details, refer [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
+                    "description": "For details, refer to [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
                     "default": {
                         "enabled": false,
                         "sample_size": 100,
@@ -9462,7 +9468,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "stateful_ingestion": {
@@ -9741,7 +9747,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "explore_naming_pattern": {
@@ -9985,7 +9991,7 @@
             "properties": {
                 "classification": {
                     "title": "Classification",
-                    "description": "For details, refer [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
+                    "description": "For details, refer to [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
                     "default": {
                         "enabled": false,
                         "sample_size": 100,
@@ -10199,7 +10205,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "stateful_ingestion": {
@@ -10487,7 +10493,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "stateful_ingestion": {
@@ -11053,7 +11059,7 @@
             "properties": {
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "env": {
@@ -11149,7 +11155,7 @@
             "properties": {
                 "classification": {
                     "title": "Classification",
-                    "description": "For details, refer [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
+                    "description": "For details, refer to [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
                     "default": {
                         "enabled": false,
                         "sample_size": 100,
@@ -11221,22 +11227,6 @@
                     "default": true,
                     "type": "boolean"
                 },
-                "schema_pattern": {
-                    "title": "Schema Pattern",
-                    "description": "Regex patterns for schemas to filter in ingestion. Specify regex to only match the schema name. e.g. to match all tables in schema analytics, use the regex 'analytics'",
-                    "default": {
-                        "allow": [
-                            ".*"
-                        ],
-                        "deny": [],
-                        "ignoreCase": true
-                    },
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/AllowDenyPattern"
-                        }
-                    ]
-                },
                 "table_pattern": {
                     "title": "Table Pattern",
                     "description": "Regex patterns for tables to filter in ingestion. Specify regex to match the entire table name in database.schema.table format. e.g. to match all tables starting with customer in Customer database and public schema, use the regex 'Customer.public.customer.*'",
@@ -11289,7 +11279,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "stateful_ingestion": {
@@ -11408,6 +11398,88 @@
                         }
                     ]
                 },
+                "include_data_platform_instance": {
+                    "title": "Include Data Platform Instance",
+                    "description": "Whether to create a DataPlatformInstance aspect, equal to the BigQuery project id. If enabled, will cause redundancy in the browse path for BigQuery entities in the UI, because the project id is represented as the top-level container.",
+                    "default": false,
+                    "type": "boolean"
+                },
+                "enable_legacy_sharded_table_support": {
+                    "title": "Enable Legacy Sharded Table Support",
+                    "description": "Use the legacy sharded table urn suffix added.",
+                    "default": true,
+                    "type": "boolean"
+                },
+                "project_ids": {
+                    "title": "Project Ids",
+                    "description": "Ingests specified project_ids. Use this property if you want to specify what projects to ingest or don't want to give project resourcemanager.projects.list to your service account. Overrides `project_id_pattern`.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "project_labels": {
+                    "title": "Project Labels",
+                    "description": "Ingests projects with the specified labels. Set value in the format of `key:value`. Use this property to define which projects to ingest basedon project-level labels. If project_ids or project_id is set, this configuration has no effect. The ingestion process filters projects by label first, and then applies the project_id_pattern.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "project_id_pattern": {
+                    "title": "Project Id Pattern",
+                    "description": "Regex patterns for project_id to filter in ingestion.",
+                    "default": {
+                        "allow": [
+                            ".*"
+                        ],
+                        "deny": [],
+                        "ignoreCase": true
+                    },
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/AllowDenyPattern"
+                        }
+                    ]
+                },
+                "dataset_pattern": {
+                    "title": "Dataset Pattern",
+                    "description": "Regex patterns for dataset to filter in ingestion. Specify regex to only match the schema name. e.g. to match all tables in schema analytics, use the regex 'analytics'",
+                    "default": {
+                        "allow": [
+                            ".*"
+                        ],
+                        "deny": [],
+                        "ignoreCase": true
+                    },
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/AllowDenyPattern"
+                        }
+                    ]
+                },
+                "match_fully_qualified_names": {
+                    "title": "Match Fully Qualified Names",
+                    "description": "[deprecated] Whether `dataset_pattern` is matched against fully qualified dataset name `<project_id>.<dataset_name>`.",
+                    "default": true,
+                    "type": "boolean"
+                },
+                "table_snapshot_pattern": {
+                    "title": "Table Snapshot Pattern",
+                    "description": "Regex patterns for table snapshots to filter in ingestion. Specify regex to match the entire snapshot name in database.schema.snapshot format. e.g. to match all snapshots starting with customer in Customer database and public schema, use the regex 'Customer.public.customer.*'",
+                    "default": {
+                        "allow": [
+                            ".*"
+                        ],
+                        "deny": [],
+                        "ignoreCase": true
+                    },
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/AllowDenyPattern"
+                        }
+                    ]
+                },
                 "rate_limit": {
                     "title": "Rate Limit",
                     "description": "Should we rate limit requests made to API.",
@@ -11453,22 +11525,6 @@
                     "description": "[Advanced] The BigQuery project in which queries are executed. Will be passed when creating a job. If not passed, falls back to the project associated with the service account.",
                     "type": "string"
                 },
-                "project_id_pattern": {
-                    "title": "Project Id Pattern",
-                    "description": "Regex patterns for project_id to filter in ingestion.",
-                    "default": {
-                        "allow": [
-                            ".*"
-                        ],
-                        "deny": [],
-                        "ignoreCase": true
-                    },
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/AllowDenyPattern"
-                        }
-                    ]
-                },
                 "include_schema_metadata": {
                     "title": "Include Schema Metadata",
                     "description": "Whether to ingest the BigQuery schema, i.e. projects, schemas, tables, and views.",
@@ -11480,8 +11536,8 @@
                     "description": "Usage related configs",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-08-22T10:17:33.976459+00:00",
-                        "start_time": "2024-08-21T00:00:00+00:00",
+                        "end_time": "2024-08-26T09:01:34.465489+00:00",
+                        "start_time": "2024-08-25T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -11549,38 +11605,10 @@
                         }
                     ]
                 },
-                "dataset_pattern": {
-                    "title": "Dataset Pattern",
-                    "description": "Regex patterns for dataset to filter in ingestion. Specify regex to only match the schema name. e.g. to match all tables in schema analytics, use the regex 'analytics'",
-                    "default": {
-                        "allow": [
-                            ".*"
-                        ],
-                        "deny": [],
-                        "ignoreCase": true
-                    },
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/AllowDenyPattern"
-                        }
-                    ]
-                },
-                "match_fully_qualified_names": {
-                    "title": "Match Fully Qualified Names",
-                    "description": "[deprecated] Whether `dataset_pattern` is matched against fully qualified dataset name `<project_id>.<dataset_name>`.",
-                    "default": true,
-                    "type": "boolean"
-                },
                 "include_external_url": {
                     "title": "Include External Url",
                     "description": "Whether to populate BigQuery Console url to Datasets/Tables",
                     "default": true,
-                    "type": "boolean"
-                },
-                "include_data_platform_instance": {
-                    "title": "Include Data Platform Instance",
-                    "description": "Whether to create a DataPlatformInstance aspect, equal to the BigQuery project id. If enabled, will cause redundancy in the browse path for BigQuery entities in the UI, because the project id is represented as the top-level container.",
-                    "default": false,
                     "type": "boolean"
                 },
                 "include_table_snapshots": {
@@ -11588,22 +11616,6 @@
                     "description": "Whether table snapshots should be ingested.",
                     "default": true,
                     "type": "boolean"
-                },
-                "table_snapshot_pattern": {
-                    "title": "Table Snapshot Pattern",
-                    "description": "Regex patterns for table snapshots to filter in ingestion. Specify regex to match the entire snapshot name in database.schema.snapshot format. e.g. to match all snapshots starting with customer in Customer database and public schema, use the regex 'Customer.public.customer.*'",
-                    "default": {
-                        "allow": [
-                            ".*"
-                        ],
-                        "deny": [],
-                        "ignoreCase": true
-                    },
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/AllowDenyPattern"
-                        }
-                    ]
                 },
                 "debug_include_full_payloads": {
                     "title": "Debug Include Full Payloads",
@@ -11628,27 +11640,6 @@
                     "description": "Maximum number of columns to process in a table. This is a low level config property which should be touched with care. This restriction is needed because excessively wide tables can result in failure to ingest the schema.",
                     "default": 300,
                     "type": "integer"
-                },
-                "project_id": {
-                    "title": "Project Id",
-                    "description": "[deprecated] Use project_id_pattern or project_ids instead.",
-                    "type": "string"
-                },
-                "project_ids": {
-                    "title": "Project Ids",
-                    "description": "Ingests specified project_ids. Use this property if you want to specify what projects to ingest or don't want to give project resourcemanager.projects.list to your service account. Overrides `project_id_pattern`.",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "project_labels": {
-                    "title": "Project Labels",
-                    "description": "Ingests projects with the specified labels. Set value in the format of `key:value`. Use this property to define which projects to ingest basedon project-level labels. If project_ids or project_id is set, this configuration has no effect. The ingestion process filters projects by label first, and then applies the project_id_pattern.",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
                 },
                 "lineage_use_sql_parser": {
                     "title": "Lineage Use Sql Parser",
@@ -11678,12 +11669,6 @@
                     "title": "Extract Lineage From Catalog",
                     "description": "This flag enables the data lineage extraction from Data Lineage API exposed by Google Data Catalog. NOTE: This extractor can't build views lineage. It's recommended to enable the view's DDL parsing. Read the docs to have more information about: https://cloud.google.com/data-catalog/docs/concepts/about-data-lineage",
                     "default": false,
-                    "type": "boolean"
-                },
-                "enable_legacy_sharded_table_support": {
-                    "title": "Enable Legacy Sharded Table Support",
-                    "description": "Use the legacy sharded table urn suffix added.",
-                    "default": true,
                     "type": "boolean"
                 },
                 "extract_policy_tags_from_catalog": {
@@ -11796,7 +11781,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "stateful_ingestion": {
@@ -11972,7 +11957,7 @@
                 },
                 "classification": {
                     "title": "Classification",
-                    "description": "For details, refer [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
+                    "description": "For details, refer to [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
                     "default": {
                         "enabled": false,
                         "sample_size": 100,
@@ -12025,7 +12010,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "stateful_ingestion": {
@@ -12261,7 +12246,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "stateful_ingestion": {
@@ -12448,7 +12433,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "stateful_ingestion": {
@@ -12913,7 +12898,7 @@
                 },
                 "classification": {
                     "title": "Classification",
-                    "description": "For details, refer [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
+                    "description": "For details, refer to [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
                     "default": {
                         "enabled": false,
                         "sample_size": 100,
@@ -12960,7 +12945,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "stateful_ingestion": {
@@ -13198,7 +13183,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "stateful_ingestion": {
@@ -13362,7 +13347,7 @@
                 },
                 "classification": {
                     "title": "Classification",
-                    "description": "For details, refer [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
+                    "description": "For details, refer to [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
                     "default": {
                         "enabled": false,
                         "sample_size": 100,
@@ -13409,7 +13394,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "stateful_ingestion": {
@@ -13677,7 +13662,7 @@
                 },
                 "classification": {
                     "title": "Classification",
-                    "description": "For details, refer [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
+                    "description": "For details, refer to [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
                     "default": {
                         "enabled": false,
                         "sample_size": 100,
@@ -13730,7 +13715,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "stateful_ingestion": {
@@ -13948,7 +13933,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "stateful_ingestion": {
@@ -14224,7 +14209,7 @@
                 },
                 "classification": {
                     "title": "Classification",
-                    "description": "For details, refer [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
+                    "description": "For details, refer to [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
                     "default": {
                         "enabled": false,
                         "sample_size": 100,
@@ -14262,7 +14247,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "domain": {
@@ -14319,7 +14304,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "stateful_ingestion": {
@@ -14432,7 +14417,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "platform": {
@@ -14635,7 +14620,7 @@
                 },
                 "classification": {
                     "title": "Classification",
-                    "description": "For details, refer [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
+                    "description": "For details, refer to [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
                     "default": {
                         "enabled": false,
                         "sample_size": 100,
@@ -14688,7 +14673,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "stateful_ingestion": {
@@ -15665,7 +15650,7 @@
                 },
                 "platform_instance": {
                     "title": "Platform Instance",
-                    "description": "The instance of the platform that all assets produced by this recipe belong to",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
                     "type": "string"
                 },
                 "connector_database": {
@@ -15804,6 +15789,55 @@
             },
             "additionalProperties": false
         },
+        "SortKeyType": {
+            "title": "SortKeyType",
+            "description": "An enumeration.",
+            "enum": [
+                "STRING",
+                "INTEGER",
+                "FLOAT",
+                "DATETIME",
+                "DATE"
+            ]
+        },
+        "SortKey": {
+            "title": "SortKey",
+            "type": "object",
+            "properties": {
+                "key": {
+                    "title": "Key",
+                    "description": "The key to sort on. This can be a compound key based on the path_spec variables.",
+                    "type": "string"
+                },
+                "type": {
+                    "description": "The date format to use when sorting. This is used to parse the date from the key. The format should follow the java [SimpleDateFormat](https://docs.oracle.com/javase/8/docs/api/java/text/SimpleDateFormat.html) format.",
+                    "default": "STRING",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/SortKeyType"
+                        }
+                    ]
+                },
+                "date_format": {
+                    "title": "Date Format",
+                    "description": "The date format to use when sorting. This is used to parse the date from the key. The format should follow the java [SimpleDateFormat](https://docs.oracle.com/javase/8/docs/api/java/text/SimpleDateFormat.html) format.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "key"
+            ],
+            "additionalProperties": false
+        },
+        "FolderTraversalMethod": {
+            "title": "FolderTraversalMethod",
+            "description": "An enumeration.",
+            "enum": [
+                "ALL",
+                "MIN_MAX",
+                "MAX"
+            ]
+        },
         "PathSpec": {
             "title": "PathSpec",
             "type": "object",
@@ -15816,6 +15850,7 @@
                 "exclude": {
                     "title": "Exclude",
                     "description": "list of paths in glob pattern which will be excluded while scanning for the datasets",
+                    "default": [],
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -15861,6 +15896,27 @@
                 "allow_double_stars": {
                     "title": "Allow Double Stars",
                     "description": "Allow double stars in the include path. This can affect performance significantly if enabled",
+                    "default": false,
+                    "type": "boolean"
+                },
+                "autodetect_partitions": {
+                    "title": "Autodetect Partitions",
+                    "description": "Autodetect partition(s) from the path. If set to true, it will autodetect partition key/value if the folder format is {partition_key}={partition_value} for example `year=2024`",
+                    "default": true,
+                    "type": "boolean"
+                },
+                "traversal_method": {
+                    "description": "Method to traverse the folder. ALL: Traverse all the folders, MIN_MAX: Traverse the folders by finding min and max value, MAX: Traverse the folder with max value",
+                    "default": "MAX",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/FolderTraversalMethod"
+                        }
+                    ]
+                },
+                "include_hidden_folders": {
+                    "title": "Include Hidden Folders",
+                    "description": "Include hidden folders in the traversal (folders starting with . or _",
                     "default": false,
                     "type": "boolean"
                 }
