@@ -888,8 +888,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-08-26T09:01:48.209362+00:00",
-                        "start_time": "2024-08-25T00:00:00+00:00",
+                        "end_time": "2024-08-27T09:24:59.865548+00:00",
+                        "start_time": "2024-08-26T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -2847,6 +2847,167 @@
             },
             "required": [
                 "connect_uri"
+            ],
+            "additionalProperties": false
+        },
+        "sac": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "sac"
+                    ]
+                },
+                "config": {
+                    "$ref": "#/definitions/sac_config"
+                }
+            },
+            "required": [
+                "type",
+                "config"
+            ]
+        },
+        "sac_config": {
+            "title": "SACSourceConfig",
+            "description": "Base configuration class for stateful ingestion for source configs to inherit from.",
+            "type": "object",
+            "properties": {
+                "incremental_lineage": {
+                    "title": "Incremental Lineage",
+                    "description": "When enabled, emits lineage as incremental to existing lineage already in DataHub. When disabled, re-states lineage on each run.",
+                    "default": false,
+                    "type": "boolean"
+                },
+                "env": {
+                    "title": "Env",
+                    "description": "The environment that all assets produced by this connector belong to",
+                    "default": "PROD",
+                    "type": "string"
+                },
+                "platform_instance": {
+                    "title": "Platform Instance",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
+                    "type": "string"
+                },
+                "stateful_ingestion": {
+                    "title": "Stateful Ingestion",
+                    "description": "Stateful ingestion related configs",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/StatefulStaleMetadataRemovalConfig"
+                        }
+                    ]
+                },
+                "tenant_url": {
+                    "title": "Tenant Url",
+                    "description": "URL of the SAP Analytics Cloud tenant",
+                    "type": "string"
+                },
+                "token_url": {
+                    "title": "Token Url",
+                    "description": "URL of the OAuth token endpoint of the SAP Analytics Cloud tenant",
+                    "type": "string"
+                },
+                "client_id": {
+                    "title": "Client Id",
+                    "description": "Client ID for the OAuth authentication",
+                    "type": "string"
+                },
+                "client_secret": {
+                    "title": "Client Secret",
+                    "description": "Client secret for the OAuth authentication",
+                    "type": "string",
+                    "writeOnly": true,
+                    "format": "password"
+                },
+                "ingest_stories": {
+                    "title": "Ingest Stories",
+                    "description": "Controls whether Stories should be ingested",
+                    "default": true,
+                    "type": "boolean"
+                },
+                "ingest_applications": {
+                    "title": "Ingest Applications",
+                    "description": "Controls whether Analytic Applications should be ingested",
+                    "default": true,
+                    "type": "boolean"
+                },
+                "ingest_import_data_model_schema_metadata": {
+                    "title": "Ingest Import Data Model Schema Metadata",
+                    "description": "Controls whether schema metadata of Import Data Models should be ingested (ingesting schema metadata of Import Data Models significantly increases overall ingestion time)",
+                    "default": true,
+                    "type": "boolean"
+                },
+                "resource_id_pattern": {
+                    "title": "Resource Id Pattern",
+                    "description": "Patterns for selecting resource ids that are to be included",
+                    "default": {
+                        "allow": [
+                            ".*"
+                        ],
+                        "deny": [],
+                        "ignoreCase": true
+                    },
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/AllowDenyPattern"
+                        }
+                    ]
+                },
+                "resource_name_pattern": {
+                    "title": "Resource Name Pattern",
+                    "description": "Patterns for selecting resource names that are to be included",
+                    "default": {
+                        "allow": [
+                            ".*"
+                        ],
+                        "deny": [],
+                        "ignoreCase": true
+                    },
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/AllowDenyPattern"
+                        }
+                    ]
+                },
+                "folder_pattern": {
+                    "title": "Folder Pattern",
+                    "description": "Patterns for selecting folders that are to be included",
+                    "default": {
+                        "allow": [
+                            ".*"
+                        ],
+                        "deny": [],
+                        "ignoreCase": true
+                    },
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/AllowDenyPattern"
+                        }
+                    ]
+                },
+                "connection_mapping": {
+                    "title": "Connection Mapping",
+                    "description": "Custom mappings for connections",
+                    "default": {},
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/ConnectionMappingConfig"
+                    }
+                },
+                "query_name_template": {
+                    "title": "Query Name Template",
+                    "description": "Template for generating dataset urns of consumed queries, the placeholder {query} can be used within the template for inserting the name of the query",
+                    "default": "QUERY/{name}",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "tenant_url",
+                "token_url",
+                "client_id",
+                "client_secret"
             ],
             "additionalProperties": false
         },
@@ -7268,8 +7429,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-08-26T09:01:48.692905+00:00",
-                        "start_time": "2024-08-25T00:00:00+00:00",
+                        "end_time": "2024-08-27T09:25:00.689390+00:00",
+                        "start_time": "2024-08-26T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -11536,8 +11697,8 @@
                     "description": "Usage related configs",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-08-26T09:01:34.465489+00:00",
-                        "start_time": "2024-08-25T00:00:00+00:00",
+                        "end_time": "2024-08-27T09:24:45.416687+00:00",
+                        "start_time": "2024-08-26T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -15750,6 +15911,30 @@
             },
             "additionalProperties": false
         },
+        "ConnectionMappingConfig": {
+            "title": "ConnectionMappingConfig",
+            "description": "Any source that produces dataset urns in a single environment should inherit this class",
+            "type": "object",
+            "properties": {
+                "env": {
+                    "title": "Env",
+                    "description": "The environment that this connection mapping belongs to",
+                    "default": "PROD",
+                    "type": "string"
+                },
+                "platform": {
+                    "title": "Platform",
+                    "description": "The platform that this connection mapping belongs to",
+                    "type": "string"
+                },
+                "platform_instance": {
+                    "title": "Platform Instance",
+                    "description": "The instance of the platform that this connection mapping belongs to",
+                    "type": "string"
+                }
+            },
+            "additionalProperties": false
+        },
         "ModeAPIConfig": {
             "title": "ModeAPIConfig",
             "type": "object",
@@ -17697,6 +17882,9 @@
                 },
                 {
                     "$ref": "#/definitions/tableau"
+                },
+                {
+                    "$ref": "#/definitions/sac"
                 },
                 {
                     "$ref": "#/definitions/mode"
