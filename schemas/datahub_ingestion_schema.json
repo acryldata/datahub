@@ -888,8 +888,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-08-30T06:17:28.108107+00:00",
-                        "start_time": "2024-08-29T00:00:00+00:00",
+                        "end_time": "2024-09-02T10:06:44.490892+00:00",
+                        "start_time": "2024-09-01T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -5320,6 +5320,12 @@
                     "description": "Whether or not to create tags in datahub from the s3 object",
                     "type": "boolean"
                 },
+                "use_s3_content_type": {
+                    "title": "Use S3 Content Type",
+                    "description": "If enabled, use S3 Object metadata to determine content type over file extension, if set. Warning: this requires a separate query to S3 for each object, which can be slow for large datasets.",
+                    "default": false,
+                    "type": "boolean"
+                },
                 "profile_patterns": {
                     "title": "Profile Patterns",
                     "description": "regex patterns for tables to profile ",
@@ -7429,8 +7435,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-08-30T06:17:28.601038+00:00",
-                        "start_time": "2024-08-29T00:00:00+00:00",
+                        "end_time": "2024-09-02T10:06:45.006704+00:00",
+                        "start_time": "2024-09-01T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -11697,8 +11703,8 @@
                     "description": "Usage related configs",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-08-30T06:17:13.891655+00:00",
-                        "start_time": "2024-08-29T00:00:00+00:00",
+                        "end_time": "2024-09-02T10:06:30.131336+00:00",
+                        "start_time": "2024-09-01T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -11793,6 +11799,12 @@
                 "use_tables_list_query_v2": {
                     "title": "Use Tables List Query V2",
                     "description": "List tables using an improved query that extracts partitions and last modified timestamps more accurately. Requires the ability to read table data. Automatically enabled when profiling is enabled.",
+                    "default": false,
+                    "type": "boolean"
+                },
+                "use_queries_v2": {
+                    "title": "Use Queries V2",
+                    "description": "If enabled, uses the new queries extractor to extract queries from bigquery.",
                     "default": false,
                     "type": "boolean"
                 },
@@ -14489,6 +14501,22 @@
                 "connector_patterns": {
                     "title": "Connector Patterns",
                     "description": "Regex patterns for connectors to filter in ingestion.",
+                    "default": {
+                        "allow": [
+                            ".*"
+                        ],
+                        "deny": [],
+                        "ignoreCase": true
+                    },
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/AllowDenyPattern"
+                        }
+                    ]
+                },
+                "destination_patterns": {
+                    "title": "Destination Patterns",
+                    "description": "Regex patterns for destinations to filter in ingestion.",
                     "default": {
                         "allow": [
                             ".*"
