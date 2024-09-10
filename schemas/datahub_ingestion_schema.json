@@ -712,8 +712,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-09-09T10:40:06.359175+00:00",
-                        "start_time": "2024-09-08T00:00:00+00:00",
+                        "end_time": "2024-09-10T04:37:51.231311+00:00",
+                        "start_time": "2024-09-09T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -1150,8 +1150,8 @@
                     "description": "Usage related configs",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-09-09T10:39:52.299970+00:00",
-                        "start_time": "2024-09-08T00:00:00+00:00",
+                        "end_time": "2024-09-10T04:37:36.757965+00:00",
+                        "start_time": "2024-09-09T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -1726,8 +1726,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-09-09T10:40:07.148890+00:00",
-                        "start_time": "2024-09-08T00:00:00+00:00",
+                        "end_time": "2024-09-10T04:37:51.730681+00:00",
+                        "start_time": "2024-09-09T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -2393,6 +2393,12 @@
                     "title": "Page Size",
                     "description": "[advanced] Number of metadata objects (e.g. CustomSQLTable, PublishedDatasource, etc) to query at a time using the Tableau API.",
                     "default": 10,
+                    "type": "integer"
+                },
+                "fetch_size": {
+                    "title": "Fetch Size",
+                    "description": "Specifies the number of records to retrieve in each batch during a query execution.",
+                    "default": 250,
                     "type": "integer"
                 },
                 "workbook_page_size": {
