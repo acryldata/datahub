@@ -1,74 +1,98 @@
 .container {
+  position: relative;
   display: flex;
   flex-direction: column;
   background: #fafafa;
   font-family: "Manrope";
 }
+
 .case_study {
   display: flex;
   flex-direction: column;
   width: 80vw;
   margin: 5rem auto;
+  position: relative;
 
-  .case_study_heading {
-    text-align: center;
-    font-family: "Manrope";
+  .arrow {
+    position: absolute;
+    top: 45%;
+    transform: translateY(-50%);
+    background-color: rgba(0, 0, 0, 0.3);
+    color: white;
+    border: none;
+    padding: 10px;
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 10;
+  }
 
-    div {
-      font-size: 3.5rem;
-      line-height: normal;
-    }
-    p {
-      font-size: 1.8rem;
-      margin-top: 10px;
-    }
+  .left_arrow {
+    left: -40px;
+  }
+
+  .right_arrow {
+    right: -40px;
   }
 
   .card_row {
     display: flex;
     gap: 1rem;
     margin-top: 30px;
+    overflow-x: auto;
+    white-space: nowrap;
+    scroll-behavior: smooth;
+    -ms-overflow-style: none; /* Hide scrollbar in IE and Edge */
+    scrollbar-width: none; /* Hide scrollbar in Firefox */
+  }
 
-    .card {
-      position: relative;
-      width: 25%;
-      border-radius: 20px;
-      background: white;
-      padding: 5px;
-      padding-bottom: 15px;
+  .card_row::-webkit-scrollbar {
+    display: none; /* Hide scrollbar in Chrome, Safari, and Opera */
+  }
 
-      img {
-        width: 100%;
-        height: 70%;
-        object-fit: cover;
-        border-radius: 15px;
+  .card {
+    flex: 0 0 auto;
+    width: 25%;
+    min-width: 300px;
+    border-radius: 20px;
+    background: white;
+    padding: 5px;
+    padding-bottom: 15px;
+
+    img {
+      width: 100%;
+      height: 70%;
+      object-fit: cover;
+      border-radius: 15px;
+    }
+
+    .card_tag {
+      position: absolute;
+      right: 0.8rem;
+      top: 0.8rem;
+      background: #edf2ff;
+      color: rgb(58, 57, 57);
+      font-size: 10px;
+      padding: 0.3rem;
+      border-radius: 0.5rem;
+    }
+
+    .card_heading_div {
+      padding: 0 10px 10px;
+
+      .card_heading {
+        font-size: 1.5rem;
+        font-weight: bold;
       }
-      .card_tag {
-        position: absolute;
-        right: 0.8rem;
-        top: 0.8rem;
-        background: #edf2ff;
-        color: rgb(58, 57, 57);
-        font-size: 10px;
-        padding: 0.3rem;
-        border-radius: 0.5rem;
-      }
-      .card_heading_div {
-        padding: 0 10px 10px;
-        .card_heading {
-          font-size: 1.5rem;
-          font-weight: bold;
-        }
-        .card_para {
-          font-size: 1rem;
-          margin-top: 5px;
-          line-height: normal;
-          display: -webkit-box;
-          -webkit-line-clamp: 2;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
+
+      .card_para {
+        font-size: 1rem;
+        margin-top: 5px;
+        line-height: normal;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
     }
   }
@@ -94,8 +118,6 @@
 
 @media (max-width: 480px) {
   .case_study {
-    display: flex;
-    flex-direction: column;
     width: 100%;
     margin: 5rem auto;
 
@@ -110,6 +132,7 @@
         line-height: normal;
         font-weight: 500;
       }
+
       p {
         width: 65%;
         margin: auto;
@@ -120,51 +143,61 @@
     }
 
     .card_row {
-      display: flex;
-      flex-direction: column;
+      flex-direction: row;
       gap: 1rem;
-      margin-top: 30px;
+      overflow-x: scroll;
+      scroll-behavior: smooth;
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
 
-      .card {
-        position: relative;
+    .card_row::-webkit-scrollbar {
+      display: none;
+    }
+
+    .card {
+      min-width: 70%;
+      flex-shrink: 0;
+      border-radius: 20px;
+      background: white;
+      padding: 5px;
+      padding-bottom: 15px;
+
+      img {
         width: 100%;
-        border-radius: 20px;
-        background: white;
-        padding: 5px;
-        padding-bottom: 15px;
+        height: 70%;
+        object-fit: cover;
+        border-radius: 15px;
+      }
 
-        img {
-          width: 100%;
-          height: 70%;
-          object-fit: cover;
-          border-radius: 15px;
+      .card_tag {
+        position: absolute;
+        right: 0.8rem;
+        top: 0.8rem;
+        background: #edf2ff;
+        color: rgb(58, 57, 57);
+        font-size: 10px;
+        padding: 0.3rem;
+        border-radius: 0.5rem;
+      }
+
+      .card_heading_div {
+        padding: 0 10px 10px;
+
+        .card_heading {
+          font-size: 1.5rem;
+          font-weight: bold;
         }
-        .card_tag {
-          position: absolute;
-          right: 0.8rem;
-          top: 0.8rem;
-          background: #edf2ff;
-          color: rgb(58, 57, 57);
-          font-size: 10px;
-          padding: 0.3rem;
-          border-radius: 0.5rem;
-        }
-        .card_heading_div {
-          padding: 0 10px 10px;
-          .card_heading {
-            font-size: 1.5rem;
-            font-weight: bold;
-          }
-          .card_para {
-            font-size: 1rem;
-            margin-top: 5px;
-            line-height: normal;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-            text-overflow: ellipsis;
-          }
+
+        .card_para {
+          font-size: 1rem;
+          margin-top: 5px;
+          line-height: normal;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
       }
     }

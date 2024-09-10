@@ -16,6 +16,7 @@ import Ecosystem from "./_components/Ecosystem";
 import Community from "./_components/Community";
 import CaseStudy from "./_components/CaseStudy";
 import Trial from "./_components/Trial";
+import SocialMedia from "./_components/SocialMedia";
 
 const example_recipe = `
 source:
@@ -63,6 +64,7 @@ function Home() {
       {/* <Features /> */}
       <Ecosystem />
       <Community />
+      <SocialMedia />
       <CaseStudy />
       <Trial />
       {/* <Section>
