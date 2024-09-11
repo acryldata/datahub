@@ -1,6 +1,5 @@
 import React, { useEffect, useRef } from "react";
 import styles from "./social-media.module.scss";
-import Test from "./Test";
 
 const SocialMedia = () => {
   const secondCardRef = useRef(null);
@@ -71,11 +70,57 @@ const SocialMedia = () => {
         </div>
         <div className={styles.sm_right}>
           <div className={styles.sm_right_card_list}>
-            <div className={styles.sm_right_card}>Card-A</div>
-            <div className={styles.sm_right_card} ref={secondCardRef}>
-              Card-B
+            <div className={styles.sm_right_card}>
+              <div className={styles.sm_right_card_media}>
+                <img
+                  src="https://img.freepik.com/free-photo/smiley-businesswoman-posing-city-with-arms-crossed_23-2148767033.jpg?size=626&ext=jpg"
+                  alt=""
+                />
+              </div>
+              <div className={styles.sm_right_card_text}>
+                <h5>
+                  Kathleen Maley from Experian <br />
+                  talks about data leadership
+                </h5>
+                <p>
+                  VP Data Analytics, Experian 12 Aug 2024 <span>12k</span>
+                </p>
+              </div>
             </div>
-            <div className={styles.sm_right_card}>Card-C</div>
+            <div className={styles.sm_right_card} ref={secondCardRef}>
+              <div className={styles.sm_right_card_media}>
+                <img
+                  src="https://img.freepik.com/free-photo/smiley-businesswoman-posing-city-with-arms-crossed_23-2148767033.jpg?size=626&ext=jpg"
+                  alt=""
+                />
+              </div>
+              <div className={styles.sm_right_card_text}>
+                <h5>
+                  Kathleen Maley from Experian <br />
+                  talks about data leadership
+                </h5>
+                <p>
+                  VP Data Analytics, Experian 12 Aug 2024 <span>12k</span>
+                </p>
+              </div>
+            </div>
+            <div className={styles.sm_right_card}>
+              <div className={styles.sm_right_card_media}>
+                <img
+                  src="https://img.freepik.com/free-photo/smiley-businesswoman-posing-city-with-arms-crossed_23-2148767033.jpg?size=626&ext=jpg"
+                  alt=""
+                />
+              </div>
+              <div className={styles.sm_right_card_text}>
+                <h5>
+                  Kathleen Maley from Experian <br />
+                  talks about data leadership
+                </h5>
+                <p>
+                  VP Data Analytics, Experian 12 Aug 2024 <span>12k</span>
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
