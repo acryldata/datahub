@@ -69,6 +69,9 @@
 .quickstart {
   width: 80vw;
   margin: 5rem auto;
+  display: flex;
+  flex-direction: column;
+  gap: 100px;
 
   :global {
     .quickstart__header {
@@ -87,26 +90,44 @@
       }
     }
 
+    .quickstart__bar {
+        content: "";
+
+        width: 10px;
+        position: absolute;
+
+        background: linear-gradient(180deg, #29B5E8 18.71%, #FFBF4C 143.37%);
+        border-radius: 10px;
+        transition: height 0.3s;
+        animation: progress 0.3s linear;
+
+        /* Inside auto layout */
+        display: block;
+    }
+
+    @keyframes progress {
+      0% {
+        height: 0;
+      }
+      100% {
+        height: 100%;
+      }
+    }
+
+    .quickstart__container {
+      max-height: 52vh;
+      overflow-y: auto;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
     .quickstart__content {
       display: flex;
       margin-top: 3rem;
 
       .quickstart__text {
-
-        &::before {
-          content: "";
-
-          height: 398px;
-          width: 10px;
-          position: absolute;
-
-          background: linear-gradient(180deg, #29B5E8 18.71%, #FFBF4C 143.37%);
-          border-radius: 10px;
-
-          /* Inside auto layout */
-          display: block;
-        }
-
+        max-width: 45vw;
+        
         div {
           padding-left: 10%;
         }
@@ -117,7 +138,7 @@
           font-family: 'Manrope';
           font-style: normal;
           font-weight: 700;
-          font-size: 1.5rem;
+          font-size: 1.25rem;
           line-height: 27px;
           letter-spacing: 0.4em;
           text-transform: uppercase;
@@ -131,8 +152,8 @@
           font-family: 'Manrope';
           font-style: normal;
           font-weight: 600;
-          font-size: 2.5rem;
-          line-height: 40px;
+          font-size: 2.25rem;
+          line-height: 49px;
 
           color: #171B2B;
           margin-top: 1.5rem;
@@ -144,8 +165,8 @@
           font-family: 'Manrope';
           font-style: normal;
           font-weight: 400;
-          font-size: 1.2rem;
-          line-height: 25px;
+          font-size: 1.25rem;
+          line-height: 32px;
           /* Text|Light */
           color: #838BA8;
 
@@ -162,11 +183,11 @@
 
       .quickstart__img {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         justify-content: center;
 
         img {
-          width: 80%;
+          width: 100%;
         }
       }
     }
