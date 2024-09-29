@@ -3366,8 +3366,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-09-27T11:22:08.257598+00:00",
-                        "start_time": "2024-09-26T00:00:00+00:00",
+                        "end_time": "2024-09-29T15:12:18.011791+00:00",
+                        "start_time": "2024-09-28T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -5085,8 +5085,8 @@
                     "description": "Usage related configs",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-09-27T11:21:53.049459+00:00",
-                        "start_time": "2024-09-26T00:00:00+00:00",
+                        "end_time": "2024-09-29T15:12:02.747243+00:00",
+                        "start_time": "2024-09-28T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -12133,8 +12133,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-09-27T11:22:07.746599+00:00",
-                        "start_time": "2024-09-26T00:00:00+00:00",
+                        "end_time": "2024-09-29T15:12:17.507041+00:00",
+                        "start_time": "2024-09-28T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -14666,7 +14666,23 @@
                 },
                 "project_pattern": {
                     "title": "Project Pattern",
-                    "description": "Filter for specific Tableau projects. For example, use 'My Project' to ingest a root-level Project with name 'My Project', or 'My Project/Nested Project' to ingest a nested Project with name 'Nested Project'. By default, all Projects nested inside a matching Project will be included in ingestion. You can both allow and deny projects based on their name using their name, or a Regex pattern. Deny patterns always take precedence over allow patterns. By default, all projects will be ingested.",
+                    "description": "[deprecated] Use project_path_pattern instead. Filter for specific Tableau projects. For example, use 'My Project' to ingest a root-level Project with name 'My Project', or 'My Project/Nested Project' to ingest a nested Project with name 'Nested Project'. By default, all Projects nested inside a matching Project will be included in ingestion. You can both allow and deny projects based on their name using their name, or a Regex pattern. Deny patterns always take precedence over allow patterns. By default, all projects will be ingested.",
+                    "default": {
+                        "allow": [
+                            ".*"
+                        ],
+                        "deny": [],
+                        "ignoreCase": true
+                    },
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/AllowDenyPattern"
+                        }
+                    ]
+                },
+                "project_path_pattern": {
+                    "title": "Project Path Pattern",
+                    "description": "Filters Tableau projects by their full path. For instance, 'My Project/Nested Project' targets a specific nested project named 'Nested Project'. This is also useful when you need to exclude all nested projects under a particular project. You can allow or deny projects by specifying their path or a regular expression pattern. Deny patterns always override allow patterns. By default, all projects are ingested.",
                     "default": {
                         "allow": [
                             ".*"
