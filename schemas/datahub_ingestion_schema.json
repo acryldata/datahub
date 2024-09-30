@@ -1326,6 +1326,16 @@
                     "description": "The password credential.",
                     "type": "string"
                 },
+                "api_key": {
+                    "title": "Api Key",
+                    "description": "API Key authentication. Accepts either a list with id and api_key (UTF-8 representation), or a base64 encoded string of id and api_key combined by ':'.",
+                    "anyOf": [
+                        {},
+                        {
+                            "type": "string"
+                        }
+                    ]
+                },
                 "use_ssl": {
                     "title": "Use Ssl",
                     "description": "Whether to use SSL for the connection or not.",
@@ -3366,8 +3376,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-09-29T15:12:18.011791+00:00",
-                        "start_time": "2024-09-28T00:00:00+00:00",
+                        "end_time": "2024-09-30T09:28:02.508970+00:00",
+                        "start_time": "2024-09-29T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -5085,8 +5095,8 @@
                     "description": "Usage related configs",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-09-29T15:12:02.747243+00:00",
-                        "start_time": "2024-09-28T00:00:00+00:00",
+                        "end_time": "2024-09-30T09:27:47.268895+00:00",
+                        "start_time": "2024-09-29T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -12133,8 +12143,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-09-29T15:12:17.507041+00:00",
-                        "start_time": "2024-09-28T00:00:00+00:00",
+                        "end_time": "2024-09-30T09:28:01.995780+00:00",
+                        "start_time": "2024-09-29T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
