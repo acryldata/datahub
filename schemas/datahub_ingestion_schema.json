@@ -2254,8 +2254,8 @@
                     "description": "Usage related configs",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-10-10T16:54:07.550919+00:00",
-                        "start_time": "2024-10-09T00:00:00+00:00",
+                        "end_time": "2024-10-14T08:57:43.015370+00:00",
+                        "start_time": "2024-10-13T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -6665,7 +6665,7 @@
                 },
                 "workspace_id_pattern": {
                     "title": "Workspace Id Pattern",
-                    "description": "Regex patterns to filter PowerBI workspaces in ingestion",
+                    "description": "Regex patterns to filter PowerBI workspaces in ingestion. Note: This field works in conjunction with 'workspace_type_filter' and both must be considered when filtering workspaces.",
                     "default": {
                         "allow": [
                             ".*"
@@ -6755,7 +6755,7 @@
                 },
                 "modified_since": {
                     "title": "Modified Since",
-                    "description": "Get only recently modified workspaces based on modified_since datetime '2023-02-10T00:00:00.0000000Z', excludePersonalWorkspaces and excludeInActiveWorkspaces limit to last 30 days",
+                    "description": "Get only recently modified workspaces based on modified_since datetime '2023-02-10T00:00:00.0000000Z', excludeInActiveWorkspaces limit to last 30 days",
                     "type": "string"
                 },
                 "extract_dashboards": {
@@ -6884,6 +6884,24 @@
                     "description": "Patch dashboard metadata",
                     "default": true,
                     "type": "boolean"
+                },
+                "workspace_type_filter": {
+                    "title": "Workspace Type Filter",
+                    "description": "Ingest the metadata of the workspace where the workspace type corresponds to the specified workspace_type_filter. Note: This field works in conjunction with 'workspace_id_pattern'. Both must be matched for a workspace to be processed.",
+                    "default": [
+                        "Workspace"
+                    ],
+                    "type": "array",
+                    "items": {
+                        "enum": [
+                            "Workspace",
+                            "PersonalGroup",
+                            "Personal",
+                            "AdminWorkspace",
+                            "AdminInsights"
+                        ],
+                        "type": "string"
+                    }
                 }
             },
             "required": [
@@ -7301,8 +7319,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-10-10T16:54:22.692341+00:00",
-                        "start_time": "2024-10-09T00:00:00+00:00",
+                        "end_time": "2024-10-14T08:57:57.885525+00:00",
+                        "start_time": "2024-10-13T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -11387,8 +11405,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-10-10T16:54:23.196036+00:00",
-                        "start_time": "2024-10-09T00:00:00+00:00",
+                        "end_time": "2024-10-14T08:57:58.434040+00:00",
+                        "start_time": "2024-10-13T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
