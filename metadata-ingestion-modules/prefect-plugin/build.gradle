@@ -92,6 +92,13 @@ task testFull(type: Exec, dependsOn: [testQuick, installDevTest]) {
     "pytest -m 'not slow_integration' -vv --continue-on-collection-errors --junit-xml=junit.full.xml"
 }
 
+task generateCoverageReport(type: Exec, dependsOn: testFull) {
+  outputs.dir("${venv_name}")
+  commandLine 'bash', '-c',
+          "source ${venv_name}/bin/activate && set -x && " +
+                  "coverage html"
+}
+
 
 task buildWheel(type: Exec, dependsOn: [environmentSetup]) {
   commandLine 'bash', '-c', "source ${venv_name}/bin/activate && " +
