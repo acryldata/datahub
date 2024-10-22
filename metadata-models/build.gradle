@@ -74,3 +74,25 @@ task cleanExtraDirs {
   delete "$projectDir/src/generatedJsonSchema"
 }
 clean.finalizedBy(cleanExtraDirs)
+
+test{
+  useTestNG()
+  finalizedBy jacocoTestReport
+}
+
+def jacocoExclusions = [
+        '**/openapi/generated/**'
+];
+
+jacocoTestReport {
+
+  afterEvaluate {
+    classDirectories.setFrom(files(classDirectories.files.collect {
+      fileTree(dir: it,
+              exclude: jacocoExclusions
+      )
+    }))
+  }
+
+}
+
