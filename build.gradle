@@ -79,11 +79,13 @@ plugins {
   id 'com.palantir.docker' version '0.35.0' apply false
   id 'com.avast.gradle.docker-compose' version '0.17.6'
   id "com.diffplug.spotless" version "6.23.3"
+  id 'jacoco-report-aggregation'
   // https://blog.ltgt.net/javax-jakarta-mess-and-gradle-solution/
   // TODO id "org.gradlex.java-ecosystem-capabilities" version "1.0"
 }
 
 apply from: "gradle/docker/docker.gradle"
+apply from: "gradle/coverage/coverage.gradle"
 
 project.ext.spec = [
     'product' : [
@@ -281,6 +283,7 @@ project.ext.externalDependency = [
 allprojects {
   apply plugin: 'idea'
   apply plugin: 'eclipse'
+  apply plugin: 'jacoco'
   // apply plugin: 'org.gradlex.java-ecosystem-capabilities'
 
   tasks.withType(Test).configureEach { task -> if (task.project.name != "metadata-io") {
@@ -291,6 +294,7 @@ allprojects {
               .any { it.getName().contains("testng") }) {
         useTestNG()
       }
+    finalizedBy jacocoTestReport
     }
   }
 
@@ -372,6 +376,7 @@ subprojects {
   apply plugin: 'maven-publish'
   apply plugin: 'com.gorylenko.gradle-git-properties'
   apply plugin: 'com.diffplug.spotless'
+  apply plugin: 'jacoco'
 
   gitProperties {
     keys = ['git.commit.id','git.commit.id.describe','git.commit.time']
@@ -400,6 +405,15 @@ subprojects {
         implementation(externalDependency.commonsIo)
         implementation(externalDependency.protobuf)
       }
+    }
+
+    jacocoTestReport {
+      reports {
+        xml.required = true
+        csv.required = true
+        html.outputLocation = layout.buildDirectory.dir('jacocoHtml')
+      }
+      dependsOn test // tests are required to run before generating the report
     }
 
     spotless {
@@ -485,4 +499,17 @@ subprojects {
       }
     }
   }
+}
+
+reporting {
+  reports {
+    testCodeCoverageReport(JacocoCoverageReport) {
+      testType = TestSuiteType.UNIT_TEST
+
+    }
+  }
+}
+
+tasks.named('check') {
+  dependsOn tasks.named('testCodeCoverageReport', JacocoReport)
 }

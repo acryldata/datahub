@@ -55,3 +55,24 @@ tasks.withType(Checkstyle) {
 
 compileJava.dependsOn 'graphqlCodegen'
 sourceSets.main.java.srcDir "$projectDir/src/mainGeneratedGraphQL/java"
+
+test{
+    useTestNG()
+    finalizedBy jacocoTestReport
+}
+
+def jacocoExclusions = [
+        '**/graphql/generated/**'
+];
+
+jacocoTestReport {
+
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it,
+                    exclude: jacocoExclusions
+            )
+        }))
+    }
+
+}
