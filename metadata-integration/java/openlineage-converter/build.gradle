@@ -33,12 +33,12 @@ jacocoTestReport {
 
 test {
     forkEvery = 1
-    useJUnit()
+    useTestNG()
     finalizedBy jacocoTestReport
 }
 
 test {
-    useJUnit()
+    useTestNG()
     finalizedBy jacocoTestReport
 }
 shadowJar {
