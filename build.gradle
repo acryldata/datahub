@@ -74,14 +74,16 @@ buildscript {
 }
 
 plugins {
-  id 'com.gorylenko.gradle-git-properties' version '2.4.1'
-  id 'com.github.johnrengelman.shadow' version '8.1.1' apply false
-  id 'com.palantir.docker' version '0.35.0' apply false
-  id 'com.avast.gradle.docker-compose' version '0.17.6'
-  id "com.diffplug.spotless" version "6.23.3"
-  id 'jacoco-report-aggregation'
-  // https://blog.ltgt.net/javax-jakarta-mess-and-gradle-solution/
-  // TODO id "org.gradlex.java-ecosystem-capabilities" version "1.0"
+    id 'com.gorylenko.gradle-git-properties' version '2.4.1'
+    id 'com.github.johnrengelman.shadow' version '8.1.1' apply false
+    id 'com.palantir.docker' version '0.35.0' apply false
+    id 'com.avast.gradle.docker-compose' version '0.17.6'
+    id "com.diffplug.spotless" version "6.23.3"
+    id 'jacoco-report-aggregation'
+    id 'io.github.surpsg.delta-coverage' version "2.5.0"
+//    id "io.github.gw-kit.delta-coverage" version "3.0.0-RC1"
+
+    // TODO id "org.gradlex.java-ecosystem-capabilities" version "1.0"
 }
 
 apply from: "gradle/docker/docker.gradle"
@@ -378,14 +380,30 @@ subprojects {
   apply plugin: 'com.diffplug.spotless'
   apply plugin: 'jacoco'
 
-  gitProperties {
-    keys = ['git.commit.id','git.commit.id.describe','git.commit.time']
-    // using any tags (not limited to annotated tags) for "git.commit.id.describe" property
-    // see http://ajoberstar.org/grgit/grgit-describe.html for more info about the describe method and available parameters
-    // 'it' is an instance of org.ajoberstar.grgit.Grgit
-    customProperty 'git.commit.id.describe', { it.describe(tags: true) }
-    failOnNoGitDirectory = false
+  if (!project.name.contains('docker')
+            && !project.name.contains('web-react')
+            && !project.name.contains('metadata-ingestion')
+            && !project.name.contains('metadata-auth')
+            && !project.name.contains('metadata-dao-impl')
+            && !project.name.contains('metadata-events')
+            && !project.name.contains('metadata-integration')
+            && !project.name.contains('metadata-jobs')
+            && !project.name.contains('metadata-service')
+            && !project.name.contains('smoke-test')
+            && !project.name.contains('docs-website')
+  ){
+        apply plugin: 'io.github.surpsg.delta-coverage'
   }
+
+
+    gitProperties {
+        keys = ['git.commit.id', 'git.commit.id.describe', 'git.commit.time']
+        // using any tags (not limited to annotated tags) for "git.commit.id.describe" property
+        // see http://ajoberstar.org/grgit/grgit-describe.html for more info about the describe method and available parameters
+        // 'it' is an instance of org.ajoberstar.grgit.Grgit
+        customProperty 'git.commit.id.describe', { it.describe(tags: true) }
+        failOnNoGitDirectory = false
+    }
 
   plugins.withType(JavaPlugin).configureEach {
     if (project.name == 'datahub-web-react') {
@@ -416,20 +434,43 @@ subprojects {
       dependsOn test // tests are required to run before generating the report
     }
 
-    spotless {
-      java {
-        googleJavaFormat()
-        target project.fileTree(project.projectDir) {
-          include 'src/**/*.java'
-          exclude 'src/**/resources/'
-          exclude 'src/**/generated/'
-          exclude 'src/**/mainGeneratedDataTemplate/'
-          exclude 'src/**/mainGeneratedRest/'
-          exclude 'src/renamed/avro/'
-          exclude 'src/test/sample-test-plugins/'
-        }
+    deltaCoverageReport {
+      diffSource {
+                git.compareWith('refs/remotes/origin/master')
+                git.useNativeGit.set(true)
+            }
+
+      coverageBinaryFiles = files(projectDir.path + "/build/jacoco/test.exec")
+      srcDirs = files(projectDir.path +"/src")
+      classesDirs = files(projectDir.path + "/build/classes")
+//      violationRules.failIfCoverageLessThan 0.9d
+
+      reports {
+        html.set(true)
+        markdown.set(true)
       }
     }
+
+    task openDiffReport() {
+      doLast {
+        java.awt.Desktop.desktop.browse "file://".concat(buildDir.path).concat("/reports/coverage-reports/delta-coverage/html/index.html").toURI()
+      }
+    }
+
+        spotless {
+            java {
+                googleJavaFormat()
+                target project.fileTree(project.projectDir) {
+                    include 'src/**/*.java'
+                    exclude 'src/**/resources/'
+                    exclude 'src/**/generated/'
+                    exclude 'src/**/mainGeneratedDataTemplate/'
+                    exclude 'src/**/mainGeneratedRest/'
+                    exclude 'src/renamed/avro/'
+                    exclude 'src/test/sample-test-plugins/'
+                }
+            }
+        }
 
     if (project.plugins.hasPlugin('pegasus')) {
       dependencies {
@@ -447,6 +488,8 @@ subprojects {
       compileJava {
         options.release = javaClassVersion(project)
       }
+
+
 
       tasks.withType(JavaCompile).configureEach {
         javaCompiler = javaToolchains.compilerFor {
