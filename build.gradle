@@ -81,6 +81,7 @@ plugins {
     id "com.diffplug.spotless" version "6.23.3"
     id 'jacoco-report-aggregation'
     id 'io.github.surpsg.delta-coverage' version "2.5.0"
+    id 'org.sonarqube' version "5.1.0.4882"
 //    id "io.github.gw-kit.delta-coverage" version "3.0.0-RC1"
 
     // TODO id "org.gradlex.java-ecosystem-capabilities" version "1.0"
@@ -282,6 +283,18 @@ project.ext.externalDependency = [
     'mustache': 'com.github.spullara.mustache.java:compiler:0.9.14'
 ]
 
+sonarqube {
+  properties {
+    property "sonar.sourceEncoding", "UTF-8"
+    property "sonar.projectKey", "datahub-project_datahub"
+    property "sonar.organization", "datahub-project"
+    property "sonar.host.url", "https://sonarcloud.io"
+    property "sonar.coverage.jacoco.xmlReportPaths", "$projectDir.parentFile.path/build/reports/jacoco/test/jacocoTestReport.xml"
+
+    property "sonar.python.coverage.reportPaths", "https://sonarcloud.io"
+  }
+}
+
 allprojects {
   apply plugin: 'idea'
   apply plugin: 'eclipse'
@@ -379,6 +392,7 @@ subprojects {
   apply plugin: 'com.gorylenko.gradle-git-properties'
   apply plugin: 'com.diffplug.spotless'
   apply plugin: 'jacoco'
+  apply plugin: 'org.sonarqube'
 
   if (!project.name.contains('docker')
             && !project.name.contains('web-react')
@@ -471,6 +485,13 @@ subprojects {
                 }
             }
         }
+
+    sonarqube {
+      properties {
+        property "sonar.coverage.jacoco.xmlReportPaths", "$projectDir.parentFile.path/build/reports/jacoco/test/jacocoTestReport.xml"
+        p
+      }
+    }
 
     if (project.plugins.hasPlugin('pegasus')) {
       dependencies {
