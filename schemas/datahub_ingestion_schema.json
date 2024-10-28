@@ -2254,8 +2254,8 @@
                     "description": "Usage related configs",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-10-23T08:25:13.331619+00:00",
-                        "start_time": "2024-10-22T00:00:00+00:00",
+                        "end_time": "2024-10-28T23:19:47.960502+00:00",
+                        "start_time": "2024-10-27T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -2322,6 +2322,12 @@
                             "$ref": "#/definitions/AllowDenyPattern"
                         }
                     ]
+                },
+                "include_table_constraints": {
+                    "title": "Include Table Constraints",
+                    "description": "Whether to ingest table constraints. If you know you don't use table constraints, you can disable it to save one extra query per dataset. In general it should be enabled",
+                    "default": true,
+                    "type": "boolean"
                 },
                 "include_external_url": {
                     "title": "Include External Url",
@@ -2470,6 +2476,18 @@
                     "description": "Number of worker threads to use to parallelize BigQuery Dataset Metadata Extraction. Set to 1 to disable.",
                     "default": 20,
                     "type": "integer"
+                },
+                "region_qualifiers": {
+                    "title": "Region Qualifiers",
+                    "description": "BigQuery regions to be scanned for bigquery jobs when using `use_queries_v2`. See [this](https://cloud.google.com/bigquery/docs/information-schema-jobs#scope_and_syntax) for details.",
+                    "default": [
+                        "region-us",
+                        "region-eu"
+                    ],
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             },
             "additionalProperties": false
@@ -3030,6 +3048,12 @@
                         }
                     ]
                 },
+                "session_trust_env": {
+                    "title": "Session Trust Env",
+                    "description": "Configures the trust_env property in the requests session. If set to false (default value) it will bypass proxy settings. See https://requests.readthedocs.io/en/latest/api/#requests.Session.trust_env for more information.",
+                    "default": false,
+                    "type": "boolean"
+                },
                 "extract_column_level_lineage": {
                     "title": "Extract Column Level Lineage",
                     "description": "When enabled, extracts column-level lineage from Tableau Datasources",
@@ -3239,6 +3263,15 @@
                     "description": "When enabled, sites are added as containers and therefore visible in the folder structure within Datahub.",
                     "default": false,
                     "type": "boolean"
+                },
+                "permission_ingestion": {
+                    "title": "Permission Ingestion",
+                    "description": "Configuration settings for ingesting Tableau groups and their capabilities as custom properties.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/PermissionIngestionConfig"
+                        }
+                    ]
                 }
             },
             "required": [
@@ -7325,8 +7358,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-10-23T08:25:28.058557+00:00",
-                        "start_time": "2024-10-22T00:00:00+00:00",
+                        "end_time": "2024-10-28T23:20:02.699337+00:00",
+                        "start_time": "2024-10-27T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -11405,8 +11438,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-10-23T08:25:28.590517+00:00",
-                        "start_time": "2024-10-22T00:00:00+00:00",
+                        "end_time": "2024-10-28T23:20:03.263323+00:00",
+                        "start_time": "2024-10-27T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -11726,7 +11759,7 @@
                 "scheme": {
                     "title": "Scheme",
                     "description": "Will be set automatically to default value.",
-                    "default": "oracle+cx_oracle",
+                    "default": "oracle+oracledb",
                     "type": "string"
                 },
                 "sqlalchemy_uri": {
@@ -13475,18 +13508,9 @@
                     "default": true,
                     "type": "boolean"
                 },
-                "sources_to_database": {
-                    "title": "Sources To Database",
-                    "description": "A mapping of the connector's all sources to its database. Use connector id as key.",
-                    "default": {},
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
                 "sources_to_platform_instance": {
                     "title": "Sources To Platform Instance",
-                    "description": "A mapping of the connector's all sources dataset to platform instance. Use connector id as key.",
+                    "description": "A mapping from connector id to its platform/instance/env/database details.",
                     "default": {},
                     "type": "object",
                     "additionalProperties": {
@@ -13495,7 +13519,7 @@
                 },
                 "destination_to_platform_instance": {
                     "title": "Destination To Platform Instance",
-                    "description": "A mapping of destination dataset to platform instance. Use destination id as key.",
+                    "description": "A mapping of destination id to its platform/instance/env details.",
                     "default": {},
                     "type": "object",
                     "additionalProperties": {
@@ -16341,10 +16365,44 @@
             },
             "additionalProperties": false
         },
+        "PermissionIngestionConfig": {
+            "title": "PermissionIngestionConfig",
+            "type": "object",
+            "properties": {
+                "enable_workbooks": {
+                    "title": "Enable Workbooks",
+                    "description": "Whether or not to enable group permission ingestion for workbooks. Default: True",
+                    "default": true,
+                    "type": "boolean"
+                },
+                "group_name_pattern": {
+                    "title": "Group Name Pattern",
+                    "description": "Filter for Tableau group names when ingesting group permissions. For example, you could filter for groups that include the term 'Consumer' in their name by adding '^.*Consumer$' to the allow list.By default, all groups will be ingested. You can both allow and deny groups based on their name using their name, or a Regex pattern. Deny patterns always take precedence over allow patterns. ",
+                    "default": {
+                        "allow": [
+                            ".*"
+                        ],
+                        "deny": [],
+                        "ignoreCase": true
+                    },
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/AllowDenyPattern"
+                        }
+                    ]
+                }
+            },
+            "additionalProperties": false
+        },
         "PlatformDetail": {
             "title": "PlatformDetail",
             "type": "object",
             "properties": {
+                "platform": {
+                    "title": "Platform",
+                    "description": "Override the platform type detection.",
+                    "type": "string"
+                },
                 "platform_instance": {
                     "title": "Platform Instance",
                     "description": "The instance of the platform that all assets produced by this recipe belong to",
@@ -16354,6 +16412,11 @@
                     "title": "Env",
                     "description": "The environment that all assets produced by DataHub platform ingestion source belong to",
                     "default": "PROD",
+                    "type": "string"
+                },
+                "database": {
+                    "title": "Database",
+                    "description": "The database that all assets produced by this connector belong to. For destinations, this defaults to the fivetran log config's database.",
                     "type": "string"
                 }
             },
