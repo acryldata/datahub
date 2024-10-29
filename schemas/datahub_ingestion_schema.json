@@ -1880,7 +1880,7 @@
         },
         "bigquery_config": {
             "title": "BigQueryV2Config",
-            "description": "Base configuration class for stateful ingestion for source configs to inherit from.",
+            "description": "Any source that produces gcs lineage from/to Datasets should inherit this class.\nThis is needeed to group all lineage related configs under `gcs_lineage_config` config property.",
             "type": "object",
             "properties": {
                 "classification": {
@@ -2243,6 +2243,20 @@
                     "description": "[Advanced] The BigQuery project in which queries are executed. Will be passed when creating a job. If not passed, falls back to the project associated with the service account.",
                     "type": "string"
                 },
+                "gcs_lineage_config": {
+                    "title": "Gcs Lineage Config",
+                    "description": "Common config for gcs lineage generation",
+                    "default": {
+                        "path_specs": [],
+                        "strip_urls": true,
+                        "ignore_non_path_spec_path": false
+                    },
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/GcsLineageProviderConfig"
+                        }
+                    ]
+                },
                 "include_schema_metadata": {
                     "title": "Include Schema Metadata",
                     "description": "Whether to ingest the BigQuery schema, i.e. projects, schemas, tables, and views.",
@@ -2254,8 +2268,8 @@
                     "description": "Usage related configs",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-10-28T23:19:47.960502+00:00",
-                        "start_time": "2024-10-27T00:00:00+00:00",
+                        "end_time": "2024-10-29T20:02:19.455593+00:00",
+                        "start_time": "2024-10-28T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -2422,6 +2436,12 @@
                 "include_table_lineage": {
                     "title": "Include Table Lineage",
                     "description": "Option to enable/disable lineage generation. Is enabled by default.",
+                    "default": true,
+                    "type": "boolean"
+                },
+                "include_column_lineage_with_gcs": {
+                    "title": "Include Column Lineage With Gcs",
+                    "description": "When enabled, column-level lineage will be extracted from the gcs.",
                     "default": true,
                     "type": "boolean"
                 },
@@ -6941,6 +6961,12 @@
                     "description": "It is recommended to set this to true, as it helps prevent the overwriting of datasets.Read section #11560 at https://datahubproject.io/docs/how/updating-datahub/ before enabling this option.To maintain backward compatibility, this is set to False.",
                     "default": false,
                     "type": "boolean"
+                },
+                "extract_app": {
+                    "title": "Extract App",
+                    "description": "Whether to ingest workspace app. Requires DataHub server 0.14.2+.",
+                    "default": false,
+                    "type": "boolean"
                 }
             },
             "required": [
@@ -7358,8 +7384,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-10-28T23:20:02.699337+00:00",
-                        "start_time": "2024-10-27T00:00:00+00:00",
+                        "end_time": "2024-10-29T20:02:34.618888+00:00",
+                        "start_time": "2024-10-28T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -11438,8 +11464,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-10-28T23:20:03.263323+00:00",
-                        "start_time": "2024-10-27T00:00:00+00:00",
+                        "end_time": "2024-10-29T20:02:35.208443+00:00",
+                        "start_time": "2024-10-28T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -15906,6 +15932,172 @@
             ],
             "additionalProperties": false
         },
+        "SortKeyType": {
+            "title": "SortKeyType",
+            "description": "An enumeration.",
+            "enum": [
+                "STRING",
+                "INTEGER",
+                "FLOAT",
+                "DATETIME",
+                "DATE"
+            ]
+        },
+        "SortKey": {
+            "title": "SortKey",
+            "type": "object",
+            "properties": {
+                "key": {
+                    "title": "Key",
+                    "description": "The key to sort on. This can be a compound key based on the path_spec variables.",
+                    "type": "string"
+                },
+                "type": {
+                    "description": "The date format to use when sorting. This is used to parse the date from the key. The format should follow the java [SimpleDateFormat](https://docs.oracle.com/javase/8/docs/api/java/text/SimpleDateFormat.html) format.",
+                    "default": "STRING",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/SortKeyType"
+                        }
+                    ]
+                },
+                "date_format": {
+                    "title": "Date Format",
+                    "description": "The date format to use when sorting. This is used to parse the date from the key. The format should follow the java [SimpleDateFormat](https://docs.oracle.com/javase/8/docs/api/java/text/SimpleDateFormat.html) format.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "key"
+            ],
+            "additionalProperties": false
+        },
+        "FolderTraversalMethod": {
+            "title": "FolderTraversalMethod",
+            "description": "An enumeration.",
+            "enum": [
+                "ALL",
+                "MIN_MAX",
+                "MAX"
+            ]
+        },
+        "PathSpec": {
+            "title": "PathSpec",
+            "type": "object",
+            "properties": {
+                "include": {
+                    "title": "Include",
+                    "description": "Path to table. Name variable `{table}` is used to mark the folder with dataset. In absence of `{table}`, file level dataset will be created. Check below examples for more details.",
+                    "type": "string"
+                },
+                "exclude": {
+                    "title": "Exclude",
+                    "description": "list of paths in glob pattern which will be excluded while scanning for the datasets",
+                    "default": [],
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "file_types": {
+                    "title": "File Types",
+                    "description": "Files with extenstions specified here (subset of default value) only will be scanned to create dataset. Other files will be omitted.",
+                    "default": [
+                        "csv",
+                        "tsv",
+                        "json",
+                        "parquet",
+                        "avro"
+                    ],
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "default_extension": {
+                    "title": "Default Extension",
+                    "description": "For files without extension it will assume the specified file type. If it is not set the files without extensions will be skipped.",
+                    "type": "string"
+                },
+                "table_name": {
+                    "title": "Table Name",
+                    "description": "Display name of the dataset.Combination of named variables from include path and strings",
+                    "type": "string"
+                },
+                "enable_compression": {
+                    "title": "Enable Compression",
+                    "description": "Enable or disable processing compressed files. Currently .gz and .bz files are supported.",
+                    "default": true,
+                    "type": "boolean"
+                },
+                "sample_files": {
+                    "title": "Sample Files",
+                    "description": "Not listing all the files but only taking a handful amount of sample file to infer the schema. File count and file size calculation will be disabled. This can affect performance significantly if enabled",
+                    "default": true,
+                    "type": "boolean"
+                },
+                "allow_double_stars": {
+                    "title": "Allow Double Stars",
+                    "description": "Allow double stars in the include path. This can affect performance significantly if enabled",
+                    "default": false,
+                    "type": "boolean"
+                },
+                "autodetect_partitions": {
+                    "title": "Autodetect Partitions",
+                    "description": "Autodetect partition(s) from the path. If set to true, it will autodetect partition key/value if the folder format is {partition_key}={partition_value} for example `year=2024`",
+                    "default": true,
+                    "type": "boolean"
+                },
+                "traversal_method": {
+                    "description": "Method to traverse the folder. ALL: Traverse all the folders, MIN_MAX: Traverse the folders by finding min and max value, MAX: Traverse the folder with max value",
+                    "default": "MAX",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/FolderTraversalMethod"
+                        }
+                    ]
+                },
+                "include_hidden_folders": {
+                    "title": "Include Hidden Folders",
+                    "description": "Include hidden folders in the traversal (folders starting with . or _",
+                    "default": false,
+                    "type": "boolean"
+                }
+            },
+            "required": [
+                "include"
+            ],
+            "additionalProperties": false
+        },
+        "GcsLineageProviderConfig": {
+            "title": "GcsLineageProviderConfig",
+            "description": "Any source that produces gcs lineage from/to Datasets should inherit this class.",
+            "type": "object",
+            "properties": {
+                "path_specs": {
+                    "title": "Path Specs",
+                    "description": "List of PathSpec. See below the details about PathSpec",
+                    "default": [],
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/PathSpec"
+                    }
+                },
+                "strip_urls": {
+                    "title": "Strip Urls",
+                    "description": "Strip filename from gcs url. It only applies if path_specs are not specified.",
+                    "default": true,
+                    "type": "boolean"
+                },
+                "ignore_non_path_spec_path": {
+                    "title": "Ignore Non Path Spec Path",
+                    "description": "Ignore paths that are not match in path_specs. It only applies if path_specs are specified.",
+                    "default": false,
+                    "type": "boolean"
+                }
+            },
+            "additionalProperties": false
+        },
         "BigQueryUsageConfig": {
             "title": "BigQueryUsageConfig",
             "type": "object",
@@ -16056,143 +16248,6 @@
                     "type": "boolean"
                 }
             },
-            "additionalProperties": false
-        },
-        "SortKeyType": {
-            "title": "SortKeyType",
-            "description": "An enumeration.",
-            "enum": [
-                "STRING",
-                "INTEGER",
-                "FLOAT",
-                "DATETIME",
-                "DATE"
-            ]
-        },
-        "SortKey": {
-            "title": "SortKey",
-            "type": "object",
-            "properties": {
-                "key": {
-                    "title": "Key",
-                    "description": "The key to sort on. This can be a compound key based on the path_spec variables.",
-                    "type": "string"
-                },
-                "type": {
-                    "description": "The date format to use when sorting. This is used to parse the date from the key. The format should follow the java [SimpleDateFormat](https://docs.oracle.com/javase/8/docs/api/java/text/SimpleDateFormat.html) format.",
-                    "default": "STRING",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/SortKeyType"
-                        }
-                    ]
-                },
-                "date_format": {
-                    "title": "Date Format",
-                    "description": "The date format to use when sorting. This is used to parse the date from the key. The format should follow the java [SimpleDateFormat](https://docs.oracle.com/javase/8/docs/api/java/text/SimpleDateFormat.html) format.",
-                    "type": "string"
-                }
-            },
-            "required": [
-                "key"
-            ],
-            "additionalProperties": false
-        },
-        "FolderTraversalMethod": {
-            "title": "FolderTraversalMethod",
-            "description": "An enumeration.",
-            "enum": [
-                "ALL",
-                "MIN_MAX",
-                "MAX"
-            ]
-        },
-        "PathSpec": {
-            "title": "PathSpec",
-            "type": "object",
-            "properties": {
-                "include": {
-                    "title": "Include",
-                    "description": "Path to table. Name variable `{table}` is used to mark the folder with dataset. In absence of `{table}`, file level dataset will be created. Check below examples for more details.",
-                    "type": "string"
-                },
-                "exclude": {
-                    "title": "Exclude",
-                    "description": "list of paths in glob pattern which will be excluded while scanning for the datasets",
-                    "default": [],
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "file_types": {
-                    "title": "File Types",
-                    "description": "Files with extenstions specified here (subset of default value) only will be scanned to create dataset. Other files will be omitted.",
-                    "default": [
-                        "csv",
-                        "tsv",
-                        "json",
-                        "parquet",
-                        "avro"
-                    ],
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "default_extension": {
-                    "title": "Default Extension",
-                    "description": "For files without extension it will assume the specified file type. If it is not set the files without extensions will be skipped.",
-                    "type": "string"
-                },
-                "table_name": {
-                    "title": "Table Name",
-                    "description": "Display name of the dataset.Combination of named variables from include path and strings",
-                    "type": "string"
-                },
-                "enable_compression": {
-                    "title": "Enable Compression",
-                    "description": "Enable or disable processing compressed files. Currently .gz and .bz files are supported.",
-                    "default": true,
-                    "type": "boolean"
-                },
-                "sample_files": {
-                    "title": "Sample Files",
-                    "description": "Not listing all the files but only taking a handful amount of sample file to infer the schema. File count and file size calculation will be disabled. This can affect performance significantly if enabled",
-                    "default": true,
-                    "type": "boolean"
-                },
-                "allow_double_stars": {
-                    "title": "Allow Double Stars",
-                    "description": "Allow double stars in the include path. This can affect performance significantly if enabled",
-                    "default": false,
-                    "type": "boolean"
-                },
-                "autodetect_partitions": {
-                    "title": "Autodetect Partitions",
-                    "description": "Autodetect partition(s) from the path. If set to true, it will autodetect partition key/value if the folder format is {partition_key}={partition_value} for example `year=2024`",
-                    "default": true,
-                    "type": "boolean"
-                },
-                "traversal_method": {
-                    "description": "Method to traverse the folder. ALL: Traverse all the folders, MIN_MAX: Traverse the folders by finding min and max value, MAX: Traverse the folder with max value",
-                    "default": "MAX",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/FolderTraversalMethod"
-                        }
-                    ]
-                },
-                "include_hidden_folders": {
-                    "title": "Include Hidden Folders",
-                    "description": "Include hidden folders in the traversal (folders starting with . or _",
-                    "default": false,
-                    "type": "boolean"
-                }
-            },
-            "required": [
-                "include"
-            ],
             "additionalProperties": false
         },
         "AzureConnectionConfig": {
