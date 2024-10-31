@@ -2268,8 +2268,8 @@
                     "description": "Usage related configs",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-10-29T20:02:19.455593+00:00",
-                        "start_time": "2024-10-28T00:00:00+00:00",
+                        "end_time": "2024-10-31T14:51:31.371332+00:00",
+                        "start_time": "2024-10-30T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -6774,7 +6774,7 @@
                 },
                 "workspace_id_as_urn_part": {
                     "title": "Workspace Id As Urn Part",
-                    "description": "It is recommended to set this to True only if you have legacy workspaces based on Office 365 groups, as those workspaces can have identical names.To maintain backward compatibility, this is set to False which uses workspace name",
+                    "description": "It is recommended to set this to True only if you have legacy workspaces based on Office 365 groups, as those workspaces can have identical names. To maintain backward compatibility, this is set to False which uses workspace name",
                     "default": false,
                     "type": "boolean"
                 },
@@ -6831,7 +6831,7 @@
                 },
                 "extract_endorsements_to_tags": {
                     "title": "Extract Endorsements To Tags",
-                    "description": "Whether to extract endorsements to tags, note that this may overwrite existing tags. Admin API access is required is this setting is enabled",
+                    "description": "Whether to extract endorsements to tags, note that this may overwrite existing tags. Admin API access is required if this setting is enabled.",
                     "default": false,
                     "type": "boolean"
                 },
@@ -7384,8 +7384,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-10-29T20:02:34.618888+00:00",
-                        "start_time": "2024-10-28T00:00:00+00:00",
+                        "end_time": "2024-10-31T14:51:46.115002+00:00",
+                        "start_time": "2024-10-30T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -11464,8 +11464,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-10-29T20:02:35.208443+00:00",
-                        "start_time": "2024-10-28T00:00:00+00:00",
+                        "end_time": "2024-10-31T14:51:46.635180+00:00",
+                        "start_time": "2024-10-30T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -12813,6 +12813,21 @@
                     "description": "If enabled, include all versions of each aspect. Otherwise, only include the latest version of each aspect. ",
                     "default": false,
                     "type": "boolean"
+                },
+                "include_soft_deleted_entities": {
+                    "title": "Include Soft Deleted Entities",
+                    "description": "If enabled, include entities that have been soft deleted. Otherwise, include all entities regardless of removal status. ",
+                    "default": true,
+                    "type": "boolean"
+                },
+                "exclude_aspects": {
+                    "title": "Exclude Aspects",
+                    "description": "Set of aspect names to exclude from ingestion",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "uniqueItems": true
                 },
                 "database_query_batch_size": {
                     "title": "Database Query Batch Size",
