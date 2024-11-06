@@ -2268,8 +2268,8 @@
                     "description": "Usage related configs",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-11-05T10:02:46.222985+00:00",
-                        "start_time": "2024-11-04T00:00:00+00:00",
+                        "end_time": "2024-11-06T23:23:13.740770+00:00",
+                        "start_time": "2024-11-05T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -6795,7 +6795,7 @@
                     "description": "Configure how is ownership ingested",
                     "default": {
                         "create_corp_user": true,
-                        "use_powerbi_email": false,
+                        "use_powerbi_email": true,
                         "remove_email_suffix": false,
                         "dataset_configured_by_as_owner": false,
                         "owner_criteria": null
@@ -7384,8 +7384,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-11-05T10:03:00.943397+00:00",
-                        "start_time": "2024-11-04T00:00:00+00:00",
+                        "end_time": "2024-11-06T23:23:28.669427+00:00",
+                        "start_time": "2024-11-05T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -11473,8 +11473,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-11-05T10:03:01.457748+00:00",
-                        "start_time": "2024-11-04T00:00:00+00:00",
+                        "end_time": "2024-11-06T23:23:29.202591+00:00",
+                        "start_time": "2024-11-05T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -11522,6 +11522,264 @@
             "required": [
                 "host_port"
             ],
+            "additionalProperties": false
+        },
+        "dremio": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "dremio"
+                    ]
+                },
+                "config": {
+                    "$ref": "#/definitions/dremio_config"
+                }
+            },
+            "required": [
+                "type",
+                "config"
+            ]
+        },
+        "dremio_config": {
+            "title": "DremioSourceConfig",
+            "description": "Base configuration class for stateful ingestion for source configs to inherit from.",
+            "type": "object",
+            "properties": {
+                "platform_instance": {
+                    "title": "Platform Instance",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
+                    "type": "string"
+                },
+                "env": {
+                    "title": "Env",
+                    "description": "The environment that all assets produced by this connector belong to",
+                    "default": "PROD",
+                    "type": "string"
+                },
+                "stateful_ingestion": {
+                    "$ref": "#/definitions/StatefulStaleMetadataRemovalConfig"
+                },
+                "hostname": {
+                    "title": "Hostname",
+                    "description": "Hostname or IP Address of the Dremio server",
+                    "type": "string"
+                },
+                "port": {
+                    "title": "Port",
+                    "description": "Port of the Dremio REST API",
+                    "default": 9047,
+                    "type": "integer"
+                },
+                "username": {
+                    "title": "Username",
+                    "description": "Dremio username",
+                    "type": "string"
+                },
+                "authentication_method": {
+                    "title": "Authentication Method",
+                    "description": "Authentication method: 'password' or 'PAT' (Personal Access Token)",
+                    "default": "PAT",
+                    "type": "string"
+                },
+                "password": {
+                    "title": "Password",
+                    "description": "Dremio password or Personal Access Token",
+                    "type": "string"
+                },
+                "tls": {
+                    "title": "Tls",
+                    "description": "Whether the Dremio REST API port is encrypted",
+                    "default": true,
+                    "type": "boolean"
+                },
+                "disable_certificate_verification": {
+                    "title": "Disable Certificate Verification",
+                    "description": "Disable TLS certificate verification",
+                    "default": false,
+                    "type": "boolean"
+                },
+                "path_to_certificates": {
+                    "title": "Path To Certificates",
+                    "description": "Path to SSL certificates",
+                    "default": "/home/runner/work/datahub/datahub/metadata-ingestion/venv/lib/python3.10/site-packages/certifi/cacert.pem",
+                    "type": "string"
+                },
+                "is_dremio_cloud": {
+                    "title": "Is Dremio Cloud",
+                    "description": "Whether this is a Dremio Cloud instance",
+                    "default": false,
+                    "type": "boolean"
+                },
+                "dremio_cloud_region": {
+                    "title": "Dremio Cloud Region",
+                    "description": "Dremio Cloud region ('US' or 'EU')",
+                    "default": "US",
+                    "enum": [
+                        "US",
+                        "EU"
+                    ],
+                    "type": "string"
+                },
+                "dremio_cloud_project_id": {
+                    "title": "Dremio Cloud Project Id",
+                    "description": "ID of Dremio Cloud Project. Found in Project Settings in the Dremio Cloud UI",
+                    "type": "string"
+                },
+                "domain": {
+                    "title": "Domain",
+                    "description": "Domain for all source objects.",
+                    "type": "string"
+                },
+                "source_mappings": {
+                    "title": "Source Mappings",
+                    "description": "Mappings from Dremio sources to DataHub platforms and datasets.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/DremioSourceMapping"
+                    }
+                },
+                "schema_pattern": {
+                    "title": "Schema Pattern",
+                    "description": "Regex patterns for schemas to filter",
+                    "default": {
+                        "allow": [
+                            ".*"
+                        ],
+                        "deny": [],
+                        "ignoreCase": true
+                    },
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/AllowDenyPattern"
+                        }
+                    ]
+                },
+                "dataset_pattern": {
+                    "title": "Dataset Pattern",
+                    "description": "Regex patterns for tables and views to filter in ingestion. Specify regex to match the entire table name in dremio.schema.table format. e.g. to match all tables starting with customer in Customer database and public schema, use the regex 'dremio.public.customer.*'",
+                    "default": {
+                        "allow": [
+                            ".*"
+                        ],
+                        "deny": [],
+                        "ignoreCase": true
+                    },
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/AllowDenyPattern"
+                        }
+                    ]
+                },
+                "usage": {
+                    "title": "Usage",
+                    "description": "The usage config to use when generating usage statistics",
+                    "default": {
+                        "bucket_duration": "DAY",
+                        "end_time": "2024-11-06T23:23:19.019556+00:00",
+                        "start_time": "2024-11-05T00:00:00+00:00",
+                        "queries_character_limit": 24000,
+                        "top_n_queries": 10,
+                        "user_email_pattern": {
+                            "allow": [
+                                ".*"
+                            ],
+                            "deny": [],
+                            "ignoreCase": true
+                        },
+                        "include_operational_stats": true,
+                        "include_read_operational_stats": false,
+                        "format_sql_queries": false,
+                        "include_top_n_queries": true
+                    },
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/BaseUsageConfig"
+                        }
+                    ]
+                },
+                "profile_pattern": {
+                    "title": "Profile Pattern",
+                    "description": "Regex patterns for tables to profile",
+                    "default": {
+                        "allow": [
+                            ".*"
+                        ],
+                        "deny": [],
+                        "ignoreCase": true
+                    },
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/AllowDenyPattern"
+                        }
+                    ]
+                },
+                "profiling": {
+                    "title": "Profiling",
+                    "description": "Configuration for profiling",
+                    "default": {
+                        "enabled": false,
+                        "operation_config": {
+                            "lower_freq_profile_enabled": false,
+                            "profile_day_of_week": null,
+                            "profile_date_of_month": null
+                        },
+                        "limit": null,
+                        "offset": null,
+                        "report_dropped_profiles": false,
+                        "turn_off_expensive_profiling_metrics": false,
+                        "profile_table_level_only": false,
+                        "include_field_null_count": true,
+                        "include_field_distinct_count": true,
+                        "include_field_min_value": true,
+                        "include_field_max_value": true,
+                        "include_field_mean_value": true,
+                        "include_field_median_value": false,
+                        "include_field_stddev_value": true,
+                        "include_field_quantiles": false,
+                        "include_field_distinct_value_frequencies": false,
+                        "include_field_histogram": false,
+                        "include_field_sample_values": true,
+                        "field_sample_values_limit": 20,
+                        "max_number_of_fields_to_profile": null,
+                        "profile_if_updated_since_days": null,
+                        "profile_table_size_limit": 5,
+                        "profile_table_row_limit": 5000000,
+                        "profile_table_row_count_estimate_only": false,
+                        "max_workers": 20,
+                        "query_combiner_enabled": true,
+                        "catch_exceptions": true,
+                        "partition_profiling_enabled": true,
+                        "partition_datetime": null,
+                        "use_sampling": true,
+                        "sample_size": 10000,
+                        "profile_external_tables": false,
+                        "tags_to_ignore_sampling": null,
+                        "query_timeout": 300,
+                        "row_count": true,
+                        "column_count": true,
+                        "sample_values": true
+                    },
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/ProfileConfig"
+                        }
+                    ]
+                },
+                "max_workers": {
+                    "title": "Max Workers",
+                    "description": "Number of worker threads to use for parallel processing",
+                    "default": 20,
+                    "type": "integer"
+                },
+                "include_query_lineage": {
+                    "title": "Include Query Lineage",
+                    "description": "Whether to include query-based lineage information.",
+                    "default": false,
+                    "type": "boolean"
+                }
+            },
             "additionalProperties": false
         },
         "oracle": {
@@ -17177,7 +17435,7 @@
                 "use_powerbi_email": {
                     "title": "Use Powerbi Email",
                     "description": "Use PowerBI User email to ingest as corpuser, default is powerbi user identifier",
-                    "default": false,
+                    "default": true,
                     "type": "boolean"
                 },
                 "remove_email_suffix": {
@@ -17577,6 +17835,17 @@
                     "title": "Query",
                     "description": "Query to filter entities",
                     "type": "string"
+                },
+                "limit_entities_delete": {
+                    "title": "Limit Entities Delete",
+                    "description": "Max number of entities to delete.",
+                    "default": 10000,
+                    "type": "integer"
+                },
+                "runtime_limit_seconds": {
+                    "title": "Runtime Limit Seconds",
+                    "description": "Runtime limit in seconds",
+                    "type": "integer"
                 }
             },
             "additionalProperties": false
@@ -17679,6 +17948,187 @@
                 "stl_scan_based",
                 "mixed"
             ]
+        },
+        "DremioSourceMapping": {
+            "title": "DremioSourceMapping",
+            "description": "Any source that produces dataset urns in a single environment should inherit this class",
+            "type": "object",
+            "properties": {
+                "platform_instance": {
+                    "title": "Platform Instance",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
+                    "type": "string"
+                },
+                "env": {
+                    "title": "Env",
+                    "description": "The environment that all assets produced by this connector belong to",
+                    "default": "PROD",
+                    "type": "string"
+                },
+                "platform": {
+                    "title": "Platform",
+                    "description": "Source connection made by Dremio (e.g. S3, Snowflake)",
+                    "type": "string"
+                },
+                "source_name": {
+                    "title": "Source Name",
+                    "description": "Alias of platform in Dremio connection",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "platform",
+                "source_name"
+            ],
+            "additionalProperties": false
+        },
+        "ProfileConfig": {
+            "title": "ProfileConfig",
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "title": "Enabled",
+                    "description": "Whether profiling should be done.",
+                    "default": false,
+                    "type": "boolean"
+                },
+                "operation_config": {
+                    "title": "Operation Config",
+                    "description": "Experimental feature. To specify operation configs.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/OperationConfig"
+                        }
+                    ]
+                },
+                "limit": {
+                    "title": "Limit",
+                    "description": "Max number of documents to profile. By default, profiles all documents.",
+                    "type": "integer"
+                },
+                "offset": {
+                    "title": "Offset",
+                    "description": "Offset in documents to profile. By default, uses no offset.",
+                    "type": "integer"
+                },
+                "report_dropped_profiles": {
+                    "title": "Report Dropped Profiles",
+                    "description": "Whether to report datasets or dataset columns which were not profiled. Set to `True` for debugging purposes.",
+                    "default": false,
+                    "type": "boolean"
+                },
+                "turn_off_expensive_profiling_metrics": {
+                    "title": "Turn Off Expensive Profiling Metrics",
+                    "description": "Whether to turn off expensive profiling or not. This turns off profiling for quantiles, distinct_value_frequencies, histogram & sample_values. This also limits maximum number of fields being profiled to 10.",
+                    "default": false,
+                    "type": "boolean"
+                },
+                "profile_table_level_only": {
+                    "title": "Profile Table Level Only",
+                    "description": "Whether to perform profiling at table-level only, or include column-level profiling as well.",
+                    "default": false,
+                    "type": "boolean"
+                },
+                "include_field_null_count": {
+                    "title": "Include Field Null Count",
+                    "description": "Whether to profile for the number of nulls for each column.",
+                    "default": true,
+                    "type": "boolean"
+                },
+                "include_field_distinct_count": {
+                    "title": "Include Field Distinct Count",
+                    "description": "Whether to profile for the number of distinct values for each column.",
+                    "default": true,
+                    "type": "boolean"
+                },
+                "include_field_min_value": {
+                    "title": "Include Field Min Value",
+                    "description": "Whether to profile for the min value of numeric columns.",
+                    "default": true,
+                    "type": "boolean"
+                },
+                "include_field_max_value": {
+                    "title": "Include Field Max Value",
+                    "description": "Whether to profile for the max value of numeric columns.",
+                    "default": true,
+                    "type": "boolean"
+                },
+                "include_field_mean_value": {
+                    "title": "Include Field Mean Value",
+                    "description": "Whether to profile for the mean value of numeric columns.",
+                    "default": true,
+                    "type": "boolean"
+                },
+                "include_field_stddev_value": {
+                    "title": "Include Field Stddev Value",
+                    "description": "Whether to profile for the standard deviation of numeric columns.",
+                    "default": true,
+                    "type": "boolean"
+                },
+                "include_field_quantiles": {
+                    "title": "Include Field Quantiles",
+                    "description": "Whether to profile for the quantiles of numeric columns.",
+                    "default": false,
+                    "type": "boolean"
+                },
+                "include_field_distinct_value_frequencies": {
+                    "title": "Include Field Distinct Value Frequencies",
+                    "description": "Whether to profile for distinct value frequencies.",
+                    "default": false,
+                    "type": "boolean"
+                },
+                "include_field_histogram": {
+                    "title": "Include Field Histogram",
+                    "description": "Whether to profile for the histogram for numeric fields.",
+                    "default": false,
+                    "type": "boolean"
+                },
+                "include_field_sample_values": {
+                    "title": "Include Field Sample Values",
+                    "description": "Whether to profile for the sample values for all columns.",
+                    "default": true,
+                    "type": "boolean"
+                },
+                "field_sample_values_limit": {
+                    "title": "Field Sample Values Limit",
+                    "description": "Upper limit for number of sample values to collect for all columns.",
+                    "default": 20,
+                    "type": "integer"
+                },
+                "max_workers": {
+                    "title": "Max Workers",
+                    "description": "Number of worker threads to use for profiling. Set to 1 to disable.",
+                    "default": 20,
+                    "type": "integer"
+                },
+                "catch_exceptions": {
+                    "title": "Catch Exceptions",
+                    "default": true,
+                    "type": "boolean"
+                },
+                "query_timeout": {
+                    "title": "Query Timeout",
+                    "description": "Time before cancelling Dremio profiling query",
+                    "default": 300,
+                    "type": "integer"
+                },
+                "row_count": {
+                    "title": "Row Count",
+                    "default": true,
+                    "type": "boolean"
+                },
+                "column_count": {
+                    "title": "Column Count",
+                    "default": true,
+                    "type": "boolean"
+                },
+                "sample_values": {
+                    "title": "Sample Values",
+                    "default": true,
+                    "type": "boolean"
+                }
+            },
+            "additionalProperties": false
         },
         "AthenaProfilingConfig": {
             "title": "AthenaProfilingConfig",
@@ -18552,6 +19002,9 @@
                 },
                 {
                     "$ref": "#/definitions/teradata"
+                },
+                {
+                    "$ref": "#/definitions/dremio"
                 },
                 {
                     "$ref": "#/definitions/oracle"
