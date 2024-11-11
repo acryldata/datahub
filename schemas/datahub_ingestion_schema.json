@@ -1134,8 +1134,12 @@
         },
         "file_config": {
             "title": "FileSourceConfig",
+            "description": "Base configuration class for stateful ingestion for source configs to inherit from.",
             "type": "object",
             "properties": {
+                "stateful_ingestion": {
+                    "$ref": "#/definitions/StatefulStaleMetadataRemovalConfig"
+                },
                 "path": {
                     "title": "Path",
                     "description": "File path to folder or file to ingest, or URL to a remote file. If pointed to a folder, all files with extension {file_extension} (default json) within that folder will be processed.",
@@ -1169,8 +1173,7 @@
             },
             "required": [
                 "path"
-            ],
-            "additionalProperties": false
+            ]
         },
         "postgres": {
             "type": "object",
@@ -2268,8 +2271,8 @@
                     "description": "Usage related configs",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-11-08T08:29:24.539100+00:00",
-                        "start_time": "2024-11-07T00:00:00+00:00",
+                        "end_time": "2024-11-11T15:24:21.152627+00:00",
+                        "start_time": "2024-11-10T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -7384,8 +7387,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-11-08T08:29:39.310764+00:00",
-                        "start_time": "2024-11-07T00:00:00+00:00",
+                        "end_time": "2024-11-11T15:24:35.752523+00:00",
+                        "start_time": "2024-11-10T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -11473,8 +11476,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-11-08T08:29:39.897124+00:00",
-                        "start_time": "2024-11-07T00:00:00+00:00",
+                        "end_time": "2024-11-11T15:24:36.295316+00:00",
+                        "start_time": "2024-11-10T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -11677,8 +11680,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-11-08T08:29:29.758707+00:00",
-                        "start_time": "2024-11-07T00:00:00+00:00",
+                        "end_time": "2024-11-11T15:24:26.246680+00:00",
+                        "start_time": "2024-11-10T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
