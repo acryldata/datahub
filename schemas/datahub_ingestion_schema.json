@@ -2271,8 +2271,8 @@
                     "description": "Usage related configs",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-11-11T15:24:21.152627+00:00",
-                        "start_time": "2024-11-10T00:00:00+00:00",
+                        "end_time": "2024-11-12T14:02:37.913122+00:00",
+                        "start_time": "2024-11-11T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -6970,6 +6970,12 @@
                     "description": "Whether to ingest workspace app. Requires DataHub server 0.14.2+.",
                     "default": false,
                     "type": "boolean"
+                },
+                "m_query_parse_timeout": {
+                    "title": "M Query Parse Timeout",
+                    "description": "Timeout for PowerBI M-query parsing in seconds. Table-level lineage is determined by analyzing the M-query expression. Increase this value if you encounter the 'M-Query Parsing Timeout' message in the connector report.",
+                    "default": 70,
+                    "type": "integer"
                 }
             },
             "required": [
@@ -7387,8 +7393,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-11-11T15:24:35.752523+00:00",
-                        "start_time": "2024-11-10T00:00:00+00:00",
+                        "end_time": "2024-11-12T14:02:52.755645+00:00",
+                        "start_time": "2024-11-11T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -11476,8 +11482,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-11-11T15:24:36.295316+00:00",
-                        "start_time": "2024-11-10T00:00:00+00:00",
+                        "end_time": "2024-11-12T14:02:53.324903+00:00",
+                        "start_time": "2024-11-11T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -11680,8 +11686,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-11-11T15:24:26.246680+00:00",
-                        "start_time": "2024-11-10T00:00:00+00:00",
+                        "end_time": "2024-11-12T14:02:43.135194+00:00",
+                        "start_time": "2024-11-11T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
