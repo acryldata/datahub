@@ -2271,8 +2271,8 @@
                     "description": "Usage related configs",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-11-13T13:16:39.882323+00:00",
-                        "start_time": "2024-11-12T00:00:00+00:00",
+                        "end_time": "2024-11-14T08:04:08.694896+00:00",
+                        "start_time": "2024-11-13T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -7393,8 +7393,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-11-13T13:16:59.327300+00:00",
-                        "start_time": "2024-11-12T00:00:00+00:00",
+                        "end_time": "2024-11-14T08:04:23.840969+00:00",
+                        "start_time": "2024-11-13T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -11482,8 +11482,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-11-13T13:17:00.235480+00:00",
-                        "start_time": "2024-11-12T00:00:00+00:00",
+                        "end_time": "2024-11-14T08:04:24.421227+00:00",
+                        "start_time": "2024-11-13T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -11686,8 +11686,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-11-13T13:16:47.389551+00:00",
-                        "start_time": "2024-11-12T00:00:00+00:00",
+                        "end_time": "2024-11-14T08:04:14.030093+00:00",
+                        "start_time": "2024-11-13T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -12061,7 +12061,7 @@
                 "scheme": {
                     "title": "Scheme",
                     "description": "Will be set automatically to default value.",
-                    "default": "oracle+oracledb",
+                    "default": "oracle",
                     "type": "string"
                 },
                 "sqlalchemy_uri": {
