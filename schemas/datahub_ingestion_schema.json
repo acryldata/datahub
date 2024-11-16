@@ -406,8 +406,6 @@
                         },
                         "limit": null,
                         "offset": null,
-                        "report_dropped_profiles": false,
-                        "turn_off_expensive_profiling_metrics": false,
                         "profile_table_level_only": false,
                         "include_field_null_count": true,
                         "include_field_distinct_count": true,
@@ -420,13 +418,15 @@
                         "include_field_distinct_value_frequencies": false,
                         "include_field_histogram": false,
                         "include_field_sample_values": true,
+                        "max_workers": 20,
+                        "report_dropped_profiles": false,
+                        "turn_off_expensive_profiling_metrics": false,
                         "field_sample_values_limit": 20,
                         "max_number_of_fields_to_profile": null,
                         "profile_if_updated_since_days": null,
                         "profile_table_size_limit": 5,
                         "profile_table_row_limit": 5000000,
                         "profile_table_row_count_estimate_only": false,
-                        "max_workers": 20,
                         "query_combiner_enabled": true,
                         "catch_exceptions": true,
                         "partition_profiling_enabled": true,
@@ -586,6 +586,163 @@
                 "url",
                 "swagger_file"
             ],
+            "additionalProperties": false
+        },
+        "cassandra": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "cassandra"
+                    ]
+                },
+                "config": {
+                    "$ref": "#/definitions/cassandra_config"
+                }
+            },
+            "required": [
+                "type",
+                "config"
+            ]
+        },
+        "cassandra_config": {
+            "title": "CassandraSourceConfig",
+            "description": "Configuration for connecting to a Cassandra or DataStax Astra DB source.",
+            "type": "object",
+            "properties": {
+                "env": {
+                    "title": "Env",
+                    "description": "The environment that all assets produced by this connector belong to",
+                    "default": "PROD",
+                    "type": "string"
+                },
+                "stateful_ingestion": {
+                    "title": "Stateful Ingestion",
+                    "description": "Configuration for stateful ingestion and stale metadata removal.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/StatefulStaleMetadataRemovalConfig"
+                        }
+                    ]
+                },
+                "platform_instance": {
+                    "title": "Platform Instance",
+                    "description": "The instance of the platform that all assets produced by this recipe belong to. This should be unique within the platform. See https://datahubproject.io/docs/platform-instances/ for more details.",
+                    "type": "string"
+                },
+                "contact_point": {
+                    "title": "Contact Point",
+                    "description": "Domain or IP address of the Cassandra instance (excluding port).",
+                    "default": "localhost",
+                    "type": "string"
+                },
+                "port": {
+                    "title": "Port",
+                    "description": "Port number to connect to the Cassandra instance.",
+                    "default": 9042,
+                    "type": "integer"
+                },
+                "username": {
+                    "title": "Username",
+                    "description": "Username credential with read access to the system_schema keyspace.",
+                    "type": "string"
+                },
+                "password": {
+                    "title": "Password",
+                    "description": "Password credential associated with the specified username.",
+                    "type": "string"
+                },
+                "cloud_config": {
+                    "title": "Cloud Config",
+                    "description": "Configuration for cloud-based Cassandra, such as DataStax Astra DB.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/CassandraCloudConfig"
+                        }
+                    ]
+                },
+                "keyspace_pattern": {
+                    "title": "Keyspace Pattern",
+                    "description": "Regex patterns to filter keyspaces for ingestion.",
+                    "default": {
+                        "allow": [
+                            ".*"
+                        ],
+                        "deny": [],
+                        "ignoreCase": true
+                    },
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/AllowDenyPattern"
+                        }
+                    ]
+                },
+                "table_pattern": {
+                    "title": "Table Pattern",
+                    "description": "Regex patterns to filter keyspaces.tables for ingestion.",
+                    "default": {
+                        "allow": [
+                            ".*"
+                        ],
+                        "deny": [],
+                        "ignoreCase": true
+                    },
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/AllowDenyPattern"
+                        }
+                    ]
+                },
+                "profile_pattern": {
+                    "title": "Profile Pattern",
+                    "description": "Regex patterns for tables to profile",
+                    "default": {
+                        "allow": [
+                            ".*"
+                        ],
+                        "deny": [],
+                        "ignoreCase": true
+                    },
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/AllowDenyPattern"
+                        }
+                    ]
+                },
+                "profiling": {
+                    "title": "Profiling",
+                    "description": "Configuration for profiling",
+                    "default": {
+                        "enabled": false,
+                        "operation_config": {
+                            "lower_freq_profile_enabled": false,
+                            "profile_day_of_week": null,
+                            "profile_date_of_month": null
+                        },
+                        "limit": null,
+                        "offset": null,
+                        "profile_table_level_only": false,
+                        "include_field_null_count": true,
+                        "include_field_distinct_count": true,
+                        "include_field_min_value": true,
+                        "include_field_max_value": true,
+                        "include_field_mean_value": true,
+                        "include_field_median_value": true,
+                        "include_field_stddev_value": true,
+                        "include_field_quantiles": false,
+                        "include_field_distinct_value_frequencies": false,
+                        "include_field_histogram": false,
+                        "include_field_sample_values": true,
+                        "max_workers": 20
+                    },
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/GEProfilingBaseConfig"
+                        }
+                    ]
+                }
+            },
             "additionalProperties": false
         },
         "ldap": {
@@ -931,8 +1088,6 @@
                         },
                         "limit": null,
                         "offset": null,
-                        "report_dropped_profiles": false,
-                        "turn_off_expensive_profiling_metrics": false,
                         "profile_table_level_only": false,
                         "include_field_null_count": true,
                         "include_field_distinct_count": true,
@@ -945,13 +1100,15 @@
                         "include_field_distinct_value_frequencies": false,
                         "include_field_histogram": false,
                         "include_field_sample_values": true,
+                        "max_workers": 20,
+                        "report_dropped_profiles": false,
+                        "turn_off_expensive_profiling_metrics": false,
                         "field_sample_values_limit": 20,
                         "max_number_of_fields_to_profile": null,
                         "profile_if_updated_since_days": null,
                         "profile_table_size_limit": 5,
                         "profile_table_row_limit": 5000000,
                         "profile_table_row_count_estimate_only": false,
-                        "max_workers": 20,
                         "query_combiner_enabled": true,
                         "catch_exceptions": true,
                         "partition_profiling_enabled": true,
@@ -1385,8 +1542,6 @@
                         },
                         "limit": null,
                         "offset": null,
-                        "report_dropped_profiles": false,
-                        "turn_off_expensive_profiling_metrics": false,
                         "profile_table_level_only": false,
                         "include_field_null_count": true,
                         "include_field_distinct_count": true,
@@ -1399,13 +1554,15 @@
                         "include_field_distinct_value_frequencies": false,
                         "include_field_histogram": false,
                         "include_field_sample_values": true,
+                        "max_workers": 20,
+                        "report_dropped_profiles": false,
+                        "turn_off_expensive_profiling_metrics": false,
                         "field_sample_values_limit": 20,
                         "max_number_of_fields_to_profile": null,
                         "profile_if_updated_since_days": null,
                         "profile_table_size_limit": 5,
                         "profile_table_row_limit": 5000000,
                         "profile_table_row_count_estimate_only": false,
-                        "max_workers": 20,
                         "query_combiner_enabled": true,
                         "catch_exceptions": true,
                         "partition_profiling_enabled": true,
@@ -2083,8 +2240,6 @@
                         },
                         "limit": null,
                         "offset": null,
-                        "report_dropped_profiles": false,
-                        "turn_off_expensive_profiling_metrics": false,
                         "profile_table_level_only": false,
                         "include_field_null_count": true,
                         "include_field_distinct_count": true,
@@ -2097,13 +2252,15 @@
                         "include_field_distinct_value_frequencies": false,
                         "include_field_histogram": false,
                         "include_field_sample_values": true,
+                        "max_workers": 20,
+                        "report_dropped_profiles": false,
+                        "turn_off_expensive_profiling_metrics": false,
                         "field_sample_values_limit": 20,
                         "max_number_of_fields_to_profile": null,
                         "profile_if_updated_since_days": null,
                         "profile_table_size_limit": 5,
                         "profile_table_row_limit": 5000000,
                         "profile_table_row_count_estimate_only": false,
-                        "max_workers": 20,
                         "query_combiner_enabled": true,
                         "catch_exceptions": true,
                         "partition_profiling_enabled": true,
@@ -2271,8 +2428,8 @@
                     "description": "Usage related configs",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-11-15T11:54:51.202261+00:00",
-                        "start_time": "2024-11-14T00:00:00+00:00",
+                        "end_time": "2024-11-16T09:11:05.861241+00:00",
+                        "start_time": "2024-11-15T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -3602,8 +3759,6 @@
                         },
                         "limit": null,
                         "offset": null,
-                        "report_dropped_profiles": false,
-                        "turn_off_expensive_profiling_metrics": false,
                         "profile_table_level_only": false,
                         "include_field_null_count": true,
                         "include_field_distinct_count": true,
@@ -3616,13 +3771,15 @@
                         "include_field_distinct_value_frequencies": false,
                         "include_field_histogram": false,
                         "include_field_sample_values": true,
+                        "max_workers": 20,
+                        "report_dropped_profiles": false,
+                        "turn_off_expensive_profiling_metrics": false,
                         "field_sample_values_limit": 20,
                         "max_number_of_fields_to_profile": null,
                         "profile_if_updated_since_days": null,
                         "profile_table_size_limit": 5,
                         "profile_table_row_limit": 5000000,
                         "profile_table_row_count_estimate_only": false,
-                        "max_workers": 20,
                         "query_combiner_enabled": true,
                         "catch_exceptions": true,
                         "partition_profiling_enabled": true,
@@ -5061,8 +5218,6 @@
                         },
                         "limit": null,
                         "offset": null,
-                        "report_dropped_profiles": false,
-                        "turn_off_expensive_profiling_metrics": false,
                         "profile_table_level_only": false,
                         "include_field_null_count": true,
                         "include_field_distinct_count": true,
@@ -5075,13 +5230,15 @@
                         "include_field_distinct_value_frequencies": false,
                         "include_field_histogram": false,
                         "include_field_sample_values": true,
+                        "max_workers": 20,
+                        "report_dropped_profiles": false,
+                        "turn_off_expensive_profiling_metrics": false,
                         "field_sample_values_limit": 20,
                         "max_number_of_fields_to_profile": null,
                         "profile_if_updated_since_days": null,
                         "profile_table_size_limit": 5,
                         "profile_table_row_limit": 5000000,
                         "profile_table_row_count_estimate_only": false,
-                        "max_workers": 20,
                         "query_combiner_enabled": true,
                         "catch_exceptions": true,
                         "partition_profiling_enabled": true,
@@ -5376,8 +5533,6 @@
                         },
                         "limit": null,
                         "offset": null,
-                        "report_dropped_profiles": false,
-                        "turn_off_expensive_profiling_metrics": false,
                         "profile_table_level_only": false,
                         "include_field_null_count": true,
                         "include_field_distinct_count": true,
@@ -5390,13 +5545,15 @@
                         "include_field_distinct_value_frequencies": false,
                         "include_field_histogram": false,
                         "include_field_sample_values": true,
+                        "max_workers": 20,
+                        "report_dropped_profiles": false,
+                        "turn_off_expensive_profiling_metrics": false,
                         "field_sample_values_limit": 20,
                         "max_number_of_fields_to_profile": null,
                         "profile_if_updated_since_days": null,
                         "profile_table_size_limit": 5,
                         "profile_table_row_limit": 5000000,
                         "profile_table_row_count_estimate_only": false,
-                        "max_workers": 20,
                         "query_combiner_enabled": true,
                         "catch_exceptions": true,
                         "partition_profiling_enabled": true,
@@ -5741,8 +5898,6 @@
                         },
                         "limit": null,
                         "offset": null,
-                        "report_dropped_profiles": false,
-                        "turn_off_expensive_profiling_metrics": false,
                         "profile_table_level_only": false,
                         "include_field_null_count": true,
                         "include_field_distinct_count": true,
@@ -5755,13 +5910,15 @@
                         "include_field_distinct_value_frequencies": false,
                         "include_field_histogram": false,
                         "include_field_sample_values": true,
+                        "max_workers": 20,
+                        "report_dropped_profiles": false,
+                        "turn_off_expensive_profiling_metrics": false,
                         "field_sample_values_limit": 20,
                         "max_number_of_fields_to_profile": null,
                         "profile_if_updated_since_days": null,
                         "profile_table_size_limit": 5,
                         "profile_table_row_limit": 5000000,
                         "profile_table_row_count_estimate_only": false,
-                        "max_workers": 20,
                         "query_combiner_enabled": true,
                         "catch_exceptions": true,
                         "partition_profiling_enabled": true,
@@ -6365,8 +6522,6 @@
                         },
                         "limit": null,
                         "offset": null,
-                        "report_dropped_profiles": false,
-                        "turn_off_expensive_profiling_metrics": false,
                         "profile_table_level_only": false,
                         "include_field_null_count": true,
                         "include_field_distinct_count": true,
@@ -6379,13 +6534,15 @@
                         "include_field_distinct_value_frequencies": false,
                         "include_field_histogram": false,
                         "include_field_sample_values": true,
+                        "max_workers": 20,
+                        "report_dropped_profiles": false,
+                        "turn_off_expensive_profiling_metrics": false,
                         "field_sample_values_limit": 20,
                         "max_number_of_fields_to_profile": null,
                         "profile_if_updated_since_days": null,
                         "profile_table_size_limit": 5,
                         "profile_table_row_limit": 5000000,
                         "profile_table_row_count_estimate_only": false,
-                        "max_workers": 20,
                         "query_combiner_enabled": true,
                         "catch_exceptions": true,
                         "partition_profiling_enabled": true,
@@ -7194,8 +7351,6 @@
                         },
                         "limit": null,
                         "offset": null,
-                        "report_dropped_profiles": false,
-                        "turn_off_expensive_profiling_metrics": false,
                         "profile_table_level_only": false,
                         "include_field_null_count": true,
                         "include_field_distinct_count": true,
@@ -7208,13 +7363,15 @@
                         "include_field_distinct_value_frequencies": false,
                         "include_field_histogram": false,
                         "include_field_sample_values": true,
+                        "max_workers": 20,
+                        "report_dropped_profiles": false,
+                        "turn_off_expensive_profiling_metrics": false,
                         "field_sample_values_limit": 20,
                         "max_number_of_fields_to_profile": null,
                         "profile_if_updated_since_days": null,
                         "profile_table_size_limit": 5,
                         "profile_table_row_limit": 5000000,
                         "profile_table_row_count_estimate_only": false,
-                        "max_workers": 20,
                         "query_combiner_enabled": true,
                         "catch_exceptions": true,
                         "partition_profiling_enabled": true,
@@ -7393,8 +7550,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-11-15T11:55:05.884145+00:00",
-                        "start_time": "2024-11-14T00:00:00+00:00",
+                        "end_time": "2024-11-16T09:11:20.688836+00:00",
+                        "start_time": "2024-11-15T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -7648,8 +7805,6 @@
                         },
                         "limit": null,
                         "offset": null,
-                        "report_dropped_profiles": false,
-                        "turn_off_expensive_profiling_metrics": false,
                         "profile_table_level_only": false,
                         "include_field_null_count": true,
                         "include_field_distinct_count": true,
@@ -7662,13 +7817,15 @@
                         "include_field_distinct_value_frequencies": false,
                         "include_field_histogram": false,
                         "include_field_sample_values": true,
+                        "max_workers": 20,
+                        "report_dropped_profiles": false,
+                        "turn_off_expensive_profiling_metrics": false,
                         "field_sample_values_limit": 20,
                         "max_number_of_fields_to_profile": null,
                         "profile_if_updated_since_days": null,
                         "profile_table_size_limit": 5,
                         "profile_table_row_limit": 5000000,
                         "profile_table_row_count_estimate_only": false,
-                        "max_workers": 20,
                         "query_combiner_enabled": true,
                         "catch_exceptions": true,
                         "partition_profiling_enabled": true,
@@ -7938,8 +8095,6 @@
                         },
                         "limit": null,
                         "offset": null,
-                        "report_dropped_profiles": false,
-                        "turn_off_expensive_profiling_metrics": false,
                         "profile_table_level_only": false,
                         "include_field_null_count": true,
                         "include_field_distinct_count": true,
@@ -7952,13 +8107,15 @@
                         "include_field_distinct_value_frequencies": false,
                         "include_field_histogram": false,
                         "include_field_sample_values": true,
+                        "max_workers": 20,
+                        "report_dropped_profiles": false,
+                        "turn_off_expensive_profiling_metrics": false,
                         "field_sample_values_limit": 20,
                         "max_number_of_fields_to_profile": null,
                         "profile_if_updated_since_days": null,
                         "profile_table_size_limit": 5,
                         "profile_table_row_limit": 5000000,
                         "profile_table_row_count_estimate_only": false,
-                        "max_workers": 20,
                         "query_combiner_enabled": true,
                         "catch_exceptions": true,
                         "partition_profiling_enabled": true,
@@ -8423,8 +8580,6 @@
                         },
                         "limit": null,
                         "offset": null,
-                        "report_dropped_profiles": false,
-                        "turn_off_expensive_profiling_metrics": false,
                         "profile_table_level_only": false,
                         "include_field_null_count": true,
                         "include_field_distinct_count": true,
@@ -8437,13 +8592,15 @@
                         "include_field_distinct_value_frequencies": false,
                         "include_field_histogram": false,
                         "include_field_sample_values": true,
+                        "max_workers": 20,
+                        "report_dropped_profiles": false,
+                        "turn_off_expensive_profiling_metrics": false,
                         "field_sample_values_limit": 20,
                         "max_number_of_fields_to_profile": null,
                         "profile_if_updated_since_days": null,
                         "profile_table_size_limit": 5,
                         "profile_table_row_limit": 5000000,
                         "profile_table_row_count_estimate_only": false,
-                        "max_workers": 20,
                         "query_combiner_enabled": true,
                         "catch_exceptions": true,
                         "partition_profiling_enabled": true,
@@ -8943,8 +9100,6 @@
                         },
                         "limit": null,
                         "offset": null,
-                        "report_dropped_profiles": false,
-                        "turn_off_expensive_profiling_metrics": false,
                         "profile_table_level_only": false,
                         "include_field_null_count": true,
                         "include_field_distinct_count": true,
@@ -8957,13 +9112,15 @@
                         "include_field_distinct_value_frequencies": false,
                         "include_field_histogram": false,
                         "include_field_sample_values": true,
+                        "max_workers": 20,
+                        "report_dropped_profiles": false,
+                        "turn_off_expensive_profiling_metrics": false,
                         "field_sample_values_limit": 20,
                         "max_number_of_fields_to_profile": null,
                         "profile_if_updated_since_days": null,
                         "profile_table_size_limit": 5,
                         "profile_table_row_limit": 5000000,
                         "profile_table_row_count_estimate_only": false,
-                        "max_workers": 20,
                         "query_combiner_enabled": true,
                         "catch_exceptions": true,
                         "partition_profiling_enabled": true,
@@ -9909,8 +10066,6 @@
                         },
                         "limit": null,
                         "offset": null,
-                        "report_dropped_profiles": false,
-                        "turn_off_expensive_profiling_metrics": false,
                         "profile_table_level_only": false,
                         "include_field_null_count": true,
                         "include_field_distinct_count": true,
@@ -9923,13 +10078,15 @@
                         "include_field_distinct_value_frequencies": false,
                         "include_field_histogram": false,
                         "include_field_sample_values": true,
+                        "max_workers": 20,
+                        "report_dropped_profiles": false,
+                        "turn_off_expensive_profiling_metrics": false,
                         "field_sample_values_limit": 20,
                         "max_number_of_fields_to_profile": null,
                         "profile_if_updated_since_days": null,
                         "profile_table_size_limit": 5,
                         "profile_table_row_limit": 5000000,
                         "profile_table_row_count_estimate_only": false,
-                        "max_workers": 20,
                         "query_combiner_enabled": true,
                         "catch_exceptions": true,
                         "partition_profiling_enabled": true,
@@ -10500,8 +10657,6 @@
                         },
                         "limit": null,
                         "offset": null,
-                        "report_dropped_profiles": false,
-                        "turn_off_expensive_profiling_metrics": false,
                         "profile_table_level_only": false,
                         "include_field_null_count": true,
                         "include_field_distinct_count": true,
@@ -10514,13 +10669,15 @@
                         "include_field_distinct_value_frequencies": false,
                         "include_field_histogram": false,
                         "include_field_sample_values": true,
+                        "max_workers": 20,
+                        "report_dropped_profiles": false,
+                        "turn_off_expensive_profiling_metrics": false,
                         "field_sample_values_limit": 20,
                         "max_number_of_fields_to_profile": null,
                         "profile_if_updated_since_days": null,
                         "profile_table_size_limit": 5,
                         "profile_table_row_limit": 5000000,
                         "profile_table_row_count_estimate_only": false,
-                        "max_workers": 20,
                         "query_combiner_enabled": true,
                         "catch_exceptions": true,
                         "partition_profiling_enabled": true,
@@ -11035,8 +11192,6 @@
                         },
                         "limit": null,
                         "offset": null,
-                        "report_dropped_profiles": false,
-                        "turn_off_expensive_profiling_metrics": false,
                         "profile_table_level_only": false,
                         "include_field_null_count": true,
                         "include_field_distinct_count": true,
@@ -11049,13 +11204,15 @@
                         "include_field_distinct_value_frequencies": false,
                         "include_field_histogram": false,
                         "include_field_sample_values": true,
+                        "max_workers": 20,
+                        "report_dropped_profiles": false,
+                        "turn_off_expensive_profiling_metrics": false,
                         "field_sample_values_limit": 20,
                         "max_number_of_fields_to_profile": null,
                         "profile_if_updated_since_days": null,
                         "profile_table_size_limit": 5,
                         "profile_table_row_limit": 5000000,
                         "profile_table_row_count_estimate_only": false,
-                        "max_workers": 20,
                         "query_combiner_enabled": true,
                         "catch_exceptions": true,
                         "partition_profiling_enabled": true,
@@ -11340,8 +11497,6 @@
                         },
                         "limit": null,
                         "offset": null,
-                        "report_dropped_profiles": false,
-                        "turn_off_expensive_profiling_metrics": false,
                         "profile_table_level_only": false,
                         "include_field_null_count": true,
                         "include_field_distinct_count": true,
@@ -11354,13 +11509,15 @@
                         "include_field_distinct_value_frequencies": false,
                         "include_field_histogram": false,
                         "include_field_sample_values": true,
+                        "max_workers": 20,
+                        "report_dropped_profiles": false,
+                        "turn_off_expensive_profiling_metrics": false,
                         "field_sample_values_limit": 20,
                         "max_number_of_fields_to_profile": null,
                         "profile_if_updated_since_days": null,
                         "profile_table_size_limit": 5,
                         "profile_table_row_limit": 5000000,
                         "profile_table_row_count_estimate_only": false,
-                        "max_workers": 20,
                         "query_combiner_enabled": true,
                         "catch_exceptions": true,
                         "partition_profiling_enabled": true,
@@ -11482,8 +11639,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-11-15T11:55:06.417580+00:00",
-                        "start_time": "2024-11-14T00:00:00+00:00",
+                        "end_time": "2024-11-16T09:11:21.277276+00:00",
+                        "start_time": "2024-11-15T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -11686,8 +11843,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-11-15T11:54:56.365086+00:00",
-                        "start_time": "2024-11-14T00:00:00+00:00",
+                        "end_time": "2024-11-16T09:11:11.143814+00:00",
+                        "start_time": "2024-11-15T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -11736,8 +11893,6 @@
                         },
                         "limit": null,
                         "offset": null,
-                        "report_dropped_profiles": false,
-                        "turn_off_expensive_profiling_metrics": false,
                         "profile_table_level_only": false,
                         "include_field_null_count": true,
                         "include_field_distinct_count": true,
@@ -11750,25 +11905,8 @@
                         "include_field_distinct_value_frequencies": false,
                         "include_field_histogram": false,
                         "include_field_sample_values": true,
-                        "field_sample_values_limit": 20,
-                        "max_number_of_fields_to_profile": null,
-                        "profile_if_updated_since_days": null,
-                        "profile_table_size_limit": 5,
-                        "profile_table_row_limit": 5000000,
-                        "profile_table_row_count_estimate_only": false,
                         "max_workers": 20,
-                        "query_combiner_enabled": true,
-                        "catch_exceptions": true,
-                        "partition_profiling_enabled": true,
-                        "partition_datetime": null,
-                        "use_sampling": true,
-                        "sample_size": 10000,
-                        "profile_external_tables": false,
-                        "tags_to_ignore_sampling": null,
-                        "query_timeout": 300,
-                        "row_count": true,
-                        "column_count": true,
-                        "sample_values": true
+                        "query_timeout": 300
                     },
                     "allOf": [
                         {
@@ -12000,8 +12138,6 @@
                         },
                         "limit": null,
                         "offset": null,
-                        "report_dropped_profiles": false,
-                        "turn_off_expensive_profiling_metrics": false,
                         "profile_table_level_only": false,
                         "include_field_null_count": true,
                         "include_field_distinct_count": true,
@@ -12014,13 +12150,15 @@
                         "include_field_distinct_value_frequencies": false,
                         "include_field_histogram": false,
                         "include_field_sample_values": true,
+                        "max_workers": 20,
+                        "report_dropped_profiles": false,
+                        "turn_off_expensive_profiling_metrics": false,
                         "field_sample_values_limit": 20,
                         "max_number_of_fields_to_profile": null,
                         "profile_if_updated_since_days": null,
                         "profile_table_size_limit": 5,
                         "profile_table_row_limit": 5000000,
                         "profile_table_row_count_estimate_only": false,
-                        "max_workers": 20,
                         "query_combiner_enabled": true,
                         "catch_exceptions": true,
                         "partition_profiling_enabled": true,
@@ -12534,8 +12672,6 @@
                         },
                         "limit": null,
                         "offset": null,
-                        "report_dropped_profiles": false,
-                        "turn_off_expensive_profiling_metrics": false,
                         "profile_table_level_only": false,
                         "include_field_null_count": true,
                         "include_field_distinct_count": true,
@@ -12548,13 +12684,15 @@
                         "include_field_distinct_value_frequencies": false,
                         "include_field_histogram": false,
                         "include_field_sample_values": true,
+                        "max_workers": 20,
+                        "report_dropped_profiles": false,
+                        "turn_off_expensive_profiling_metrics": false,
                         "field_sample_values_limit": 20,
                         "max_number_of_fields_to_profile": null,
                         "profile_if_updated_since_days": null,
                         "profile_table_size_limit": 5,
                         "profile_table_row_limit": 5000000,
                         "profile_table_row_count_estimate_only": false,
-                        "max_workers": 20,
                         "query_combiner_enabled": true,
                         "catch_exceptions": true,
                         "partition_profiling_enabled": true,
@@ -12867,8 +13005,6 @@
                         },
                         "limit": null,
                         "offset": null,
-                        "report_dropped_profiles": false,
-                        "turn_off_expensive_profiling_metrics": false,
                         "profile_table_level_only": false,
                         "include_field_null_count": true,
                         "include_field_distinct_count": true,
@@ -12881,13 +13017,15 @@
                         "include_field_distinct_value_frequencies": false,
                         "include_field_histogram": false,
                         "include_field_sample_values": true,
+                        "max_workers": 20,
+                        "report_dropped_profiles": false,
+                        "turn_off_expensive_profiling_metrics": false,
                         "field_sample_values_limit": 20,
                         "max_number_of_fields_to_profile": null,
                         "profile_if_updated_since_days": null,
                         "profile_table_size_limit": 5,
                         "profile_table_row_limit": 5000000,
                         "profile_table_row_count_estimate_only": false,
-                        "max_workers": 20,
                         "query_combiner_enabled": true,
                         "catch_exceptions": true,
                         "partition_profiling_enabled": false,
@@ -14077,8 +14215,6 @@
                         },
                         "limit": null,
                         "offset": null,
-                        "report_dropped_profiles": false,
-                        "turn_off_expensive_profiling_metrics": false,
                         "profile_table_level_only": false,
                         "include_field_null_count": true,
                         "include_field_distinct_count": true,
@@ -14091,13 +14227,15 @@
                         "include_field_distinct_value_frequencies": false,
                         "include_field_histogram": false,
                         "include_field_sample_values": true,
+                        "max_workers": 20,
+                        "report_dropped_profiles": false,
+                        "turn_off_expensive_profiling_metrics": false,
                         "field_sample_values_limit": 20,
                         "max_number_of_fields_to_profile": null,
                         "profile_if_updated_since_days": null,
                         "profile_table_size_limit": 5,
                         "profile_table_row_limit": 5000000,
                         "profile_table_row_count_estimate_only": false,
-                        "max_workers": 20,
                         "query_combiner_enabled": true,
                         "catch_exceptions": true,
                         "partition_profiling_enabled": true,
@@ -14495,8 +14633,6 @@
                         },
                         "limit": null,
                         "offset": null,
-                        "report_dropped_profiles": false,
-                        "turn_off_expensive_profiling_metrics": false,
                         "profile_table_level_only": false,
                         "include_field_null_count": true,
                         "include_field_distinct_count": true,
@@ -14509,13 +14645,15 @@
                         "include_field_distinct_value_frequencies": false,
                         "include_field_histogram": false,
                         "include_field_sample_values": true,
+                        "max_workers": 20,
+                        "report_dropped_profiles": false,
+                        "turn_off_expensive_profiling_metrics": false,
                         "field_sample_values_limit": 20,
                         "max_number_of_fields_to_profile": null,
                         "profile_if_updated_since_days": null,
                         "profile_table_size_limit": 5,
                         "profile_table_row_limit": 5000000,
                         "profile_table_row_count_estimate_only": false,
-                        "max_workers": 20,
                         "query_combiner_enabled": true,
                         "catch_exceptions": true,
                         "partition_profiling_enabled": true,
@@ -15119,8 +15257,6 @@
                         },
                         "limit": null,
                         "offset": null,
-                        "report_dropped_profiles": false,
-                        "turn_off_expensive_profiling_metrics": false,
                         "profile_table_level_only": false,
                         "include_field_null_count": true,
                         "include_field_distinct_count": true,
@@ -15133,13 +15269,15 @@
                         "include_field_distinct_value_frequencies": false,
                         "include_field_histogram": false,
                         "include_field_sample_values": true,
+                        "max_workers": 20,
+                        "report_dropped_profiles": false,
+                        "turn_off_expensive_profiling_metrics": false,
                         "field_sample_values_limit": 20,
                         "max_number_of_fields_to_profile": null,
                         "profile_if_updated_since_days": null,
                         "profile_table_size_limit": 5,
                         "profile_table_row_limit": 5000000,
                         "profile_table_row_count_estimate_only": false,
-                        "max_workers": 20,
                         "query_combiner_enabled": true,
                         "catch_exceptions": true,
                         "partition_profiling_enabled": true,
@@ -15794,18 +15932,6 @@
                     "description": "Offset in documents to profile. By default, uses no offset.",
                     "type": "integer"
                 },
-                "report_dropped_profiles": {
-                    "title": "Report Dropped Profiles",
-                    "description": "Whether to report datasets or dataset columns which were not profiled. Set to `True` for debugging purposes.",
-                    "default": false,
-                    "type": "boolean"
-                },
-                "turn_off_expensive_profiling_metrics": {
-                    "title": "Turn Off Expensive Profiling Metrics",
-                    "description": "Whether to turn off expensive profiling or not. This turns off profiling for quantiles, distinct_value_frequencies, histogram & sample_values. This also limits maximum number of fields being profiled to 10.",
-                    "default": false,
-                    "type": "boolean"
-                },
                 "profile_table_level_only": {
                     "title": "Profile Table Level Only",
                     "description": "Whether to perform profiling at table-level only, or include column-level profiling as well.",
@@ -15878,6 +16004,24 @@
                     "default": true,
                     "type": "boolean"
                 },
+                "max_workers": {
+                    "title": "Max Workers",
+                    "description": "Number of worker threads to use for profiling. Set to 1 to disable.",
+                    "default": 20,
+                    "type": "integer"
+                },
+                "report_dropped_profiles": {
+                    "title": "Report Dropped Profiles",
+                    "description": "Whether to report datasets or dataset columns which were not profiled. Set to `True` for debugging purposes.",
+                    "default": false,
+                    "type": "boolean"
+                },
+                "turn_off_expensive_profiling_metrics": {
+                    "title": "Turn Off Expensive Profiling Metrics",
+                    "description": "Whether to turn off expensive profiling or not. This turns off profiling for quantiles, distinct_value_frequencies, histogram & sample_values. This also limits maximum number of fields being profiled to 10.",
+                    "default": false,
+                    "type": "boolean"
+                },
                 "field_sample_values_limit": {
                     "title": "Field Sample Values Limit",
                     "description": "Upper limit for number of sample values to collect for all columns.",
@@ -15913,12 +16057,6 @@
                     "description": "Use an approximate query for row count. This will be much faster but slightly less accurate. Only supported for Postgres and MySQL. ",
                     "default": false,
                     "type": "boolean"
-                },
-                "max_workers": {
-                    "title": "Max Workers",
-                    "description": "Number of worker threads to use for profiling. Set to 1 to disable.",
-                    "default": 20,
-                    "type": "integer"
                 },
                 "query_combiner_enabled": {
                     "title": "Query Combiner Enabled",
@@ -15996,6 +16134,150 @@
                     "title": "Connector Platform",
                     "description": "A connector's actual platform name. If not provided, will take from metadata tablesEg: hive catalog can have a connector platform as 'hive' or 'glue' or some other metastore.",
                     "type": "string"
+                }
+            },
+            "additionalProperties": false
+        },
+        "CassandraCloudConfig": {
+            "title": "CassandraCloudConfig",
+            "description": "Configuration for connecting to DataStax Astra DB in the cloud.",
+            "type": "object",
+            "properties": {
+                "token": {
+                    "title": "Token",
+                    "description": "The Astra DB application token used for authentication.",
+                    "type": "string"
+                },
+                "secure_connect_bundle": {
+                    "title": "Secure Connect Bundle",
+                    "description": "File path to the Secure Connect Bundle (.zip) used for a secure connection to DataStax Astra DB.",
+                    "type": "string"
+                },
+                "connect_timeout": {
+                    "title": "Connect Timeout",
+                    "description": "Timeout in seconds for establishing new connections to Cassandra.",
+                    "default": 600,
+                    "type": "integer"
+                },
+                "request_timeout": {
+                    "title": "Request Timeout",
+                    "description": "Timeout in seconds for individual Cassandra requests.",
+                    "default": 600,
+                    "type": "integer"
+                }
+            },
+            "required": [
+                "token",
+                "secure_connect_bundle"
+            ],
+            "additionalProperties": false
+        },
+        "GEProfilingBaseConfig": {
+            "title": "GEProfilingBaseConfig",
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "title": "Enabled",
+                    "description": "Whether profiling should be done.",
+                    "default": false,
+                    "type": "boolean"
+                },
+                "operation_config": {
+                    "title": "Operation Config",
+                    "description": "Experimental feature. To specify operation configs.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/OperationConfig"
+                        }
+                    ]
+                },
+                "limit": {
+                    "title": "Limit",
+                    "description": "Max number of documents to profile. By default, profiles all documents.",
+                    "type": "integer"
+                },
+                "offset": {
+                    "title": "Offset",
+                    "description": "Offset in documents to profile. By default, uses no offset.",
+                    "type": "integer"
+                },
+                "profile_table_level_only": {
+                    "title": "Profile Table Level Only",
+                    "description": "Whether to perform profiling at table-level only, or include column-level profiling as well.",
+                    "default": false,
+                    "type": "boolean"
+                },
+                "include_field_null_count": {
+                    "title": "Include Field Null Count",
+                    "description": "Whether to profile for the number of nulls for each column.",
+                    "default": true,
+                    "type": "boolean"
+                },
+                "include_field_distinct_count": {
+                    "title": "Include Field Distinct Count",
+                    "description": "Whether to profile for the number of distinct values for each column.",
+                    "default": true,
+                    "type": "boolean"
+                },
+                "include_field_min_value": {
+                    "title": "Include Field Min Value",
+                    "description": "Whether to profile for the min value of numeric columns.",
+                    "default": true,
+                    "type": "boolean"
+                },
+                "include_field_max_value": {
+                    "title": "Include Field Max Value",
+                    "description": "Whether to profile for the max value of numeric columns.",
+                    "default": true,
+                    "type": "boolean"
+                },
+                "include_field_mean_value": {
+                    "title": "Include Field Mean Value",
+                    "description": "Whether to profile for the mean value of numeric columns.",
+                    "default": true,
+                    "type": "boolean"
+                },
+                "include_field_median_value": {
+                    "title": "Include Field Median Value",
+                    "description": "Whether to profile for the median value of numeric columns.",
+                    "default": true,
+                    "type": "boolean"
+                },
+                "include_field_stddev_value": {
+                    "title": "Include Field Stddev Value",
+                    "description": "Whether to profile for the standard deviation of numeric columns.",
+                    "default": true,
+                    "type": "boolean"
+                },
+                "include_field_quantiles": {
+                    "title": "Include Field Quantiles",
+                    "description": "Whether to profile for the quantiles of numeric columns.",
+                    "default": false,
+                    "type": "boolean"
+                },
+                "include_field_distinct_value_frequencies": {
+                    "title": "Include Field Distinct Value Frequencies",
+                    "description": "Whether to profile for distinct value frequencies.",
+                    "default": false,
+                    "type": "boolean"
+                },
+                "include_field_histogram": {
+                    "title": "Include Field Histogram",
+                    "description": "Whether to profile for the histogram for numeric fields.",
+                    "default": false,
+                    "type": "boolean"
+                },
+                "include_field_sample_values": {
+                    "title": "Include Field Sample Values",
+                    "description": "Whether to profile for the sample values for all columns.",
+                    "default": true,
+                    "type": "boolean"
+                },
+                "max_workers": {
+                    "title": "Max Workers",
+                    "description": "Number of worker threads to use for profiling. Set to 1 to disable.",
+                    "default": 20,
+                    "type": "integer"
                 }
             },
             "additionalProperties": false
@@ -17099,18 +17381,6 @@
                     "description": "Offset in documents to profile. By default, uses no offset.",
                     "type": "integer"
                 },
-                "report_dropped_profiles": {
-                    "title": "Report Dropped Profiles",
-                    "description": "Whether to report datasets or dataset columns which were not profiled. Set to `True` for debugging purposes.",
-                    "default": false,
-                    "type": "boolean"
-                },
-                "turn_off_expensive_profiling_metrics": {
-                    "title": "Turn Off Expensive Profiling Metrics",
-                    "description": "Whether to turn off expensive profiling or not. This turns off profiling for quantiles, distinct_value_frequencies, histogram & sample_values. This also limits maximum number of fields being profiled to 10.",
-                    "default": false,
-                    "type": "boolean"
-                },
                 "profile_table_level_only": {
                     "title": "Profile Table Level Only",
                     "description": "Whether to perform profiling at table-level only, or include column-level profiling as well.",
@@ -17183,6 +17453,24 @@
                     "default": true,
                     "type": "boolean"
                 },
+                "max_workers": {
+                    "title": "Max Workers",
+                    "description": "Number of worker threads to use for profiling. Set to 1 to disable.",
+                    "default": 20,
+                    "type": "integer"
+                },
+                "report_dropped_profiles": {
+                    "title": "Report Dropped Profiles",
+                    "description": "Whether to report datasets or dataset columns which were not profiled. Set to `True` for debugging purposes.",
+                    "default": false,
+                    "type": "boolean"
+                },
+                "turn_off_expensive_profiling_metrics": {
+                    "title": "Turn Off Expensive Profiling Metrics",
+                    "description": "Whether to turn off expensive profiling or not. This turns off profiling for quantiles, distinct_value_frequencies, histogram & sample_values. This also limits maximum number of fields being profiled to 10.",
+                    "default": false,
+                    "type": "boolean"
+                },
                 "field_sample_values_limit": {
                     "title": "Field Sample Values Limit",
                     "description": "Upper limit for number of sample values to collect for all columns.",
@@ -17218,12 +17506,6 @@
                     "description": "Use an approximate query for row count. This will be much faster but slightly less accurate. Only supported for Postgres and MySQL. ",
                     "default": false,
                     "type": "boolean"
-                },
-                "max_workers": {
-                    "title": "Max Workers",
-                    "description": "Number of worker threads to use for profiling. Set to 1 to disable.",
-                    "default": 20,
-                    "type": "integer"
                 },
                 "query_combiner_enabled": {
                     "title": "Query Combiner Enabled",
@@ -18020,18 +18302,6 @@
                     "description": "Offset in documents to profile. By default, uses no offset.",
                     "type": "integer"
                 },
-                "report_dropped_profiles": {
-                    "title": "Report Dropped Profiles",
-                    "description": "Whether to report datasets or dataset columns which were not profiled. Set to `True` for debugging purposes.",
-                    "default": false,
-                    "type": "boolean"
-                },
-                "turn_off_expensive_profiling_metrics": {
-                    "title": "Turn Off Expensive Profiling Metrics",
-                    "description": "Whether to turn off expensive profiling or not. This turns off profiling for quantiles, distinct_value_frequencies, histogram & sample_values. This also limits maximum number of fields being profiled to 10.",
-                    "default": false,
-                    "type": "boolean"
-                },
                 "profile_table_level_only": {
                     "title": "Profile Table Level Only",
                     "description": "Whether to perform profiling at table-level only, or include column-level profiling as well.",
@@ -18098,43 +18368,17 @@
                     "default": true,
                     "type": "boolean"
                 },
-                "field_sample_values_limit": {
-                    "title": "Field Sample Values Limit",
-                    "description": "Upper limit for number of sample values to collect for all columns.",
-                    "default": 20,
-                    "type": "integer"
-                },
                 "max_workers": {
                     "title": "Max Workers",
                     "description": "Number of worker threads to use for profiling. Set to 1 to disable.",
                     "default": 20,
                     "type": "integer"
                 },
-                "catch_exceptions": {
-                    "title": "Catch Exceptions",
-                    "default": true,
-                    "type": "boolean"
-                },
                 "query_timeout": {
                     "title": "Query Timeout",
                     "description": "Time before cancelling Dremio profiling query",
                     "default": 300,
                     "type": "integer"
-                },
-                "row_count": {
-                    "title": "Row Count",
-                    "default": true,
-                    "type": "boolean"
-                },
-                "column_count": {
-                    "title": "Column Count",
-                    "default": true,
-                    "type": "boolean"
-                },
-                "sample_values": {
-                    "title": "Sample Values",
-                    "default": true,
-                    "type": "boolean"
                 }
             },
             "additionalProperties": false
@@ -18167,18 +18411,6 @@
                     "title": "Offset",
                     "description": "Offset in documents to profile. By default, uses no offset.",
                     "type": "integer"
-                },
-                "report_dropped_profiles": {
-                    "title": "Report Dropped Profiles",
-                    "description": "Whether to report datasets or dataset columns which were not profiled. Set to `True` for debugging purposes.",
-                    "default": false,
-                    "type": "boolean"
-                },
-                "turn_off_expensive_profiling_metrics": {
-                    "title": "Turn Off Expensive Profiling Metrics",
-                    "description": "Whether to turn off expensive profiling or not. This turns off profiling for quantiles, distinct_value_frequencies, histogram & sample_values. This also limits maximum number of fields being profiled to 10.",
-                    "default": false,
-                    "type": "boolean"
                 },
                 "profile_table_level_only": {
                     "title": "Profile Table Level Only",
@@ -18252,6 +18484,24 @@
                     "default": true,
                     "type": "boolean"
                 },
+                "max_workers": {
+                    "title": "Max Workers",
+                    "description": "Number of worker threads to use for profiling. Set to 1 to disable.",
+                    "default": 20,
+                    "type": "integer"
+                },
+                "report_dropped_profiles": {
+                    "title": "Report Dropped Profiles",
+                    "description": "Whether to report datasets or dataset columns which were not profiled. Set to `True` for debugging purposes.",
+                    "default": false,
+                    "type": "boolean"
+                },
+                "turn_off_expensive_profiling_metrics": {
+                    "title": "Turn Off Expensive Profiling Metrics",
+                    "description": "Whether to turn off expensive profiling or not. This turns off profiling for quantiles, distinct_value_frequencies, histogram & sample_values. This also limits maximum number of fields being profiled to 10.",
+                    "default": false,
+                    "type": "boolean"
+                },
                 "field_sample_values_limit": {
                     "title": "Field Sample Values Limit",
                     "description": "Upper limit for number of sample values to collect for all columns.",
@@ -18287,12 +18537,6 @@
                     "description": "Use an approximate query for row count. This will be much faster but slightly less accurate. Only supported for Postgres and MySQL. ",
                     "default": false,
                     "type": "boolean"
-                },
-                "max_workers": {
-                    "title": "Max Workers",
-                    "description": "Number of worker threads to use for profiling. Set to 1 to disable.",
-                    "default": 20,
-                    "type": "integer"
                 },
                 "query_combiner_enabled": {
                     "title": "Query Combiner Enabled",
@@ -18852,6 +19096,9 @@
                 },
                 {
                     "$ref": "#/definitions/openapi"
+                },
+                {
+                    "$ref": "#/definitions/cassandra"
                 },
                 {
                     "$ref": "#/definitions/ldap"
