@@ -2428,8 +2428,8 @@
                     "description": "Usage related configs",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-11-21T08:25:54.624306+00:00",
-                        "start_time": "2024-11-20T00:00:00+00:00",
+                        "end_time": "2024-11-22T07:43:55.050332+00:00",
+                        "start_time": "2024-11-21T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -7556,8 +7556,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-11-21T08:26:09.478337+00:00",
-                        "start_time": "2024-11-20T00:00:00+00:00",
+                        "end_time": "2024-11-22T07:44:10.212656+00:00",
+                        "start_time": "2024-11-21T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -11645,8 +11645,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-11-21T08:26:10.001110+00:00",
-                        "start_time": "2024-11-20T00:00:00+00:00",
+                        "end_time": "2024-11-22T07:44:10.763167+00:00",
+                        "start_time": "2024-11-21T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -11849,8 +11849,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-11-21T08:25:59.939323+00:00",
-                        "start_time": "2024-11-20T00:00:00+00:00",
+                        "end_time": "2024-11-22T07:44:00.416627+00:00",
+                        "start_time": "2024-11-21T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
