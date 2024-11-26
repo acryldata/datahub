@@ -434,7 +434,8 @@
                         "use_sampling": true,
                         "sample_size": 10000,
                         "profile_external_tables": false,
-                        "tags_to_ignore_sampling": null
+                        "tags_to_ignore_sampling": null,
+                        "profile_nested_fields": false
                     },
                     "allOf": [
                         {
@@ -1116,7 +1117,8 @@
                         "use_sampling": true,
                         "sample_size": 10000,
                         "profile_external_tables": false,
-                        "tags_to_ignore_sampling": null
+                        "tags_to_ignore_sampling": null,
+                        "profile_nested_fields": false
                     },
                     "allOf": [
                         {
@@ -1570,7 +1572,8 @@
                         "use_sampling": true,
                         "sample_size": 10000,
                         "profile_external_tables": false,
-                        "tags_to_ignore_sampling": null
+                        "tags_to_ignore_sampling": null,
+                        "profile_nested_fields": false
                     },
                     "allOf": [
                         {
@@ -2268,7 +2271,8 @@
                         "use_sampling": true,
                         "sample_size": 10000,
                         "profile_external_tables": false,
-                        "tags_to_ignore_sampling": null
+                        "tags_to_ignore_sampling": null,
+                        "profile_nested_fields": false
                     },
                     "allOf": [
                         {
@@ -2428,7 +2432,7 @@
                     "description": "Usage related configs",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-11-26T10:57:05.198983+00:00",
+                        "end_time": "2024-11-26T20:31:10.258894+00:00",
                         "start_time": "2024-11-25T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
@@ -3787,7 +3791,8 @@
                         "use_sampling": true,
                         "sample_size": 10000,
                         "profile_external_tables": false,
-                        "tags_to_ignore_sampling": null
+                        "tags_to_ignore_sampling": null,
+                        "profile_nested_fields": false
                     },
                     "allOf": [
                         {
@@ -5246,7 +5251,8 @@
                         "use_sampling": true,
                         "sample_size": 10000,
                         "profile_external_tables": false,
-                        "tags_to_ignore_sampling": null
+                        "tags_to_ignore_sampling": null,
+                        "profile_nested_fields": false
                     },
                     "allOf": [
                         {
@@ -5293,6 +5299,22 @@
                     "description": "Include information about object code.",
                     "default": true,
                     "type": "boolean"
+                },
+                "procedure_pattern": {
+                    "title": "Procedure Pattern",
+                    "description": "Regex patterns for stored procedures to filter in ingestion.Specify regex to match the entire procedure name in database.schema.procedure_name format. e.g. to match all procedures starting with customer in Customer database and public schema, use the regex 'Customer.public.customer.*'",
+                    "default": {
+                        "allow": [
+                            ".*"
+                        ],
+                        "deny": [],
+                        "ignoreCase": true
+                    },
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/AllowDenyPattern"
+                        }
+                    ]
                 },
                 "include_jobs": {
                     "title": "Include Jobs",
@@ -5567,7 +5589,8 @@
                         "use_sampling": true,
                         "sample_size": 10000,
                         "profile_external_tables": false,
-                        "tags_to_ignore_sampling": null
+                        "tags_to_ignore_sampling": null,
+                        "profile_nested_fields": false
                     },
                     "allOf": [
                         {
@@ -5932,7 +5955,8 @@
                         "use_sampling": true,
                         "sample_size": 10000,
                         "profile_external_tables": false,
-                        "tags_to_ignore_sampling": null
+                        "tags_to_ignore_sampling": null,
+                        "profile_nested_fields": false
                     },
                     "allOf": [
                         {
@@ -6563,6 +6587,7 @@
                         "sample_size": 10000,
                         "profile_external_tables": false,
                         "tags_to_ignore_sampling": null,
+                        "profile_nested_fields": false,
                         "method": "ge",
                         "warehouse_id": null,
                         "pattern": {
@@ -7391,7 +7416,8 @@
                         "use_sampling": true,
                         "sample_size": 10000,
                         "profile_external_tables": false,
-                        "tags_to_ignore_sampling": null
+                        "tags_to_ignore_sampling": null,
+                        "profile_nested_fields": false
                     },
                     "allOf": [
                         {
@@ -7562,7 +7588,7 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-11-26T10:57:26.217001+00:00",
+                        "end_time": "2024-11-26T20:31:31.638049+00:00",
                         "start_time": "2024-11-25T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
@@ -7845,7 +7871,8 @@
                         "use_sampling": true,
                         "sample_size": 10000,
                         "profile_external_tables": false,
-                        "tags_to_ignore_sampling": null
+                        "tags_to_ignore_sampling": null,
+                        "profile_nested_fields": false
                     },
                     "allOf": [
                         {
@@ -8135,7 +8162,8 @@
                         "use_sampling": true,
                         "sample_size": 10000,
                         "profile_external_tables": false,
-                        "tags_to_ignore_sampling": null
+                        "tags_to_ignore_sampling": null,
+                        "profile_nested_fields": false
                     },
                     "allOf": [
                         {
@@ -8620,7 +8648,8 @@
                         "use_sampling": true,
                         "sample_size": 10000,
                         "profile_external_tables": false,
-                        "tags_to_ignore_sampling": null
+                        "tags_to_ignore_sampling": null,
+                        "profile_nested_fields": false
                     },
                     "allOf": [
                         {
@@ -9140,7 +9169,8 @@
                         "use_sampling": true,
                         "sample_size": 10000,
                         "profile_external_tables": false,
-                        "tags_to_ignore_sampling": null
+                        "tags_to_ignore_sampling": null,
+                        "profile_nested_fields": false
                     },
                     "allOf": [
                         {
@@ -10106,7 +10136,8 @@
                         "use_sampling": true,
                         "sample_size": 10000,
                         "profile_external_tables": false,
-                        "tags_to_ignore_sampling": null
+                        "tags_to_ignore_sampling": null,
+                        "profile_nested_fields": false
                     },
                     "allOf": [
                         {
@@ -10697,7 +10728,8 @@
                         "use_sampling": true,
                         "sample_size": 10000,
                         "profile_external_tables": false,
-                        "tags_to_ignore_sampling": null
+                        "tags_to_ignore_sampling": null,
+                        "profile_nested_fields": false
                     },
                     "allOf": [
                         {
@@ -11232,7 +11264,8 @@
                         "use_sampling": true,
                         "sample_size": 10000,
                         "profile_external_tables": false,
-                        "tags_to_ignore_sampling": null
+                        "tags_to_ignore_sampling": null,
+                        "profile_nested_fields": false
                     },
                     "allOf": [
                         {
@@ -11537,7 +11570,8 @@
                         "use_sampling": true,
                         "sample_size": 10000,
                         "profile_external_tables": false,
-                        "tags_to_ignore_sampling": null
+                        "tags_to_ignore_sampling": null,
+                        "profile_nested_fields": false
                     },
                     "allOf": [
                         {
@@ -11651,7 +11685,7 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-11-26T10:57:26.892159+00:00",
+                        "end_time": "2024-11-26T20:31:32.409178+00:00",
                         "start_time": "2024-11-25T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
@@ -11855,7 +11889,7 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-11-26T10:57:13.413039+00:00",
+                        "end_time": "2024-11-26T20:31:18.802213+00:00",
                         "start_time": "2024-11-25T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
@@ -12178,7 +12212,8 @@
                         "use_sampling": true,
                         "sample_size": 10000,
                         "profile_external_tables": false,
-                        "tags_to_ignore_sampling": null
+                        "tags_to_ignore_sampling": null,
+                        "profile_nested_fields": false
                     },
                     "allOf": [
                         {
@@ -12712,7 +12747,8 @@
                         "use_sampling": true,
                         "sample_size": 10000,
                         "profile_external_tables": false,
-                        "tags_to_ignore_sampling": null
+                        "tags_to_ignore_sampling": null,
+                        "profile_nested_fields": false
                     },
                     "allOf": [
                         {
@@ -13045,7 +13081,8 @@
                         "use_sampling": true,
                         "sample_size": 10000,
                         "profile_external_tables": false,
-                        "tags_to_ignore_sampling": null
+                        "tags_to_ignore_sampling": null,
+                        "profile_nested_fields": false
                     },
                     "allOf": [
                         {
@@ -14255,7 +14292,8 @@
                         "use_sampling": true,
                         "sample_size": 10000,
                         "profile_external_tables": false,
-                        "tags_to_ignore_sampling": null
+                        "tags_to_ignore_sampling": null,
+                        "profile_nested_fields": false
                     },
                     "allOf": [
                         {
@@ -14673,7 +14711,8 @@
                         "use_sampling": true,
                         "sample_size": 10000,
                         "profile_external_tables": false,
-                        "tags_to_ignore_sampling": null
+                        "tags_to_ignore_sampling": null,
+                        "profile_nested_fields": false
                     },
                     "allOf": [
                         {
@@ -15297,7 +15336,8 @@
                         "use_sampling": true,
                         "sample_size": 10000,
                         "profile_external_tables": false,
-                        "tags_to_ignore_sampling": null
+                        "tags_to_ignore_sampling": null,
+                        "profile_nested_fields": false
                     },
                     "allOf": [
                         {
@@ -16118,6 +16158,12 @@
                     "items": {
                         "type": "string"
                     }
+                },
+                "profile_nested_fields": {
+                    "title": "Profile Nested Fields",
+                    "description": "Whether to profile complex types like structs, arrays and maps. ",
+                    "default": false,
+                    "type": "boolean"
                 }
             },
             "additionalProperties": false
@@ -17568,6 +17614,12 @@
                         "type": "string"
                     }
                 },
+                "profile_nested_fields": {
+                    "title": "Profile Nested Fields",
+                    "description": "Whether to profile complex types like structs, arrays and maps. ",
+                    "default": false,
+                    "type": "boolean"
+                },
                 "method": {
                     "title": "Method",
                     "default": "ge",
@@ -18598,6 +18650,12 @@
                     "items": {
                         "type": "string"
                     }
+                },
+                "profile_nested_fields": {
+                    "title": "Profile Nested Fields",
+                    "description": "Whether to profile complex types like structs, arrays and maps. ",
+                    "default": false,
+                    "type": "boolean"
                 }
             },
             "additionalProperties": false
