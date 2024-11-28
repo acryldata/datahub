@@ -79,7 +79,7 @@ dependencies {
 task integrationTest(type: Test) {
   description = 'Runs integration tests.'
   group = 'verification'
-  useJUnitPlatform()
+  useTestNG()
 
   testClassesDirs = sourceSets.integTest.output.classesDirs
   classpath = sourceSets.integTest.runtimeClasspath
