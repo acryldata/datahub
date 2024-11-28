@@ -1679,6 +1679,29 @@
                     "description": "Environment to use when constructing URNs",
                     "default": "PROD",
                     "type": "string"
+                },
+                "owner_mappings": {
+                    "title": "Owner Mappings",
+                    "description": "Mapping of owner names to owner types",
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "enable_owner_extraction": {
+                    "title": "Enable Owner Extraction",
+                    "description": "If this is disabled, then we NEVER try to map owners. If this is enabled, then owner_mappings is REQUIRED to extract ownership.",
+                    "default": false,
+                    "type": "boolean"
+                },
+                "enable_tag_extraction": {
+                    "title": "Enable Tag Extraction",
+                    "description": "If this is disabled, then we NEVER try to extract tags.",
+                    "default": false,
+                    "type": "boolean"
                 }
             },
             "required": [
@@ -2432,8 +2455,8 @@
                     "description": "Usage related configs",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-11-27T11:23:25.705186+00:00",
-                        "start_time": "2024-11-26T00:00:00+00:00",
+                        "end_time": "2024-11-28T10:04:11.587708+00:00",
+                        "start_time": "2024-11-27T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -7588,8 +7611,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-11-27T11:23:46.626308+00:00",
-                        "start_time": "2024-11-26T00:00:00+00:00",
+                        "end_time": "2024-11-28T10:04:26.681335+00:00",
+                        "start_time": "2024-11-27T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -11685,8 +11708,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-11-27T11:23:47.376721+00:00",
-                        "start_time": "2024-11-26T00:00:00+00:00",
+                        "end_time": "2024-11-28T10:04:27.220378+00:00",
+                        "start_time": "2024-11-27T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -11889,8 +11912,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-11-27T11:23:33.880704+00:00",
-                        "start_time": "2024-11-26T00:00:00+00:00",
+                        "end_time": "2024-11-28T10:04:17.047041+00:00",
+                        "start_time": "2024-11-27T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
