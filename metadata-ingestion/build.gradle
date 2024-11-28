@@ -148,6 +148,14 @@ task testQuick(type: Exec, dependsOn: [installDev, ':metadata-models:generateJso
     "pytest ${cvg_arg} tests/unit --random-order --durations=20 -m 'not integration' -vv --continue-on-collection-errors --junit-xml=junit.quick.xml"
 }
 
+task generateCoverageReport(type: Exec, dependsOn: testQuick) {
+  outputs.dir("${venv_name}")
+  commandLine 'bash', '-c',
+          "source ${venv_name}/bin/activate && set -x && " +
+                  "coverage html"
+}
+
+
 task installDevTest(type: Exec, dependsOn: [install]) {
   def sentinel_file = "${venv_name}/.build_install_dev_test_sentinel"
   inputs.file file('setup.py')
