@@ -2455,8 +2455,8 @@
                     "description": "Usage related configs",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-11-28T16:55:51.595307+00:00",
-                        "start_time": "2024-11-27T00:00:00+00:00",
+                        "end_time": "2024-12-02T09:28:06.282007+00:00",
+                        "start_time": "2024-12-01T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -6789,6 +6789,58 @@
             ],
             "additionalProperties": false
         },
+        "neo4j": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "neo4j"
+                    ]
+                },
+                "config": {
+                    "$ref": "#/definitions/neo4j_config"
+                }
+            },
+            "required": [
+                "type",
+                "config"
+            ]
+        },
+        "neo4j_config": {
+            "title": "Neo4jConfig",
+            "description": "Any source that produces dataset urns in a single environment should inherit this class",
+            "type": "object",
+            "properties": {
+                "env": {
+                    "title": "Env",
+                    "description": "Neo4j env",
+                    "type": "string"
+                },
+                "username": {
+                    "title": "Username",
+                    "description": "Neo4j Username",
+                    "type": "string"
+                },
+                "password": {
+                    "title": "Password",
+                    "description": "Neo4j Password",
+                    "type": "string"
+                },
+                "uri": {
+                    "title": "Uri",
+                    "description": "The URI for the Neo4j server",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "env",
+                "username",
+                "password",
+                "uri"
+            ],
+            "additionalProperties": false
+        },
         "metabase": {
             "type": "object",
             "properties": {
@@ -7611,8 +7663,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-11-28T16:56:12.788854+00:00",
-                        "start_time": "2024-11-27T00:00:00+00:00",
+                        "end_time": "2024-12-02T09:28:27.173373+00:00",
+                        "start_time": "2024-12-01T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -11708,8 +11760,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-11-28T16:56:13.569771+00:00",
-                        "start_time": "2024-11-27T00:00:00+00:00",
+                        "end_time": "2024-12-02T09:28:27.890201+00:00",
+                        "start_time": "2024-12-01T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -11912,8 +11964,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-11-28T16:55:59.951842+00:00",
-                        "start_time": "2024-11-27T00:00:00+00:00",
+                        "end_time": "2024-12-02T09:28:14.054788+00:00",
+                        "start_time": "2024-12-01T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -11993,6 +12045,12 @@
                     "title": "Include Query Lineage",
                     "description": "Whether to include query-based lineage information.",
                     "default": false,
+                    "type": "boolean"
+                },
+                "ingest_owner": {
+                    "title": "Ingest Owner",
+                    "description": "Ingest Owner from source. This will override Owner info entered from UI",
+                    "default": true,
                     "type": "boolean"
                 }
             },
@@ -19288,6 +19346,9 @@
                 },
                 {
                     "$ref": "#/definitions/unity-catalog"
+                },
+                {
+                    "$ref": "#/definitions/neo4j"
                 },
                 {
                     "$ref": "#/definitions/metabase"
