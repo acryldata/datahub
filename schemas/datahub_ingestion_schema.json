@@ -2455,7 +2455,7 @@
                     "description": "Usage related configs",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-12-03T09:52:34.769668+00:00",
+                        "end_time": "2024-12-03T13:57:29.631831+00:00",
                         "start_time": "2024-12-02T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
@@ -7663,7 +7663,7 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-12-03T09:52:56.214959+00:00",
+                        "end_time": "2024-12-03T13:57:51.239124+00:00",
                         "start_time": "2024-12-02T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
@@ -11760,7 +11760,7 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-12-03T09:52:57.009480+00:00",
+                        "end_time": "2024-12-03T13:57:51.999529+00:00",
                         "start_time": "2024-12-02T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
@@ -11964,7 +11964,7 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-12-03T09:52:42.927290+00:00",
+                        "end_time": "2024-12-03T13:57:37.566031+00:00",
                         "start_time": "2024-12-02T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
@@ -18184,14 +18184,14 @@
                 },
                 "delete_empty_data_jobs": {
                     "title": "Delete Empty Data Jobs",
-                    "description": "Wether to delete Data Jobs without runs",
-                    "default": true,
+                    "description": "Whether to delete Data Jobs without runs",
+                    "default": false,
                     "type": "boolean"
                 },
                 "delete_empty_data_flows": {
                     "title": "Delete Empty Data Flows",
-                    "description": "Wether to delete Data Flows without runs",
-                    "default": true,
+                    "description": "Whether to delete Data Flows without runs",
+                    "default": false,
                     "type": "boolean"
                 },
                 "hard_delete_entities": {
@@ -18202,7 +18202,7 @@
                 },
                 "batch_size": {
                     "title": "Batch Size",
-                    "description": "The number of entities to get in a batch from GraphQL",
+                    "description": "The number of entities to get in a batch from API",
                     "default": 500,
                     "type": "integer"
                 },
