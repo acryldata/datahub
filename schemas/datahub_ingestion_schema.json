@@ -1234,21 +1234,23 @@
                     "description": "Superset password.",
                     "type": "string"
                 },
-                "api_key": {
-                    "title": "Api Key",
-                    "description": "Preset.io API key.",
-                    "type": "string"
+                "ingest_dashboards": {
+                    "title": "Ingest Dashboards",
+                    "description": "Enable to ingest dashboards.",
+                    "default": true,
+                    "type": "boolean"
                 },
-                "api_secret": {
-                    "title": "Api Secret",
-                    "description": "Preset.io API secret.",
-                    "type": "string"
+                "ingest_charts": {
+                    "title": "Ingest Charts",
+                    "description": "Enable to ingest charts.",
+                    "default": true,
+                    "type": "boolean"
                 },
-                "manager_uri": {
-                    "title": "Manager Uri",
-                    "description": "Preset.io API URL",
-                    "default": "https://api.app.preset.io",
-                    "type": "string"
+                "ingest_datasets": {
+                    "title": "Ingest Datasets",
+                    "description": "Enable to ingest datasets.",
+                    "default": false,
+                    "type": "boolean"
                 },
                 "provider": {
                     "title": "Provider",
@@ -1269,9 +1271,24 @@
                     "additionalProperties": {
                         "type": "string"
                     }
+                },
+                "manager_uri": {
+                    "title": "Manager Uri",
+                    "description": "Preset.io API URL",
+                    "default": "https://api.app.preset.io",
+                    "type": "string"
+                },
+                "api_key": {
+                    "title": "Api Key",
+                    "description": "Preset.io API key.",
+                    "type": "string"
+                },
+                "api_secret": {
+                    "title": "Api Secret",
+                    "description": "Preset.io API secret.",
+                    "type": "string"
                 }
-            },
-            "additionalProperties": false
+            }
         },
         "file": {
             "type": "object",
@@ -2007,21 +2024,23 @@
                     "description": "Superset password.",
                     "type": "string"
                 },
-                "api_key": {
-                    "title": "Api Key",
-                    "description": "Preset.io API key.",
-                    "type": "string"
+                "ingest_dashboards": {
+                    "title": "Ingest Dashboards",
+                    "description": "Enable to ingest dashboards.",
+                    "default": true,
+                    "type": "boolean"
                 },
-                "api_secret": {
-                    "title": "Api Secret",
-                    "description": "Preset.io API secret.",
-                    "type": "string"
+                "ingest_charts": {
+                    "title": "Ingest Charts",
+                    "description": "Enable to ingest charts.",
+                    "default": true,
+                    "type": "boolean"
                 },
-                "manager_uri": {
-                    "title": "Manager Uri",
-                    "description": "Preset.io API URL",
-                    "default": "https://api.app.preset.io",
-                    "type": "string"
+                "ingest_datasets": {
+                    "title": "Ingest Datasets",
+                    "description": "Enable to ingest datasets.",
+                    "default": false,
+                    "type": "boolean"
                 },
                 "provider": {
                     "title": "Provider",
@@ -2043,8 +2062,7 @@
                         "type": "string"
                     }
                 }
-            },
-            "additionalProperties": false
+            }
         },
         "bigquery": {
             "type": "object",
@@ -2455,8 +2473,8 @@
                     "description": "Usage related configs",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-12-06T07:24:31.307607+00:00",
-                        "start_time": "2024-12-05T00:00:00+00:00",
+                        "end_time": "2024-12-07T12:52:27.753208+00:00",
+                        "start_time": "2024-12-06T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -4082,6 +4100,23 @@
                         "type": "string"
                     }
                 },
+                "aws_retry_num": {
+                    "title": "Aws Retry Num",
+                    "description": "Number of times to retry failed AWS requests. See the [botocore.retry](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/retries.html) docs for details.",
+                    "default": 5,
+                    "type": "integer"
+                },
+                "aws_retry_mode": {
+                    "title": "Aws Retry Mode",
+                    "description": "Retry mode to use for failed AWS requests. See the [botocore.retry](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/retries.html) docs for details.",
+                    "default": "standard",
+                    "enum": [
+                        "legacy",
+                        "standard",
+                        "adaptive"
+                    ],
+                    "type": "string"
+                },
                 "read_timeout": {
                     "title": "Read Timeout",
                     "description": "The timeout for reading from the connection (in seconds).",
@@ -4562,6 +4597,23 @@
                     "additionalProperties": {
                         "type": "string"
                     }
+                },
+                "aws_retry_num": {
+                    "title": "Aws Retry Num",
+                    "description": "Number of times to retry failed AWS requests. See the [botocore.retry](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/retries.html) docs for details.",
+                    "default": 5,
+                    "type": "integer"
+                },
+                "aws_retry_mode": {
+                    "title": "Aws Retry Mode",
+                    "description": "Retry mode to use for failed AWS requests. See the [botocore.retry](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/retries.html) docs for details.",
+                    "default": "standard",
+                    "enum": [
+                        "legacy",
+                        "standard",
+                        "adaptive"
+                    ],
+                    "type": "string"
                 },
                 "read_timeout": {
                     "title": "Read Timeout",
@@ -7663,8 +7715,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-12-06T07:24:52.800315+00:00",
-                        "start_time": "2024-12-05T00:00:00+00:00",
+                        "end_time": "2024-12-07T12:52:42.695036+00:00",
+                        "start_time": "2024-12-06T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -9894,6 +9946,23 @@
                         "type": "string"
                     }
                 },
+                "aws_retry_num": {
+                    "title": "Aws Retry Num",
+                    "description": "Number of times to retry failed AWS requests. See the [botocore.retry](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/retries.html) docs for details.",
+                    "default": 5,
+                    "type": "integer"
+                },
+                "aws_retry_mode": {
+                    "title": "Aws Retry Mode",
+                    "description": "Retry mode to use for failed AWS requests. See the [botocore.retry](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/retries.html) docs for details.",
+                    "default": "standard",
+                    "enum": [
+                        "legacy",
+                        "standard",
+                        "adaptive"
+                    ],
+                    "type": "string"
+                },
                 "read_timeout": {
                     "title": "Read Timeout",
                     "description": "The timeout for reading from the connection (in seconds).",
@@ -11760,8 +11829,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-12-06T07:24:53.473581+00:00",
-                        "start_time": "2024-12-05T00:00:00+00:00",
+                        "end_time": "2024-12-07T12:52:43.248961+00:00",
+                        "start_time": "2024-12-06T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -11964,8 +12033,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-12-06T07:24:39.203513+00:00",
-                        "start_time": "2024-12-05T00:00:00+00:00",
+                        "end_time": "2024-12-07T12:52:33.032843+00:00",
+                        "start_time": "2024-12-06T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -16518,6 +16587,23 @@
                     "additionalProperties": {
                         "type": "string"
                     }
+                },
+                "aws_retry_num": {
+                    "title": "Aws Retry Num",
+                    "description": "Number of times to retry failed AWS requests. See the [botocore.retry](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/retries.html) docs for details.",
+                    "default": 5,
+                    "type": "integer"
+                },
+                "aws_retry_mode": {
+                    "title": "Aws Retry Mode",
+                    "description": "Retry mode to use for failed AWS requests. See the [botocore.retry](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/retries.html) docs for details.",
+                    "default": "standard",
+                    "enum": [
+                        "legacy",
+                        "standard",
+                        "adaptive"
+                    ],
+                    "type": "string"
                 },
                 "read_timeout": {
                     "title": "Read Timeout",
