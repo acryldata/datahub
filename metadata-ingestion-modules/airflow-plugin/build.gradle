@@ -102,6 +102,12 @@ task testQuick(type: Exec, dependsOn: installTest) {
     "pytest --cov-config=setup.cfg ${get_coverage_args('quick')} -vv --continue-on-collection-errors --junit-xml=junit.quick.xml"
 }
 
+task generateCoverageReport(type: Exec, dependsOn: testQuick) {
+  outputs.dir("${venv_name}")
+  commandLine 'bash', '-c',
+          "source ${venv_name}/bin/activate && set -x && " +
+                  "coverage html"
+}
 
 task cleanPythonCache(type: Exec) {
   commandLine 'bash', '-c',
