@@ -2473,8 +2473,8 @@
                     "description": "Usage related configs",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-12-10T01:02:56.880308+00:00",
-                        "start_time": "2024-12-09T00:00:00+00:00",
+                        "end_time": "2024-12-11T13:00:54.982152+00:00",
+                        "start_time": "2024-12-10T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -7730,8 +7730,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-12-10T01:03:11.900796+00:00",
-                        "start_time": "2024-12-09T00:00:00+00:00",
+                        "end_time": "2024-12-11T13:01:10.954827+00:00",
+                        "start_time": "2024-12-10T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -11844,8 +11844,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-12-10T01:03:12.417514+00:00",
-                        "start_time": "2024-12-09T00:00:00+00:00",
+                        "end_time": "2024-12-11T13:01:11.478663+00:00",
+                        "start_time": "2024-12-10T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -12048,8 +12048,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-12-10T01:03:02.236655+00:00",
-                        "start_time": "2024-12-09T00:00:00+00:00",
+                        "end_time": "2024-12-11T13:01:00.463661+00:00",
+                        "start_time": "2024-12-10T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -14565,6 +14565,12 @@
             "description": "Base configuration class for stateful ingestion for source configs to inherit from.",
             "type": "object",
             "properties": {
+                "incremental_properties": {
+                    "title": "Incremental Properties",
+                    "description": "When enabled, emits dataset properties as incremental to existing dataset properties in DataHub. When disabled, re-states dataset properties on each run.",
+                    "default": false,
+                    "type": "boolean"
+                },
                 "classification": {
                     "title": "Classification",
                     "description": "For details, refer to [Classification](../../../../metadata-ingestion/docs/dev_guides/classification.md).",
@@ -15659,12 +15665,6 @@
                     "description": "See note below.",
                     "default": false,
                     "type": "boolean"
-                },
-                "sql_parser": {
-                    "title": "Sql Parser",
-                    "description": "custom SQL parser. See note below for details.",
-                    "default": "datahub.utilities.sql_parser.DefaultSQLParser",
-                    "type": "string"
                 },
                 "env": {
                     "title": "Env",
@@ -18381,7 +18381,7 @@
                 "limit_entities_delete": {
                     "title": "Limit Entities Delete",
                     "description": "Max number of entities to delete.",
-                    "default": 10000,
+                    "default": 25000,
                     "type": "integer"
                 },
                 "runtime_limit_seconds": {
