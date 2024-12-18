@@ -2970,8 +2970,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-12-17T17:04:18.688157+00:00",
-                        "start_time": "2024-12-16T00:00:00+00:00",
+                        "end_time": "2024-12-18T06:21:36.906961+00:00",
+                        "start_time": "2024-12-17T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -4230,8 +4230,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-12-17T17:04:18.041945+00:00",
-                        "start_time": "2024-12-16T00:00:00+00:00",
+                        "end_time": "2024-12-18T06:21:36.127756+00:00",
+                        "start_time": "2024-12-17T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -11194,8 +11194,8 @@
                     "description": "Usage related configs",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-12-17T17:03:55.859487+00:00",
-                        "start_time": "2024-12-16T00:00:00+00:00",
+                        "end_time": "2024-12-18T06:21:11.677386+00:00",
+                        "start_time": "2024-12-17T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -14779,8 +14779,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-12-17T17:04:04.652800+00:00",
-                        "start_time": "2024-12-16T00:00:00+00:00",
+                        "end_time": "2024-12-18T06:21:21.268823+00:00",
+                        "start_time": "2024-12-17T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -18730,6 +18730,11 @@
                     "default": "main",
                     "type": "string"
                 },
+                "url_subdir": {
+                    "title": "Url Subdir",
+                    "description": "Prefix to prepend when generating URLs for files - useful when files are in a subdirectory. Only affects URL generation, not git operations.",
+                    "type": "string"
+                },
                 "url_template": {
                     "title": "Url Template",
                     "description": "Template for generating a URL to a file in the repo e.g. '{repo_url}/blob/{branch}/{file_path}'. We can infer this for GitHub and GitLab repos, and it is otherwise required.It supports the following variables: {repo_url}, {branch}, {file_path}",
@@ -18783,6 +18788,11 @@
                     "title": "Branch",
                     "description": "Branch on which your files live by default. Typically main or master. This can also be a commit hash.",
                     "default": "main",
+                    "type": "string"
+                },
+                "url_subdir": {
+                    "title": "Url Subdir",
+                    "description": "Prefix to prepend when generating URLs for files - useful when files are in a subdirectory. Only affects URL generation, not git operations.",
                     "type": "string"
                 },
                 "url_template": {
