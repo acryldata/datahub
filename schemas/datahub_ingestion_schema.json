@@ -2970,7 +2970,7 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-12-18T12:25:56.450619+00:00",
+                        "end_time": "2024-12-18T13:37:41.641796+00:00",
                         "start_time": "2024-12-17T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
@@ -4230,7 +4230,7 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-12-18T12:25:55.690297+00:00",
+                        "end_time": "2024-12-18T13:37:40.892811+00:00",
                         "start_time": "2024-12-17T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
@@ -11194,7 +11194,7 @@
                     "description": "Usage related configs",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-12-18T12:25:34.150719+00:00",
+                        "end_time": "2024-12-18T13:37:17.496602+00:00",
                         "start_time": "2024-12-17T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
@@ -14779,7 +14779,7 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-12-18T12:25:43.191563+00:00",
+                        "end_time": "2024-12-18T13:37:27.333967+00:00",
                         "start_time": "2024-12-17T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
