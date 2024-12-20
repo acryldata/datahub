@@ -2970,8 +2970,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-12-18T13:37:41.641796+00:00",
-                        "start_time": "2024-12-17T00:00:00+00:00",
+                        "end_time": "2024-12-20T09:44:19.706468+00:00",
+                        "start_time": "2024-12-19T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -4230,8 +4230,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-12-18T13:37:40.892811+00:00",
-                        "start_time": "2024-12-17T00:00:00+00:00",
+                        "end_time": "2024-12-20T09:44:19.004751+00:00",
+                        "start_time": "2024-12-19T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -5229,6 +5229,22 @@
                 "table_pattern": {
                     "title": "Table Pattern",
                     "description": "Regex patterns for tables to filter in ingestion.",
+                    "default": {
+                        "allow": [
+                            ".*"
+                        ],
+                        "deny": [],
+                        "ignoreCase": true
+                    },
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/AllowDenyPattern"
+                        }
+                    ]
+                },
+                "namespace_pattern": {
+                    "title": "Namespace Pattern",
+                    "description": "Regex patterns for namespaces to filter in ingestion.",
                     "default": {
                         "allow": [
                             ".*"
@@ -11194,8 +11210,8 @@
                     "description": "Usage related configs",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-12-18T13:37:17.496602+00:00",
-                        "start_time": "2024-12-17T00:00:00+00:00",
+                        "end_time": "2024-12-20T09:43:55.473884+00:00",
+                        "start_time": "2024-12-19T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -14779,8 +14795,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-12-18T13:37:27.333967+00:00",
-                        "start_time": "2024-12-17T00:00:00+00:00",
+                        "end_time": "2024-12-20T09:44:04.756842+00:00",
+                        "start_time": "2024-12-19T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -15929,6 +15945,11 @@
                     "title": "Model Name Separator",
                     "description": "A string which separates model name from its version (e.g. model_1 or model-1)",
                     "default": "_",
+                    "type": "string"
+                },
+                "base_external_url": {
+                    "title": "Base External Url",
+                    "description": "Base URL to use when constructing external URLs to MLflow. If not set, tracking_uri is used if it's an HTTP URL. If neither is set, external URLs are not generated.",
                     "type": "string"
                 }
             },
