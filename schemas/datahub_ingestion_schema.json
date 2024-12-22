@@ -2970,8 +2970,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-12-20T16:46:35.064455+00:00",
-                        "start_time": "2024-12-19T00:00:00+00:00",
+                        "end_time": "2024-12-22T12:28:33.858985+00:00",
+                        "start_time": "2024-12-21T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -4230,8 +4230,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-12-20T16:46:34.381081+00:00",
-                        "start_time": "2024-12-19T00:00:00+00:00",
+                        "end_time": "2024-12-22T12:28:33.103335+00:00",
+                        "start_time": "2024-12-21T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -6405,7 +6405,7 @@
                 },
                 "aws_profile": {
                     "title": "Aws Profile",
-                    "description": "Named AWS profile to use. Only used if access key / secret are unset. If not set the default will be used",
+                    "description": "The [named profile](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-profiles.html) to use from AWS credentials. Falls back to default profile if not specified and no access keys provided. Profiles are configured in ~/.aws/credentials or ~/.aws/config.",
                     "type": "string"
                 },
                 "aws_region": {
@@ -6623,7 +6623,7 @@
                 },
                 "aws_profile": {
                     "title": "Aws Profile",
-                    "description": "Named AWS profile to use. Only used if access key / secret are unset. If not set the default will be used",
+                    "description": "The [named profile](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-profiles.html) to use from AWS credentials. Falls back to default profile if not specified and no access keys provided. Profiles are configured in ~/.aws/credentials or ~/.aws/config.",
                     "type": "string"
                 },
                 "aws_region": {
@@ -7473,12 +7473,6 @@
                     "title": "Page Size",
                     "description": "[advanced] Number of metadata objects (e.g. CustomSQLTable, PublishedDatasource, etc) to query at a time using the Tableau API.",
                     "default": 10,
-                    "type": "integer"
-                },
-                "fetch_size": {
-                    "title": "Fetch Size",
-                    "description": "Specifies the number of records to retrieve in each batch during a query execution.",
-                    "default": 250,
                     "type": "integer"
                 },
                 "workbook_page_size": {
@@ -10680,12 +10674,6 @@
                     "default": true,
                     "type": "boolean"
                 },
-                "include_table_location_lineage": {
-                    "title": "Include Table Location Lineage",
-                    "description": "If the source supports it, include table lineage to the underlying storage location.",
-                    "default": true,
-                    "type": "boolean"
-                },
                 "include_view_lineage": {
                     "title": "Include View Lineage",
                     "description": "Populates view->view and table->view lineage using DataHub's sql parser.",
@@ -10794,6 +10782,29 @@
                             "$ref": "#/definitions/AllowDenyPattern"
                         }
                     ]
+                },
+                "emit_storage_lineage": {
+                    "title": "Emit Storage Lineage",
+                    "description": "Whether to emit storage-to-Hive lineage",
+                    "default": false,
+                    "type": "boolean"
+                },
+                "hive_storage_lineage_direction": {
+                    "title": "Hive Storage Lineage Direction",
+                    "description": "If 'upstream', storage is upstream to Hive. If 'downstream' storage is downstream to Hive",
+                    "default": "upstream",
+                    "type": "string"
+                },
+                "include_column_lineage": {
+                    "title": "Include Column Lineage",
+                    "description": "When enabled, column-level lineage will be extracted from storage",
+                    "default": true,
+                    "type": "boolean"
+                },
+                "storage_platform_instance": {
+                    "title": "Storage Platform Instance",
+                    "description": "Platform instance for the storage system",
+                    "type": "string"
                 }
             },
             "required": [
@@ -11210,8 +11221,8 @@
                     "description": "Usage related configs",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-12-20T16:46:10.479187+00:00",
-                        "start_time": "2024-12-19T00:00:00+00:00",
+                        "end_time": "2024-12-22T12:28:09.937680+00:00",
+                        "start_time": "2024-12-21T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -14795,8 +14806,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-12-20T16:46:19.988363+00:00",
-                        "start_time": "2024-12-19T00:00:00+00:00",
+                        "end_time": "2024-12-22T12:28:19.244295+00:00",
+                        "start_time": "2024-12-21T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -15556,7 +15567,7 @@
                 },
                 "aws_profile": {
                     "title": "Aws Profile",
-                    "description": "Named AWS profile to use. Only used if access key / secret are unset. If not set the default will be used",
+                    "description": "The [named profile](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-profiles.html) to use from AWS credentials. Falls back to default profile if not specified and no access keys provided. Profiles are configured in ~/.aws/credentials or ~/.aws/config.",
                     "type": "string"
                 },
                 "aws_region": {
@@ -18269,7 +18280,7 @@
                 },
                 "aws_profile": {
                     "title": "Aws Profile",
-                    "description": "Named AWS profile to use. Only used if access key / secret are unset. If not set the default will be used",
+                    "description": "The [named profile](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-profiles.html) to use from AWS credentials. Falls back to default profile if not specified and no access keys provided. Profiles are configured in ~/.aws/credentials or ~/.aws/config.",
                     "type": "string"
                 },
                 "aws_region": {
