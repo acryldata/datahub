@@ -2970,8 +2970,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-12-23T23:21:41.240471+00:00",
-                        "start_time": "2024-12-22T00:00:00+00:00",
+                        "end_time": "2024-12-24T16:18:28.970925+00:00",
+                        "start_time": "2024-12-23T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -4230,8 +4230,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-12-23T23:21:40.592032+00:00",
-                        "start_time": "2024-12-22T00:00:00+00:00",
+                        "end_time": "2024-12-24T16:18:28.325209+00:00",
+                        "start_time": "2024-12-23T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -5903,13 +5903,13 @@
                 },
                 "include_view_lineage": {
                     "title": "Include View Lineage",
-                    "description": "If enabled, populates the snowflake view->table and table->view lineages. Requires appropriate grants given to the role, and include_table_lineage to be True. view->table lineage requires Snowflake Enterprise Edition or above.",
+                    "description": "Populates view->view and table->view lineage using DataHub's sql parser.",
                     "default": true,
                     "type": "boolean"
                 },
                 "include_view_column_lineage": {
                     "title": "Include View Column Lineage",
-                    "description": "Populates view->view and table->view column lineage using DataHub's sql parser.",
+                    "description": "Populates column-level lineage for  view->view and table->view lineage using DataHub's sql parser. Requires `include_view_lineage` to be enabled.",
                     "default": true,
                     "type": "boolean"
                 },
@@ -6950,14 +6950,14 @@
                     "title": "Exclude Aspects",
                     "description": "Set of aspect names to exclude from ingestion",
                     "default": [
+                        "globalSettingsInfo",
+                        "globalSettingsKey",
+                        "datahubIngestionRunSummary",
+                        "dataHubSecretKey",
                         "dataHubIngestionSourceInfo",
+                        "dataHubIngestionSourceKey",
                         "testResults",
                         "dataHubSecretValue",
-                        "dataHubSecretKey",
-                        "globalSettingsInfo",
-                        "dataHubIngestionSourceKey",
-                        "datahubIngestionRunSummary",
-                        "globalSettingsKey",
                         "datahubIngestionCheckpoint"
                     ],
                     "type": "array",
@@ -11232,8 +11232,8 @@
                     "description": "Usage related configs",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-12-23T23:21:17.568701+00:00",
-                        "start_time": "2024-12-22T00:00:00+00:00",
+                        "end_time": "2024-12-24T16:18:05.686656+00:00",
+                        "start_time": "2024-12-23T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -14817,8 +14817,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-12-23T23:21:27.082884+00:00",
-                        "start_time": "2024-12-22T00:00:00+00:00",
+                        "end_time": "2024-12-24T16:18:15.099726+00:00",
+                        "start_time": "2024-12-23T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
