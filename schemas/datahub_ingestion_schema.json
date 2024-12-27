@@ -2970,8 +2970,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-12-26T12:48:15.680884+00:00",
-                        "start_time": "2024-12-25T00:00:00+00:00",
+                        "end_time": "2024-12-27T08:00:10.026646+00:00",
+                        "start_time": "2024-12-26T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -4230,8 +4230,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-12-26T12:48:15.096991+00:00",
-                        "start_time": "2024-12-25T00:00:00+00:00",
+                        "end_time": "2024-12-27T08:00:09.447320+00:00",
+                        "start_time": "2024-12-26T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -5768,11 +5768,6 @@
                     "default": true,
                     "type": "boolean"
                 },
-                "email_domain": {
-                    "title": "Email Domain",
-                    "description": "Email domain of your organization so users can be displayed on UI appropriately.",
-                    "type": "string"
-                },
                 "apply_view_usage_to_tables": {
                     "title": "Apply View Usage To Tables",
                     "description": "Whether to apply view's usage to its base tables. If set to True, usage is applied to base tables only.",
@@ -6067,6 +6062,17 @@
                     "default": false,
                     "type": "boolean"
                 },
+                "email_domain": {
+                    "title": "Email Domain",
+                    "description": "Email domain of your organization so users can be displayed on UI appropriately.",
+                    "type": "string"
+                },
+                "email_as_user_identifier": {
+                    "title": "Email As User Identifier",
+                    "description": "Format user urns as an email, if the snowflake user's email is set. If `email_domain` is provided, generates email addresses for snowflake users with unset emails, based on their username.",
+                    "default": true,
+                    "type": "boolean"
+                },
                 "include_table_lineage": {
                     "title": "Include Table Lineage",
                     "description": "If enabled, populates the snowflake table-to-table and s3-to-snowflake table lineage. Requires appropriate grants given to the role and Snowflake Enterprise Edition or above.",
@@ -6190,12 +6196,6 @@
                     "additionalProperties": {
                         "$ref": "#/definitions/SnowflakeShareConfig"
                     }
-                },
-                "email_as_user_identifier": {
-                    "title": "Email As User Identifier",
-                    "description": "Format user urns as an email, if the snowflake user's email is set. If `email_domain` is provided, generates email addresses for snowflake users with unset emails, based on their username.",
-                    "default": true,
-                    "type": "boolean"
                 },
                 "include_assertion_results": {
                     "title": "Include Assertion Results",
@@ -6950,15 +6950,15 @@
                     "title": "Exclude Aspects",
                     "description": "Set of aspect names to exclude from ingestion",
                     "default": [
-                        "testResults",
-                        "dataHubIngestionSourceKey",
-                        "dataHubIngestionSourceInfo",
-                        "globalSettingsInfo",
-                        "datahubIngestionCheckpoint",
-                        "globalSettingsKey",
-                        "dataHubSecretKey",
                         "dataHubSecretValue",
-                        "datahubIngestionRunSummary"
+                        "dataHubSecretKey",
+                        "globalSettingsInfo",
+                        "datahubIngestionRunSummary",
+                        "testResults",
+                        "datahubIngestionCheckpoint",
+                        "dataHubIngestionSourceKey",
+                        "globalSettingsKey",
+                        "dataHubIngestionSourceInfo"
                     ],
                     "type": "array",
                     "items": {
@@ -11232,8 +11232,8 @@
                     "description": "Usage related configs",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-12-26T12:47:58.898564+00:00",
-                        "start_time": "2024-12-25T00:00:00+00:00",
+                        "end_time": "2024-12-27T07:59:52.960902+00:00",
+                        "start_time": "2024-12-26T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -14817,8 +14817,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-12-26T12:48:05.031826+00:00",
-                        "start_time": "2024-12-25T00:00:00+00:00",
+                        "end_time": "2024-12-27T07:59:59.009142+00:00",
+                        "start_time": "2024-12-26T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -15151,6 +15151,16 @@
                     "title": "Run Id",
                     "description": "The ID of the run to ingest metadata from. If not specified, we'll default to the latest run.",
                     "type": "integer"
+                },
+                "external_url_mode": {
+                    "title": "External Url Mode",
+                    "description": "Where should the \"View in dbt\" link point to - either the \"Explore\" UI or the dbt Cloud IDE",
+                    "default": "explore",
+                    "enum": [
+                        "explore",
+                        "ide"
+                    ],
+                    "type": "string"
                 }
             },
             "required": [
