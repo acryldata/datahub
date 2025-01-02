@@ -2964,8 +2964,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-12-30T18:04:12.077252+00:00",
-                        "start_time": "2024-12-29T00:00:00+00:00",
+                        "end_time": "2025-01-02T09:53:19.327859+00:00",
+                        "start_time": "2025-01-01T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -4224,8 +4224,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-12-30T18:04:11.506809+00:00",
-                        "start_time": "2024-12-29T00:00:00+00:00",
+                        "end_time": "2025-01-02T09:53:18.776720+00:00",
+                        "start_time": "2025-01-01T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -6944,14 +6944,14 @@
                     "title": "Exclude Aspects",
                     "description": "Set of aspect names to exclude from ingestion",
                     "default": [
-                        "dataHubSecretKey",
                         "dataHubSecretValue",
-                        "datahubIngestionRunSummary",
-                        "globalSettingsKey",
-                        "datahubIngestionCheckpoint",
-                        "dataHubIngestionSourceInfo",
-                        "globalSettingsInfo",
                         "dataHubIngestionSourceKey",
+                        "datahubIngestionCheckpoint",
+                        "dataHubSecretKey",
+                        "globalSettingsKey",
+                        "dataHubIngestionSourceInfo",
+                        "datahubIngestionRunSummary",
+                        "globalSettingsInfo",
                         "testResults"
                     ],
                     "type": "array",
@@ -11226,8 +11226,8 @@
                     "description": "Usage related configs",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-12-30T18:03:55.533381+00:00",
-                        "start_time": "2024-12-29T00:00:00+00:00",
+                        "end_time": "2025-01-02T09:53:02.988470+00:00",
+                        "start_time": "2025-01-01T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -14805,8 +14805,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2024-12-30T18:04:01.459557+00:00",
-                        "start_time": "2024-12-29T00:00:00+00:00",
+                        "end_time": "2025-01-02T09:53:08.841273+00:00",
+                        "start_time": "2025-01-01T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -17188,9 +17188,16 @@
                     "default": 25000,
                     "type": "integer"
                 },
+                "futures_max_at_time": {
+                    "title": "Futures Max At Time",
+                    "description": "Max number of futures to have at a time.",
+                    "default": 1000,
+                    "type": "integer"
+                },
                 "runtime_limit_seconds": {
                     "title": "Runtime Limit Seconds",
                     "description": "Runtime limit in seconds",
+                    "default": 7200,
                     "type": "integer"
                 }
             },
