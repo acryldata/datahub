@@ -2964,8 +2964,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2025-01-02T09:53:19.327859+00:00",
-                        "start_time": "2025-01-01T00:00:00+00:00",
+                        "end_time": "2025-01-03T08:23:07.373152+00:00",
+                        "start_time": "2025-01-02T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -4224,8 +4224,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2025-01-02T09:53:18.776720+00:00",
-                        "start_time": "2025-01-01T00:00:00+00:00",
+                        "end_time": "2025-01-03T08:23:06.837787+00:00",
+                        "start_time": "2025-01-02T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -6944,15 +6944,15 @@
                     "title": "Exclude Aspects",
                     "description": "Set of aspect names to exclude from ingestion",
                     "default": [
+                        "globalSettingsKey",
+                        "dataHubSecretKey",
+                        "testResults",
+                        "datahubIngestionRunSummary",
                         "dataHubSecretValue",
                         "dataHubIngestionSourceKey",
-                        "datahubIngestionCheckpoint",
-                        "dataHubSecretKey",
-                        "globalSettingsKey",
-                        "dataHubIngestionSourceInfo",
-                        "datahubIngestionRunSummary",
                         "globalSettingsInfo",
-                        "testResults"
+                        "dataHubIngestionSourceInfo",
+                        "datahubIngestionCheckpoint"
                     ],
                     "type": "array",
                     "items": {
@@ -11020,6 +11020,18 @@
                     "default": true,
                     "type": "boolean"
                 },
+                "include_view_lineage": {
+                    "title": "Include View Lineage",
+                    "description": "Populates view->view and table->view lineage using DataHub's sql parser.",
+                    "default": true,
+                    "type": "boolean"
+                },
+                "include_view_column_lineage": {
+                    "title": "Include View Column Lineage",
+                    "description": "Populates column-level lineage for  view->view and table->view lineage using DataHub's sql parser. Requires `include_view_lineage` to be enabled.",
+                    "default": true,
+                    "type": "boolean"
+                },
                 "use_file_backed_cache": {
                     "title": "Use File Backed Cache",
                     "description": "Whether to use a file backed cache for the view definitions.",
@@ -11226,8 +11238,8 @@
                     "description": "Usage related configs",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2025-01-02T09:53:02.988470+00:00",
-                        "start_time": "2025-01-01T00:00:00+00:00",
+                        "end_time": "2025-01-03T08:22:50.801795+00:00",
+                        "start_time": "2025-01-02T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -11346,12 +11358,6 @@
                 "lineage_use_sql_parser": {
                     "title": "Lineage Use Sql Parser",
                     "description": "Use sql parser to resolve view/table lineage.",
-                    "default": true,
-                    "type": "boolean"
-                },
-                "lineage_parse_view_ddl": {
-                    "title": "Lineage Parse View Ddl",
-                    "description": "Sql parse view ddl to get lineage.",
                     "default": true,
                     "type": "boolean"
                 },
@@ -14805,8 +14811,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2025-01-02T09:53:08.841273+00:00",
-                        "start_time": "2025-01-01T00:00:00+00:00",
+                        "end_time": "2025-01-03T08:22:56.796135+00:00",
+                        "start_time": "2025-01-02T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
