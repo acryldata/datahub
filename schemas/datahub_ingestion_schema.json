@@ -2964,7 +2964,7 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2025-01-08T14:33:01.567980+00:00",
+                        "end_time": "2025-01-08T19:48:07.189831+00:00",
                         "start_time": "2025-01-07T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
@@ -4224,7 +4224,7 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2025-01-08T14:33:00.965231+00:00",
+                        "end_time": "2025-01-08T19:48:06.620043+00:00",
                         "start_time": "2025-01-07T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
@@ -6956,15 +6956,15 @@
                     "title": "Exclude Aspects",
                     "description": "Set of aspect names to exclude from ingestion",
                     "default": [
-                        "datahubIngestionCheckpoint",
-                        "datahubIngestionRunSummary",
-                        "dataHubIngestionSourceInfo",
-                        "globalSettingsInfo",
                         "dataHubSecretValue",
-                        "globalSettingsKey",
-                        "dataHubSecretKey",
+                        "dataHubIngestionSourceInfo",
                         "testResults",
-                        "dataHubIngestionSourceKey"
+                        "globalSettingsKey",
+                        "globalSettingsInfo",
+                        "dataHubIngestionSourceKey",
+                        "datahubIngestionCheckpoint",
+                        "dataHubSecretKey",
+                        "datahubIngestionRunSummary"
                     ],
                     "type": "array",
                     "items": {
@@ -11250,7 +11250,7 @@
                     "description": "Usage related configs",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2025-01-08T14:32:44.466614+00:00",
+                        "end_time": "2025-01-08T19:47:50.654569+00:00",
                         "start_time": "2025-01-07T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
@@ -14835,7 +14835,7 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2025-01-08T14:32:50.605273+00:00",
+                        "end_time": "2025-01-08T19:47:56.618661+00:00",
                         "start_time": "2025-01-07T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
