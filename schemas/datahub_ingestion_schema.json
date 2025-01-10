@@ -2964,8 +2964,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2025-01-08T19:48:07.189831+00:00",
-                        "start_time": "2025-01-07T00:00:00+00:00",
+                        "end_time": "2025-01-10T00:02:39.379952+00:00",
+                        "start_time": "2025-01-09T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -4224,8 +4224,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2025-01-08T19:48:06.620043+00:00",
-                        "start_time": "2025-01-07T00:00:00+00:00",
+                        "end_time": "2025-01-10T00:02:38.778999+00:00",
+                        "start_time": "2025-01-09T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -6956,15 +6956,15 @@
                     "title": "Exclude Aspects",
                     "description": "Set of aspect names to exclude from ingestion",
                     "default": [
+                        "datahubIngestionCheckpoint",
+                        "testResults",
                         "dataHubSecretValue",
                         "dataHubIngestionSourceInfo",
-                        "testResults",
-                        "globalSettingsKey",
                         "globalSettingsInfo",
                         "dataHubIngestionSourceKey",
-                        "datahubIngestionCheckpoint",
-                        "dataHubSecretKey",
-                        "datahubIngestionRunSummary"
+                        "globalSettingsKey",
+                        "datahubIngestionRunSummary",
+                        "dataHubSecretKey"
                     ],
                     "type": "array",
                     "items": {
@@ -7030,6 +7030,12 @@
                             "$ref": "#/definitions/AllowDenyPattern"
                         }
                     ]
+                },
+                "drop_duplicate_schema_fields": {
+                    "title": "Drop Duplicate Schema Fields",
+                    "description": "Whether to drop duplicate schema fields in the schemaMetadata aspect. Useful if the source system has duplicate field paths in the db, but we're pushing to a system with server-side duplicate checking.",
+                    "default": false,
+                    "type": "boolean"
                 }
             }
         },
@@ -11250,8 +11256,8 @@
                     "description": "Usage related configs",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2025-01-08T19:47:50.654569+00:00",
-                        "start_time": "2025-01-07T00:00:00+00:00",
+                        "end_time": "2025-01-10T00:02:23.093481+00:00",
+                        "start_time": "2025-01-09T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -14540,7 +14546,7 @@
                 },
                 "folder_path_pattern": {
                     "title": "Folder Path Pattern",
-                    "description": "Allow or deny dashboards from specific folders. For example: \ndeny: \n - sales/deprecated \nThis pattern will deny the ingestion of all dashboards and looks within the sales/deprecated folder. \nDashboards will only be ingested if they're allowed by both this config and dashboard_pattern.",
+                    "description": "Allow or deny dashboards from specific folders using their fully qualified paths. For example: \ndeny: \n - Shared/deprecated \nThis pattern will deny the ingestion of all dashboards and looks within the Shared/deprecated folder. \nallow: \n - Shared/sales \nThis pattern will allow only the ingestion of dashboards within the Shared/sales folder. \nTo get the correct path from Looker, take the folder hierarchy shown in the UI and join it with slashes. For example, Shared -> Customer Reports -> Sales becomes Shared/Customer Reports/Sales. Dashboards will only be ingested if they're allowed by both this config and dashboard_pattern.",
                     "default": {
                         "allow": [
                             ".*"
@@ -14835,8 +14841,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2025-01-08T19:47:56.618661+00:00",
-                        "start_time": "2025-01-07T00:00:00+00:00",
+                        "end_time": "2025-01-10T00:02:28.912982+00:00",
+                        "start_time": "2025-01-09T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
