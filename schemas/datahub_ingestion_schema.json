@@ -2964,8 +2964,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2025-01-10T00:02:39.379952+00:00",
-                        "start_time": "2025-01-09T00:00:00+00:00",
+                        "end_time": "2025-01-12T09:02:15.926356+00:00",
+                        "start_time": "2025-01-11T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -4224,8 +4224,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2025-01-10T00:02:38.778999+00:00",
-                        "start_time": "2025-01-09T00:00:00+00:00",
+                        "end_time": "2025-01-12T09:02:15.373067+00:00",
+                        "start_time": "2025-01-11T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -6957,14 +6957,14 @@
                     "description": "Set of aspect names to exclude from ingestion",
                     "default": [
                         "datahubIngestionCheckpoint",
-                        "testResults",
                         "dataHubSecretValue",
-                        "dataHubIngestionSourceInfo",
-                        "globalSettingsInfo",
-                        "dataHubIngestionSourceKey",
-                        "globalSettingsKey",
                         "datahubIngestionRunSummary",
-                        "dataHubSecretKey"
+                        "testResults",
+                        "dataHubIngestionSourceKey",
+                        "globalSettingsInfo",
+                        "dataHubSecretKey",
+                        "globalSettingsKey",
+                        "dataHubIngestionSourceInfo"
                     ],
                     "type": "array",
                     "items": {
@@ -11256,8 +11256,8 @@
                     "description": "Usage related configs",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2025-01-10T00:02:23.093481+00:00",
-                        "start_time": "2025-01-09T00:00:00+00:00",
+                        "end_time": "2025-01-12T09:01:59.761282+00:00",
+                        "start_time": "2025-01-11T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -14841,8 +14841,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2025-01-10T00:02:28.912982+00:00",
-                        "start_time": "2025-01-09T00:00:00+00:00",
+                        "end_time": "2025-01-12T09:02:05.561654+00:00",
+                        "start_time": "2025-01-11T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -17258,7 +17258,7 @@
                 "keep_history_max_days": {
                     "title": "Keep History Max Days",
                     "description": "Maximum number of days to keep execution requests for, per ingestion source",
-                    "default": 30,
+                    "default": 90,
                     "type": "integer"
                 },
                 "batch_read_size": {
@@ -17277,6 +17277,12 @@
                     "title": "Runtime Limit Seconds",
                     "description": "Maximum runtime in seconds for the cleanup task",
                     "default": 3600,
+                    "type": "integer"
+                },
+                "limit_entities_delete": {
+                    "title": "Limit Entities Delete",
+                    "description": "Max number of execution requests to hard delete.",
+                    "default": 10000,
                     "type": "integer"
                 },
                 "max_read_errors": {
