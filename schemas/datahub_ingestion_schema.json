@@ -2964,8 +2964,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2025-01-14T07:55:22.397932+00:00",
-                        "start_time": "2025-01-13T00:00:00+00:00",
+                        "end_time": "2025-01-15T12:27:38.219021+00:00",
+                        "start_time": "2025-01-14T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -4224,8 +4224,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2025-01-14T07:55:21.847382+00:00",
-                        "start_time": "2025-01-13T00:00:00+00:00",
+                        "end_time": "2025-01-15T12:27:37.648473+00:00",
+                        "start_time": "2025-01-14T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -6152,6 +6152,12 @@
                         }
                     ]
                 },
+                "extract_tags_as_structured_properties": {
+                    "title": "Extract Tags As Structured Properties",
+                    "description": "If enabled along with `extract_tags`, extracts snowflake's key-value tags as DataHub structured properties instead of DataHub tags.",
+                    "default": false,
+                    "type": "boolean"
+                },
                 "include_external_url": {
                     "title": "Include External Url",
                     "description": "Whether to populate Snowsight url for Snowflake Objects",
@@ -6167,6 +6173,22 @@
                 "tag_pattern": {
                     "title": "Tag Pattern",
                     "description": "List of regex patterns for tags to include in ingestion. Only used if `extract_tags` is enabled.",
+                    "default": {
+                        "allow": [
+                            ".*"
+                        ],
+                        "deny": [],
+                        "ignoreCase": true
+                    },
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/AllowDenyPattern"
+                        }
+                    ]
+                },
+                "structured_property_pattern": {
+                    "title": "Structured Property Pattern",
+                    "description": "List of regex patterns for structured properties to include in ingestion. Only used if `extract_tags` and `extract_tags_as_structured_properties` are enabled.",
                     "default": {
                         "allow": [
                             ".*"
@@ -6957,14 +6979,14 @@
                     "description": "Set of aspect names to exclude from ingestion",
                     "default": [
                         "globalSettingsInfo",
-                        "dataHubIngestionSourceInfo",
-                        "dataHubIngestionSourceKey",
-                        "globalSettingsKey",
-                        "testResults",
-                        "datahubIngestionRunSummary",
-                        "datahubIngestionCheckpoint",
                         "dataHubSecretValue",
-                        "dataHubSecretKey"
+                        "datahubIngestionRunSummary",
+                        "dataHubSecretKey",
+                        "testResults",
+                        "globalSettingsKey",
+                        "dataHubIngestionSourceKey",
+                        "dataHubIngestionSourceInfo",
+                        "datahubIngestionCheckpoint"
                     ],
                     "type": "array",
                     "items": {
@@ -11256,8 +11278,8 @@
                     "description": "Usage related configs",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2025-01-14T07:55:05.494506+00:00",
-                        "start_time": "2025-01-13T00:00:00+00:00",
+                        "end_time": "2025-01-15T12:27:21.626222+00:00",
+                        "start_time": "2025-01-14T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
@@ -14841,8 +14863,8 @@
                     "description": "The usage config to use when generating usage statistics",
                     "default": {
                         "bucket_duration": "DAY",
-                        "end_time": "2025-01-14T07:55:11.605857+00:00",
-                        "start_time": "2025-01-13T00:00:00+00:00",
+                        "end_time": "2025-01-15T12:27:27.570006+00:00",
+                        "start_time": "2025-01-14T00:00:00+00:00",
                         "queries_character_limit": 24000,
                         "top_n_queries": 10,
                         "user_email_pattern": {
