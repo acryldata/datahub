@@ -9,7 +9,7 @@ jobs:
       pull-requests: write
     if: github.actor == 'pull[bot]'
     steps:
-      - uses: hmarr/auto-approve-action@v3
+      - uses: hmarr/auto-approve-action@v4
   enable-auto-merge:
     runs-on: ubuntu-latest
     needs: auto-approve
