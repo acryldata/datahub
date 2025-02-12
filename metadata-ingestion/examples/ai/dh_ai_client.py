@@ -291,14 +291,14 @@ class DatahubAIClient:
         return str(model_urn)
 
     def create_training_job(
-            self,
-            run_id: str,
-            properties: Optional[models.DataProcessInstancePropertiesClass] = None,
-            training_run_properties: Optional[models.MLTrainingRunPropertiesClass] = None,
-            run_result: Optional[str] = None,
-            start_timestamp: Optional[int] = None,
-            end_timestamp: Optional[int] = None,
-            **kwargs: Any,
+        self,
+        run_id: str,
+        properties: Optional[models.DataProcessInstancePropertiesClass] = None,
+        training_run_properties: Optional[models.MLTrainingRunPropertiesClass] = None,
+        run_result: Optional[str] = None,
+        start_timestamp: Optional[int] = None,
+        end_timestamp: Optional[int] = None,
+        **kwargs: Any,
     ) -> str:
         """Create a training job with properties and events."""
         dpi_urn = f"urn:li:dataProcessInstance:{run_id}"
@@ -306,10 +306,10 @@ class DatahubAIClient:
         # Create basic properties and aspects
         aspects = [
             (
-                    properties
-                    or self._create_properties_class(
-                models.DataProcessInstancePropertiesClass, kwargs
-            )
+                properties
+                or self._create_properties_class(
+                    models.DataProcessInstancePropertiesClass, kwargs
+                )
             ),
             models.SubTypesClass(typeNames=["ML Training Run"]),
         ]
@@ -438,27 +438,44 @@ class DatahubAIClient:
             raise ValueError(f"Failed to create dataset URN for {name}")
         return dataset.urn
 
-    def add_run_to_model(self, model_urn: str, run_urn: str) -> None:
-        """Add a run to a model while preserving existing properties."""
+    def _add_process_to_model(self, model_urn: str, process_urn: str) -> None:
+        """Add a DataProcessInstance to a model while preserving existing properties."""
         self._update_entity_properties(
             entity_urn=model_urn,
             aspect_type=models.MLModelPropertiesClass,
-            updates={"trainingJobs": run_urn},
+            updates={"trainingJobs": process_urn},
             entity_type="mlModel",
             skip_properties=["trainingJobs"],
         )
+    def add_run_to_model(self, model_urn: str, run_urn: str) -> None:
+        """Add a run to a model while preserving existing properties."""
+        self._add_process_to_model(model_urn, run_urn)
         logger.info(f"Added run {run_urn} to model {model_urn}")
 
-    def add_run_to_model_group(self, model_group_urn: str, run_urn: str) -> None:
-        """Add a run to a model group while preserving existing properties."""
+    def add_job_to_model(self, model_urn: str, job_urn: str) -> None:
+        """Add a job to a model while preserving existing properties."""
+        self._add_process_to_model(model_urn, job_urn)
+        logger.info(f"Added training job {job_urn} to model {model_urn}")
+
+    def _add_process_to_model_group(self, model_group_urn: str, process_urn: str) -> None:
+        """Add DatapProcessInstance to a model group while preserving existing properties."""
         self._update_entity_properties(
             entity_urn=model_group_urn,
             aspect_type=models.MLModelGroupPropertiesClass,
-            updates={"trainingJobs": run_urn},
+            updates={"trainingJobs": process_urn},
             entity_type="mlModelGroup",
             skip_properties=["trainingJobs"],
         )
+
+    def add_run_to_model_group(self, model_group_urn: str, run_urn: str) -> None:
+        """Add a run to a model group while preserving existing properties."""
+        self._add_process_to_model_group(model_group_urn, run_urn)
         logger.info(f"Added run {run_urn} to model group {model_group_urn}")
+
+    def add_job_to_model_group(self, model_group_urn: str, job_urn: str) -> None:
+        """Add a job to a model group while preserving existing properties."""
+        self._add_process_to_model_group(model_group_urn, job_urn)
+        logger.info(f"Added job {job_urn} to model group {model_group_urn}")
 
     def add_model_to_model_group(self, model_urn: str, group_urn: str) -> None:
         """Add a model to a group while preserving existing properties"""
@@ -479,7 +496,7 @@ class DatahubAIClient:
         self._emit_mcps(mcp)
         logger.info(f"Added run {run_urn} to experiment {experiment_urn}")
 
-    def add_input_datasets_to_run(self, run_urn: str, dataset_urns: List[str]) -> None:
+    def _add_input_datasets_to_process(self, run_urn: str, dataset_urns: List[str]) -> None:
         """Add input datasets to a run"""
         mcp = self._create_mcp(
             entity_urn=run_urn,
@@ -488,7 +505,14 @@ class DatahubAIClient:
             aspect=DataProcessInstanceInput(inputs=dataset_urns),
         )
         self._emit_mcps(mcp)
+
+    def add_input_datasets_to_run(self, run_urn: str, dataset_urns: List[str]) -> None:
+        self._add_input_datasets_to_process(run_urn, dataset_urns)
         logger.info(f"Added input datasets to run {run_urn}")
+
+    def add_input_datasets_to_job(self, job_urn: str, dataset_urns: List[str]) -> None:
+        self._add_input_datasets_to_process(job_urn, dataset_urns)
+        logger.info(f"Added input datasets to training job {job_urn}")
 
     def add_output_datasets_to_run(self, run_urn: str, dataset_urns: List[str]) -> None:
         """Add output datasets to a run"""
