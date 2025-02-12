@@ -131,7 +131,7 @@ if __name__ == "__main__":
         default="http://localhost:8080",
         help="DataHub server URL (defaults to http://localhost:8080)",
     )
-    parser.add_argument("--platform", default="vertexai", help="DataHub access token")
+    parser.add_argument("--platform", default="vertexai", help="platform name")
     args = parser.parse_args()
 
     # Create Client
