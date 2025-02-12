@@ -6,7 +6,7 @@ import datahub.metadata.schema_classes as models
 from datahub.metadata.com.linkedin.pegasus2avro.dataprocess import RunResultType
 
 
-def create_training_pipeline(args, client: DatahubAIClient):
+def create_training_job_example(args, client: DatahubAIClient):
     # Create Training Job
     training_job_urn = client.create_training_job(
         run_id="train-petfinder-automl-job",
@@ -98,7 +98,7 @@ def create_training_pipeline(args, client: DatahubAIClient):
     return {"model_urn": model_urn, "model_group_urn": model_group_urn}
 
 
-def create_experiment(args, client: DatahubAIClient, artifacts):
+def create_experiment_example(args, client: DatahubAIClient, artifacts):
     experiment_urn = client.create_experiment(
         experiment_id="table_classification_experiment",
         properties=models.ContainerPropertiesClass(
@@ -187,6 +187,6 @@ if __name__ == "__main__":
         token=args.token, server_url=args.server_url, platform="vertexai"
     )
 
-    artifacts = create_training_pipeline(args, client)
+    artifacts = create_training_job_example(args, client)
 
-    create_experiment(args, client, artifacts)
+    create_experiment_example(args, client, artifacts)
