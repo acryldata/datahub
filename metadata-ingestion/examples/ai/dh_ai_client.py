@@ -373,64 +373,6 @@ class DatahubAIClient:
         logger.info(f"Created experiment: {container_urn}")
         return str(container_urn)
 
-    def create_training_job(
-            self,
-            run_id: str,
-            properties: Optional[models.DataProcessInstancePropertiesClass] = None,
-            training_run_properties: Optional[models.MLTrainingRunPropertiesClass] = None,
-            run_result: Optional[str] = None,
-            start_timestamp: Optional[int] = None,
-            end_timestamp: Optional[int] = None,
-            **kwargs: Any,
-    ) -> str:
-        """Create a training run with properties and events."""
-        dpi_urn = f"urn:li:dataProcessInstance:{run_id}"
-
-        # Create basic properties and aspects
-        aspects = [
-            (
-                    properties
-                    or self._create_properties_class(
-                models.DataProcessInstancePropertiesClass, kwargs
-            )
-            ),
-            models.SubTypesClass(typeNames=["ML Training Job"]),
-        ]
-
-        # Add training run properties if provided
-        if training_run_properties:
-            aspects.append(training_run_properties)
-
-        # Handle run events
-        current_time = int(time.time() * 1000)
-        start_ts = start_timestamp or current_time
-        end_ts = end_timestamp or current_time
-
-        # Create events
-        # aspects.append(
-        #     self._create_run_event(
-        #         status=DataProcessRunStatusClass.STARTED, timestamp=start_ts
-        #     )
-        # )
-
-        if run_result:
-            aspects.append(
-                self._create_run_event(
-                    status=DataProcessRunStatusClass.COMPLETE,
-                    timestamp=end_ts,
-                    result=run_result,
-                    duration_millis=end_ts - start_ts,
-                )
-            )
-
-        # Create and emit MCPs
-        mcps = [self._create_mcp(dpi_urn, aspect) for aspect in aspects]
-        self._emit_mcps(mcps)
-        logger.info(f"Created training job: {dpi_urn}")
-        return dpi_urn
-
-
-
     def create_training_run(
         self,
         run_id: str,
