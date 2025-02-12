@@ -447,6 +447,7 @@ class DatahubAIClient:
             entity_type="mlModel",
             skip_properties=["trainingJobs"],
         )
+
     def add_run_to_model(self, model_urn: str, run_urn: str) -> None:
         """Add a run to a model while preserving existing properties."""
         self._add_process_to_model(model_urn, run_urn)
@@ -457,7 +458,9 @@ class DatahubAIClient:
         self._add_process_to_model(model_urn, job_urn)
         logger.info(f"Added training job {job_urn} to model {model_urn}")
 
-    def _add_process_to_model_group(self, model_group_urn: str, process_urn: str) -> None:
+    def _add_process_to_model_group(
+        self, model_group_urn: str, process_urn: str
+    ) -> None:
         """Add DatapProcessInstance to a model group while preserving existing properties."""
         self._update_entity_properties(
             entity_urn=model_group_urn,
@@ -496,7 +499,9 @@ class DatahubAIClient:
         self._emit_mcps(mcp)
         logger.info(f"Added run {run_urn} to experiment {experiment_urn}")
 
-    def _add_input_datasets_to_process(self, run_urn: str, dataset_urns: List[str]) -> None:
+    def _add_input_datasets_to_process(
+        self, run_urn: str, dataset_urns: List[str]
+    ) -> None:
         """Add input datasets to a run"""
         mcp = self._create_mcp(
             entity_urn=run_urn,

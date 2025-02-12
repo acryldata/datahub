@@ -7,7 +7,6 @@ from datahub.metadata.com.linkedin.pegasus2avro.dataprocess import RunResultType
 
 
 def create_training_pipeline(args, client: DatahubAIClient):
-
     # Create Training Job
     training_job_urn = client.create_training_job(
         run_id="train-petfinder-automl-job",
