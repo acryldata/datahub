@@ -6,8 +6,7 @@ import datahub.metadata.schema_classes as models
 from datahub.metadata.com.linkedin.pegasus2avro.dataprocess import RunResultType
 
 
-def create_experiment_example(client: DatahubAIClient):
-
+def create_experiment_example(client: DatahubAIClient) -> None:
     experiment_urn = client.create_experiment(
         experiment_id="table_classification_experiment",
         properties=models.ContainerPropertiesClass(

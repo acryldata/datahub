@@ -5,7 +5,8 @@ from dh_ai_client import DatahubAIClient
 import datahub.metadata.schema_classes as models
 from datahub.metadata.com.linkedin.pegasus2avro.dataprocess import RunResultType
 
-def create_training_job_example(client: DatahubAIClient):
+
+def create_training_job_example(client: DatahubAIClient) -> None:
     # Create Training Job
     training_job_urn = client.create_training_job(
         run_id="train-petfinder-automl-job",
@@ -113,4 +114,3 @@ if __name__ == "__main__":
     )
 
     create_training_job_example(client)
-
