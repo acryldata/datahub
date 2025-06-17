@@ -158,7 +158,7 @@ class MetadataChangeSyncAction(Action):
             logger.info(
                 f"emitting the mcp: entityType {mcp.entityType}, changeType {mcp.changeType}, urn {mcp.entityUrn}, aspect name {mcp.aspectName}"
             )
-            mcpw = MetadataChangeProposalWrapper.try_from_mcpc(mcp)
+            mcpw = MetadataChangeProposalWrapper.try_from_mcpc(mcp) or mcp
             self.rest_emitter.emit_mcp(mcpw)
             logger.info("successfully emit the mcp")
         except Exception as ex:
