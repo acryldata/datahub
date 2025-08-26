@@ -5,6 +5,7 @@ import { IconType } from '@components/components/IconLabel/types';
 import { Label, StyledImage } from '@components/components/IncidentPriorityLabel/components';
 import { PRIORITIES } from '@components/components/IncidentPriorityLabel/constant';
 import { IncidentPriorityLabelProps } from '@components/components/IncidentPriorityLabel/types';
+import { resolveRuntimePath } from '@utils/runtimeBasePath';
 
 import LowIcon from '@src/images/incident-chart-bar-one.svg';
 import HighIcon from '@src/images/incident-chart-bar-three.svg';
@@ -25,7 +26,7 @@ const Icons = Object.fromEntries(
     Object.entries(priorityIcons).map(([priority, iconSrc]) => [
         priority,
         {
-            icon: iconSrc ? <StyledImage src={iconSrc} alt={priority} /> : null,
+            icon: iconSrc ? <StyledImage src={resolveRuntimePath(iconSrc)} alt={priority} /> : null,
             type: IconType.ICON,
         },
     ]),

@@ -5,6 +5,7 @@ import styled, { useTheme } from 'styled-components';
 
 import { useAppConfig } from '@app/useAppConfig';
 import { DEFAULT_APP_CONFIG } from '@src/appConfigContext';
+import { resolveRuntimePath } from '@utils/runtimeBasePath';
 
 const LogoImage = styled(Image)`
     display: inline-block;
@@ -22,7 +23,7 @@ export default function AppLogoLink() {
             <LogoImage
                 src={
                     appConfig.config !== DEFAULT_APP_CONFIG
-                        ? appConfig.config.visualConfig.logoUrl || themeConfig.assets.logoUrl
+                        ? resolveRuntimePath(appConfig.config.visualConfig.logoUrl || themeConfig.assets.logoUrl)
                         : undefined
                 }
                 preview={false}

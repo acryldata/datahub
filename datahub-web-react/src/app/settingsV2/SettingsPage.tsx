@@ -14,6 +14,8 @@ import React from 'react';
 import { Redirect, Route, Switch, useHistory, useLocation, useRouteMatch } from 'react-router';
 import styled from 'styled-components';
 
+import { resolveRuntimePath } from '@utils/runtimeBasePath';
+
 import useGetLogoutHandler from '@app/auth/useGetLogoutHandler';
 import { useUserContext } from '@app/context/useUserContext';
 import NavBarMenu from '@app/homeV2/layout/navBarRedesign/NavBarMenu';
@@ -247,7 +249,7 @@ export const SettingsPage = () => {
                         <NavBarSubTitle>Manage your settings</NavBarSubTitle>
                     </div>
                     {isThemeV2 && !isShowNavBarRedesign && (
-                        <a href="/logOut">
+                        <a href={resolveRuntimePath('/logOut')}>
                             <Button
                                 variant="outline"
                                 color="red"

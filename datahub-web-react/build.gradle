@@ -7,6 +7,8 @@ plugins {
   id 'com.github.node-gradle.node'
 }
 
+apply from: '../gradle/versioning/versioning.gradle'
+
 node {
 
   // If true, it will download node using above parameters.
@@ -174,6 +176,9 @@ task yarnLintFix(type: YarnTask, dependsOn: [yarnInstall, yarnGenerate]) {
 }
 
 task yarnBuild(type: YarnTask, dependsOn: [yarnInstall, yarnGenerate]) {
+  // Pass DataHub version via environment variable to vite build
+  environment.put('DATAHUB_APP_VERSION', project.version)
+  
   args = ['run', project.hasProperty('sourcemap') ? 'buildWithSourceMap' :'build']
 
   outputs.cacheIf { true }

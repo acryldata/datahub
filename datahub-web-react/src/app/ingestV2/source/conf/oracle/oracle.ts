@@ -1,4 +1,5 @@
 import { SourceConfig } from '@app/ingestV2/source/conf/types';
+import { resolveRuntimePath } from '@utils/runtimeBasePath';
 
 import oracleLogo from '@images/oraclelogo.png';
 
@@ -24,7 +25,7 @@ const oracleConfig: SourceConfig = {
     placeholderRecipe,
     displayName: 'Oracle',
     docsUrl: 'https://docs.datahub.com/docs/generated/ingestion/sources/oracle/',
-    logoUrl: oracleLogo,
+    logoUrl: resolveRuntimePath(oracleLogo),
 };
 
 export default oracleConfig;

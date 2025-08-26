@@ -40,6 +40,7 @@ services:
         required: true
     environment:
       ALTERNATE_MCP_VALIDATION: 'true'
+      DATAHUB_BASE_PATH: $${DATAHUB_BASE_PATH:-}
       DATAHUB_SERVER_TYPE: quickstart
       DATAHUB_TELEMETRY_ENABLED: 'false'
       DATAHUB_UPGRADE_HISTORY_KAFKA_CONSUMER_GROUP_ID: generic-duhe-consumer-job-client-gms
@@ -64,7 +65,7 @@ services:
       GRAPH_SERVICE_IMPL: elasticsearch
       JAVA_OPTS: -Xms1g -Xmx1g
       KAFKA_BOOTSTRAP_SERVER: broker:29092
-      KAFKA_SCHEMAREGISTRY_URL: http://datahub-gms:8080/schema-registry/api/
+      KAFKA_SCHEMAREGISTRY_URL: http://datahub-gms:8080$${DATAHUB_BASE_PATH:-}schema-registry/api/
       MAE_CONSUMER_ENABLED: 'true'
       MCE_CONSUMER_ENABLED: 'true'
       METADATA_SERVICE_AUTH_ENABLED: 'false'
@@ -117,7 +118,9 @@ services:
         condition: service_completed_successfully
         required: true
     environment:
-      DATAHUB_APP_VERSION: '1.0'
+      DATAHUB_APP_VERSION: ${DATAHUB_VERSION}
+      DATAHUB_BASE_PATH: $${DATAHUB_BASE_PATH:-}
+      DATAHUB_GMS_BASE_PATH: $${DATAHUB_BASE_PATH:-}
       DATAHUB_GMS_HOST: datahub-gms
       DATAHUB_GMS_PORT: '8080'
       DATAHUB_PLAY_MEM_BUFFER_SIZE: 10MB
@@ -127,6 +130,8 @@ services:
       ELASTIC_CLIENT_PORT: '9200'
       JAVA_OPTS: -Xms512m -Xmx512m -Dhttp.port=9002 -Dconfig.file=datahub-frontend/conf/application.conf -Djava.security.auth.login.config=datahub-frontend/conf/jaas.conf
         -Dlogback.configurationFile=datahub-frontend/conf/logback.xml -Dlogback.debug=false -Dpidfile.path=/dev/null
+      JAVA_TOOL_OPTIONS: -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5002 -Dlogback.configurationFile=/logback-debug.xml
+        -Djdk.httpclient.HttpClient.log=all
       KAFKA_BOOTSTRAP_SERVER: broker:29092
       THEME_V2_DEFAULT: 'true'
     hostname: datahub-frontend-react
@@ -379,6 +384,7 @@ services:
         required: true
     environment:
       BACKFILL_BROWSE_PATHS_V2: 'true'
+      DATAHUB_BASE_PATH: $${DATAHUB_BASE_PATH:-}
       DATAHUB_GMS_HOST: datahub-gms
       DATAHUB_GMS_PORT: '8080'
       DATAHUB_PRECREATE_TOPICS: 'false'
@@ -400,7 +406,7 @@ services:
       ENTITY_VERSIONING_ENABLED: 'true'
       GRAPH_SERVICE_IMPL: elasticsearch
       KAFKA_BOOTSTRAP_SERVER: broker:29092
-      KAFKA_SCHEMAREGISTRY_URL: http://datahub-gms:8080/schema-registry/api/
+      KAFKA_SCHEMAREGISTRY_URL: http://datahub-gms:8080$${DATAHUB_BASE_PATH:-}schema-registry/api/
       NEO4J_HOST: http://neo4j:7474
       NEO4J_PASSWORD: datahub
       NEO4J_URI: bolt://neo4j

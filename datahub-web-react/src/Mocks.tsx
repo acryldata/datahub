@@ -233,7 +233,7 @@ export const dataPlatformInstance = {
         urn: 'urn:li:dataPlatform:clickhouse',
         properties: {
             displayName: 'ClickHouse',
-            logoUrl: '/assets/platforms/clickhouselogo.png',
+            logoUrl: 'assets/platforms/clickhouselogo.png',
         },
     },
 };

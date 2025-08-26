@@ -1,4 +1,5 @@
 import { SourceConfig } from '@app/ingestV2/source/conf/types';
+import { resolveRuntimePath } from '@utils/runtimeBasePath';
 
 import redshiftLogo from '@images/redshiftlogo.png';
 
@@ -31,7 +32,7 @@ const redshiftConfig: SourceConfig = {
     placeholderRecipe,
     displayName: 'Redshift',
     docsUrl: 'https://docs.datahub.com/docs/generated/ingestion/sources/redshift/',
-    logoUrl: redshiftLogo,
+    logoUrl: resolveRuntimePath(redshiftLogo),
 };
 
 export default redshiftConfig;
