@@ -14,7 +14,7 @@ jobs:
       python_release_version: ${{ steps.python_release_version.outputs.release_version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Validate ref format
         run: |
           source .github/scripts/docker_helpers.sh
@@ -46,7 +46,7 @@ jobs:
     needs: setup
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: Docker meta
