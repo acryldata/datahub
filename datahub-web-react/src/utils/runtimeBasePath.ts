@@ -3,24 +3,24 @@
  * Priority order: 1. HTML base tag, 2. Global variable, 3. Root fallback
  */
 function getBasePath(): string {
-  // Priority 1: Check if base tag exists (set by server template)
-  const baseTag = document.querySelector('base');
-  if (baseTag) {
-    const href = baseTag.getAttribute('href');
-    if (href) {
-      // Remove trailing slash for consistency (except for root)
-      return href === '/' ? '/' : href.replace(/\/$/, '');
+    // Check if base tag exists (set by server)
+    const baseTag = document.querySelector('base');
+    if (baseTag) {
+        const href = baseTag.getAttribute('href');
+        if (href) {
+            // Remove trailing slash for consistency (except for root)
+            return href === '/' ? '/' : href.replace(/\/$/, '');
+        }
     }
-  }
-  
-  // Priority 2: Check global variable (set by server template or config endpoint)
-  const globalBasePath = (window as any).__DATAHUB_BASE_PATH__;
-  if (globalBasePath && globalBasePath !== '/') {
-    return globalBasePath.replace(/\/$/, '');
-  }
-  
-  // Priority 3: Default to root
-  return '';
+
+    // Check global variable
+    const globalBasePath = (window as any).__DATAHUB_BASE_PATH__;
+    if (globalBasePath && globalBasePath !== '/') {
+        return globalBasePath.replace(/\/$/, '');
+    }
+
+    // Otherwise defaults to empty to allow existing assets anchored to /, e.g. /assets/platforms/datahublogo.png
+    return '';
 }
 
 // Cache the base path on first detection
@@ -35,9 +35,9 @@ export function getRuntimeBasePath(): string {
     if (cachedBasePath !== null) {
         return cachedBasePath;
     }
-    
+
     cachedBasePath = getBasePath();
-    console.log('Returned basePath: ' + cachedBasePath);
+    console.log(`Returned basePath: ${cachedBasePath}`);
     return cachedBasePath;
 }
 
@@ -47,16 +47,23 @@ export function getRuntimeBasePath(): string {
 export function resolveRuntimePath(path: string): string {
     const basePath = getRuntimeBasePath();
 
-    // If it's already an absolute path starting with our base, return as-is
+    // Handle root base path special case
+    if (!basePath || basePath === "" || basePath === '/') {
+        console.log(`Root basePath case - path: ${path}`);
+        return path;
+    }
+
+    // If path already starts with our non-root base path, return as-is
     if (path.startsWith(basePath)) {
+        console.log(`Path already has basePath - path: ${path} basePath: ${basePath}`);
         return path;
     }
 
     // Remove leading slash if present to make it relative
     const cleanPath = path.startsWith('/') ? path.slice(1) : path;
-    console.log('basePath: ' + basePath +' cleanPath: ' + cleanPath);
-    // Combine base path with clean path, avoiding double slashes
-    return `${basePath}/${cleanPath}`.replace(/\/+/g, '/');
+    const resolvedPath = `${basePath}/${cleanPath}`.replace(/\/+/g, '/');
+    console.log(`basePath: ${basePath} cleanPath: ${cleanPath} resolved: ${resolvedPath}`);
+    return resolvedPath;
 }
 
 /**
@@ -65,7 +72,7 @@ export function resolveRuntimePath(path: string): string {
  */
 export function fixCSSFontPaths(): void {
     const basePath = getRuntimeBasePath();
-    
+
     // Only need to fix paths if we have a non-root base path
     if (!basePath) {
         return;
@@ -75,7 +82,7 @@ export function fixCSSFontPaths(): void {
     let changesCount = 0;
 
     // Scan all loaded stylesheets
-    Array.from(document.styleSheets).forEach(styleSheet => {
+    Array.from(document.styleSheets).forEach((styleSheet) => {
         try {
             // Skip stylesheets from external domains due to CORS
             if (styleSheet.href && !styleSheet.href.startsWith(window.location.origin)) {
@@ -87,18 +94,15 @@ export function fixCSSFontPaths(): void {
                 // Look for @font-face rules
                 if (rule.type === CSSRule.FONT_FACE_RULE) {
                     const currentSrc = rule.style.src;
-                    
+
                     // Check if this rule has absolute /assets/ paths
                     if (currentSrc && currentSrc.includes('url("/assets/')) {
                         // Replace absolute /assets/ paths with runtime base path
-                        const fixedSrc = currentSrc.replace(
-                            /url\("\/assets\//g,
-                            `url("${basePath}/assets/`
-                        );
-                        
+                        const fixedSrc = currentSrc.replace(/url\("\/assets\//g, `url("${basePath}/assets/`);
+
                         // Apply the fix
                         if (fixedSrc !== currentSrc) {
-                            rule.style.src = fixedSrc;
+                            rule.style.setProperty('src', fixedSrc);
                             changesCount++;
                             console.log('Fixed CSS font URL:', currentSrc, '->', fixedSrc);
                         }

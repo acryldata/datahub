@@ -14,8 +14,6 @@ import React from 'react';
 import { Redirect, Route, Switch, useHistory, useLocation, useRouteMatch } from 'react-router';
 import styled from 'styled-components';
 
-import { resolveRuntimePath } from '@utils/runtimeBasePath';
-
 import useGetLogoutHandler from '@app/auth/useGetLogoutHandler';
 import { useUserContext } from '@app/context/useUserContext';
 import NavBarMenu from '@app/homeV2/layout/navBarRedesign/NavBarMenu';
@@ -25,6 +23,7 @@ import { useAppConfig } from '@app/useAppConfig';
 import { useIsThemeV2 } from '@app/useIsThemeV2';
 import { useShowNavBarRedesign } from '@app/useShowNavBarRedesign';
 import { Button, colors } from '@src/alchemy-components';
+import { resolveRuntimePath } from '@utils/runtimeBasePath';
 
 const PageContainer = styled.div`
     display: flex;

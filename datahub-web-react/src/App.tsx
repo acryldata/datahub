@@ -16,13 +16,13 @@ import CustomThemeProvider from '@src/CustomThemeProvider';
 import { GlobalCfg } from '@src/conf';
 import { useCustomTheme } from '@src/customThemeContext';
 import possibleTypesResult from '@src/possibleTypes.generated';
-import { getRuntimeBasePath, resolveRuntimePath, fixCSSFontPaths } from '@utils/runtimeBasePath';
+import { fixCSSFontPaths, getRuntimeBasePath, resolveRuntimePath } from '@utils/runtimeBasePath';
 
 /*
     Construct Apollo Client
 */
 const httpLink = createHttpLink({
-    uri: `${getRuntimeBasePath()}/api/v2/graphql`,
+    uri: resolveRuntimePath(`/api/v2/graphql`),
 });
 
 const errorLink = onError((error) => {
@@ -88,7 +88,7 @@ export const InnerApp: React.VFC = () => {
         const timer = setTimeout(() => {
             fixCSSFontPaths();
         }, 100);
-        
+
         return () => clearTimeout(timer);
     }, []);
 

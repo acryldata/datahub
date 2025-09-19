@@ -84,7 +84,14 @@ export const ContainerSelectModal = ({ onCloseModal, defaultValues, onOkOverride
                         <ParentEntities parentEntities={parentEntities} />
                     </ParentWrapper>
                 )}
-                <PreviewImage src={entity.platform?.properties?.logoUrl ? resolveRuntimePath(entity.platform.properties.logoUrl) : undefined} alt={entity.properties?.name} />
+                <PreviewImage
+                    src={
+                        entity.platform?.properties?.logoUrl
+                            ? resolveRuntimePath(entity.platform.properties.logoUrl)
+                            : undefined
+                    }
+                    alt={entity.properties?.name}
+                />
                 <span>{truncatedDisplayName}</span>
             </Tooltip>
         );

@@ -3,6 +3,7 @@ import React from 'react';
 import styled from 'styled-components';
 
 import { resolveRuntimePath } from '@utils/runtimeBasePath';
+
 import DataHubLogo from '@images/datahublogo.png';
 
 const BannerWrapper = styled.div`

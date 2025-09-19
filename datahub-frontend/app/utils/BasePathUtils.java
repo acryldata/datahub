@@ -18,7 +18,7 @@ public class BasePathUtils {
    */
   @Nonnull
   public static String normalizeBasePath(@Nullable String basePath) {
-    if (basePath == null || basePath.trim().isEmpty()) {
+    if (basePath == null || basePath.trim().isEmpty() || basePath.equals("/")) {
       return "";
     }
 
@@ -49,7 +49,7 @@ public class BasePathUtils {
     String normalizedBasePath = normalizeBasePath(basePath);
 
     // If no base path configured, return original URI
-    if (normalizedBasePath.isEmpty()) {
+    if (normalizedBasePath.isEmpty() || normalizedBasePath.endsWith("/")) {
       return requestUri;
     }
 

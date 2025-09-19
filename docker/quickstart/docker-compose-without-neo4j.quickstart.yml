@@ -105,7 +105,7 @@ services:
       interval: 1s
       retries: 3
       start_period: 90s
-      test: curl -sS --fail http://datahub-gms:${DATAHUB_GMS_PORT:-8080}${DATAHUB_BASE_PATH:-/}health
+      test: curl -sS --fail http://datahub-gms:${DATAHUB_GMS_PORT:-8080}${DATAHUB_BASE_PATH}/health
       timeout: 5s
     hostname: datahub-gms
     image: ${DATAHUB_GMS_IMAGE:-acryldata/datahub-gms}:${DATAHUB_VERSION:-head}

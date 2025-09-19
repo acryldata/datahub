@@ -16,10 +16,10 @@ function changeFavicon(src) {
         link.rel = 'icon';
         document.getElementsByTagName('head')[0].appendChild(link);
     }
-    
+
     // Resolve the favicon URL with the runtime base path
     const resolvedSrc = resolveRuntimePath(src);
-    
+
     links.forEach((link) => {
         // eslint-disable-next-line no-param-reassign
         link.href = resolvedSrc;

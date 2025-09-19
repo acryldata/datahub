@@ -153,7 +153,7 @@ public class Application extends Controller {
             protocol,
             metadataServiceHost,
             metadataServicePort,
-            metadataServiceBasePath,
+            metadataServiceBasePath.equals("/") ? "" : metadataServiceBasePath,
             resolvedUri);
     HttpRequest.Builder httpRequestBuilder =
         HttpRequest.newBuilder().uri(URI.create(targetUrl)).timeout(Duration.ofSeconds(120));

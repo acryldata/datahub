@@ -69,7 +69,9 @@ export const SelectPlatformModal = ({ onCloseModal, defaultValues, onOk, titleOv
         const truncatedDisplayName = displayName.length > 25 ? `${displayName.slice(0, 25)}...` : displayName;
         return (
             <Tooltip title={displayName}>
-                {!!entity.properties?.logoUrl && <PreviewImage src={resolveRuntimePath(entity.properties.logoUrl)} alt={entity?.name} />}
+                {!!entity.properties?.logoUrl && (
+                    <PreviewImage src={resolveRuntimePath(entity.properties.logoUrl)} alt={entity?.name} />
+                )}
                 <span>{truncatedDisplayName}</span>
             </Tooltip>
         );

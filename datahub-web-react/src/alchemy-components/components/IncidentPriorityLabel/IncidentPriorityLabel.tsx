@@ -5,12 +5,12 @@ import { IconType } from '@components/components/IconLabel/types';
 import { Label, StyledImage } from '@components/components/IncidentPriorityLabel/components';
 import { PRIORITIES } from '@components/components/IncidentPriorityLabel/constant';
 import { IncidentPriorityLabelProps } from '@components/components/IncidentPriorityLabel/types';
-import { resolveRuntimePath } from '@utils/runtimeBasePath';
 
 import LowIcon from '@src/images/incident-chart-bar-one.svg';
 import HighIcon from '@src/images/incident-chart-bar-three.svg';
 import MediumIcon from '@src/images/incident-chart-bar-two.svg';
 import CriticalIcon from '@src/images/incident-critical.svg';
+import { resolveRuntimePath } from '@utils/runtimeBasePath';
 
 // 🔄 Map priorities to icons for cleaner code
 const priorityIcons = {

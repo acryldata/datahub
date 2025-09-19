@@ -42,8 +42,8 @@ import { useHandleOnboardingTour } from '@src/app/onboarding/useHandleOnboarding
 import { useUpdateEducationStepsAllowList } from '@src/app/onboarding/useUpdateEducationStepsAllowList';
 import { useEntityRegistry } from '@src/app/useEntityRegistry';
 import { HelpLinkRoutes, PageRoutes } from '@src/conf/Global';
-import { resolveRuntimePath } from '@utils/runtimeBasePath';
 import { EntityType } from '@src/types.generated';
+import { resolveRuntimePath } from '@utils/runtimeBasePath';
 
 import AcrylIcon from '@images/acryl-light-mark.svg?react';
 

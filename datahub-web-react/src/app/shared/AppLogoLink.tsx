@@ -19,7 +19,7 @@ export default function AppLogoLink() {
     const themeConfig = useTheme();
 
     return (
-        <Link to="/">
+        <Link to={resolveRuntimePath('/')}>
             <LogoImage
                 src={
                     appConfig.config !== DEFAULT_APP_CONFIG

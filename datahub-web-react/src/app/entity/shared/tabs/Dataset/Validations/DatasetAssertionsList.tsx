@@ -246,7 +246,11 @@ export const DatasetAssertionsList = ({
                                             preview={false}
                                             height={20}
                                             width={20}
-                                            src={record.platform.properties?.logoUrl ? resolveRuntimePath(record.platform.properties.logoUrl) : undefined}
+                                            src={
+                                                record.platform.properties?.logoUrl
+                                                    ? resolveRuntimePath(record.platform.properties.logoUrl)
+                                                    : undefined
+                                            }
                                         />
                                     )) || (
                                         <Typography.Text>

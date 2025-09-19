@@ -46,7 +46,7 @@ const injectDatahubEnv = () => {
                 // Iterate through all environment variables and replace placeholders
                 envVariables.forEach(({ placeholder, envVar }) => {
                     // Provide sensible defaults for missing env vars
-                    let value = process.env[envVar];
+                    const value = process.env[envVar];
                     transformedHtml = transformedHtml.replaceAll(placeholder, value);
                 });
                 
@@ -176,8 +176,8 @@ export default defineConfig(async ({ mode }) => {
                     },
                     chunkFileNames: `assets/v${datahubVersion}/js/[name].js`,
                     entryFileNames: `assets/v${datahubVersion}/js/[name].js`,
-                }
-            }
+                },
+            },
         },
         server: {
             open: false,

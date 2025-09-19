@@ -1,6 +1,5 @@
 import { Button, Carousel, Heading, LoadedImage, Modal } from '@components';
 import React, { useEffect, useRef, useState } from 'react';
-import { resolveRuntimePath } from '@utils/runtimeBasePath';
 
 import analytics, { EventType } from '@app/analytics';
 import { useOnboardingTour } from '@app/onboarding/OnboardingTourContext.hooks';
@@ -11,6 +10,7 @@ import {
     VideoContainer,
     VideoSlide,
 } from '@src/app/onboarding/WelcomeToDataHubModal.components';
+import { resolveRuntimePath } from '@utils/runtimeBasePath';
 
 import welcomeModalHomeScreenshot from '@images/welcome-modal-home-screenshot.png';
 
@@ -80,7 +80,9 @@ export const WelcomeToDataHubModal = () => {
             const loadVideo = async (videoKey: keyof VideoSources, importPromise: Promise<{ default: string }>) => {
                 try {
                     const module = await importPromise;
-                    setVideoSources((prev) => (prev ? { ...prev, [videoKey]: resolveRuntimePath(module.default) } : prev));
+                    setVideoSources((prev) =>
+                        prev ? { ...prev, [videoKey]: resolveRuntimePath(module.default) } : prev,
+                    );
                 } catch (error) {
                     console.error(`Failed to load ${videoKey} video:`, error);
                 }
