@@ -121,10 +121,10 @@ x-datahub-gms-service: &datahub-gms-service
     ENTITY_VERSIONING_ENABLED: ${ENTITY_VERSIONING_ENABLED:-true}
     THEME_V2_DEFAULT: ${THEME_V2_DEFAULT:-true}
     METADATA_SERVICE_AUTH_ENABLED: ${METADATA_SERVICE_AUTH_ENABLED:-true}
-    DATAHUB_BASE_PATH: ${DATAHUB_BASE_PATH:-/}
-    DATAHUB_GMS_BASE_PATH: ${DATAHUB_BASE_PATH:-/}
+    DATAHUB_BASE_PATH: ${DATAHUB_BASE_PATH}
+    DATAHUB_GMS_BASE_PATH: ${DATAHUB_BASE_PATH}
   healthcheck:
-    test: curl -sS --fail http://datahub-gms:${DATAHUB_GMS_PORT:-8080}/health
+    test: curl -sS --fail http://datahub-gms:${DATAHUB_GMS_PORT:-8080}${DATAHUB_GMS_BASE_PATH}/health
     start_period: 90s
     interval: 1s
     retries: 3
@@ -154,6 +154,8 @@ x-datahub-gms-service-dev: &datahub-gms-service-dev
     LINEAGE_SEARCH_CACHE_ENABLED: false
     SHOW_BROWSE_V2: true
     ENTITY_VERSIONING_ENABLED: ${ENTITY_VERSIONING_ENABLED:-true}
+    DATAHUB_BASE_PATH: ${DATAHUB_BASE_PATH}
+    DATAHUB_GMS_BASE_PATH: ${DATAHUB_BASE_PATH}
   volumes:
     - ./datahub-gms/start.sh:/datahub/datahub-gms/scripts/start.sh
     - ./monitoring/client-prometheus-config.yaml:/datahub/datahub-gms/scripts/prometheus-config.yaml
