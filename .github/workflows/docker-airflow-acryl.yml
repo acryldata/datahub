@@ -51,7 +51,7 @@ jobs:
           fetch-depth: 0
       - name: Docker meta
         id: docker_meta
-        uses: crazy-max/ghaction-docker-meta@v1
+        uses: crazy-max/ghaction-docker-meta@v5
         with:
           # list of Docker images to use as base name for tags
           images: |
