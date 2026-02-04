@@ -36,6 +36,14 @@ public class ListExecutorPoolsResolver implements DataFetcher<CompletableFuture<
           () -> {
             final ListExecutorPoolsInput input =
                 bindArgument(environment.getArgument("input"), ListExecutorPoolsInput.class);
+            if (input == null) {
+              final ListExecutorPoolsResult empty = new ListExecutorPoolsResult();
+              empty.setStart(DEFAULT_START);
+              empty.setCount(DEFAULT_COUNT);
+              empty.setTotal(0);
+              empty.setPools(List.of());
+              return empty;
+            }
             final int start = input.getStart() == null ? DEFAULT_START : input.getStart();
             final int count = input.getCount() == null ? DEFAULT_COUNT : input.getCount();
 

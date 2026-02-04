@@ -4,7 +4,9 @@ import com.linkedin.datahub.graphql.generated.ExecutorPool;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 /**
  * In-memory store for executor pools. Used by OSS resolvers so create/list/delete work within a
@@ -41,13 +43,10 @@ final class ExecutorPoolStore {
     if (poolIds == null) {
       return List.of();
     }
-    List<String> deleted = new ArrayList<>();
-    for (String id : poolIds) {
-      if (id != null && POOLS.remove(id) != null) {
-        deleted.add(id);
-      }
-    }
-    return deleted;
+    return poolIds.stream()
+        .filter(Objects::nonNull)
+        .filter(id -> POOLS.remove(id) != null)
+        .collect(Collectors.toList());
   }
 
   private ExecutorPoolStore() {}

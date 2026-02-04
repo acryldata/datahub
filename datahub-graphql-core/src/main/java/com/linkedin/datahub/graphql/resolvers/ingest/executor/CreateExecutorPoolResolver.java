@@ -14,8 +14,8 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Creates a remote executor pool. Requires the MANAGE ingestion privilege.
  *
- * <p>In OSS this is a stub that returns the input pool id. Managed DataHub may override or replace
- * this resolver to perform actual creation against an external executor service.
+ * <p>In OSS this uses an in-memory store ({@link ExecutorPoolStore}). Managed DataHub may
+ * override or replace this resolver to perform actual creation against an external executor service.
  */
 public class CreateExecutorPoolResolver implements DataFetcher<CompletableFuture<String>> {
 
@@ -29,6 +29,9 @@ public class CreateExecutorPoolResolver implements DataFetcher<CompletableFuture
           () -> {
             final CreateExecutorPoolInput input =
                 bindArgument(environment.getArgument("input"), CreateExecutorPoolInput.class);
+            if (input == null) {
+              return "";
+            }
             String id = input.getId() != null ? input.getId() : "";
             String name = input.getName();
             return ExecutorPoolStore.create(id, name);

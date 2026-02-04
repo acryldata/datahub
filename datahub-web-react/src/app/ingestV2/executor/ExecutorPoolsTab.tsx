@@ -67,16 +67,25 @@ export const ExecutorPoolsTab = () => {
 
     const onCreatePool = useCallback(
         async (input: CreateExecutorPoolInput) => {
-            await createExecutorPoolMutation({
-                variables: {
-                    input: {
-                        id: input.id,
-                        name: input.name ?? null,
+            try {
+                await createExecutorPoolMutation({
+                    variables: {
+                        input: {
+                            id: input.id,
+                            name: input.name ?? null,
+                        },
                     },
-                },
-            });
-            message.success({ content: 'Executor pool created.', duration: 2 });
-            refetch();
+                });
+                message.success({ content: 'Executor pool created.', duration: 2 });
+                refetch?.();
+            } catch (e) {
+                message.destroy();
+                message.error({
+                    content: e instanceof Error ? e.message : 'Failed to create executor pool',
+                    duration: 3,
+                });
+                throw e;
+            }
         },
         [createExecutorPoolMutation, refetch],
     );

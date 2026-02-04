@@ -12,8 +12,9 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Deletes one or more remote executor pools by id. Requires the MANAGE ingestion privilege.
  *
- * <p>In OSS this is a no-op and returns the input pool ids. Managed DataHub may override or
- * replace this resolver to perform actual deletion against an external executor service.
+ * <p>In OSS this removes pools from the in-memory store ({@link ExecutorPoolStore}) and returns the
+ * deleted ids. Managed DataHub may override or replace this resolver to perform actual deletion
+ * against an external executor service.
  */
 public class DeleteExecutorPoolsResolver implements DataFetcher<CompletableFuture<List<String>>> {
 
