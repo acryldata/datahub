@@ -37,12 +37,6 @@ extend type Query {
   urn: The primary key associated with the execution request.
   """
   executionRequest(urn: String!): ExecutionRequest
-
-  """
-  List all remote executor pools. Requires the MANAGE ingestion privilege.
-  In OSS this returns an empty list; managed DataHub may implement full support.
-  """
-  listExecutorPools(input: ListExecutorPoolsInput!): ListExecutorPoolsResult
 }
 
 extend type Mutation {
@@ -104,18 +98,6 @@ extend type Mutation {
   Rollback a specific ingestion execution run based on its runId
   """
   rollbackIngestion(input: RollbackIngestionInput!): String
-
-  """
-  Create a remote executor pool. Requires the MANAGE ingestion privilege.
-  In OSS this is a stub; managed DataHub may implement full support.
-  """
-  createExecutorPool(input: CreateExecutorPoolInput!): String
-
-  """
-  Delete one or more remote executor pools by id. Requires the MANAGE ingestion privilege.
-  In OSS this is a no-op; managed DataHub may implement full support.
-  """
-  deleteExecutorPools(poolIds: [String!]!): [String!]
 }
 
 """
@@ -364,81 +346,6 @@ type ListSecretsResult {
   The secrets themselves
   """
   secrets: [Secret!]!
-}
-
-"""
-A remote executor pool. In OSS this is a stub; managed DataHub may provide full pool metadata.
-"""
-type ExecutorPool {
-  """
-  Unique id of the executor pool
-  """
-  id: String!
-
-  """
-  Optional display name for the pool
-  """
-  name: String
-}
-
-"""
-Input for creating a remote executor pool
-"""
-input CreateExecutorPoolInput {
-  """
-  Unique id for the pool
-  """
-  id: String!
-
-  """
-  Optional display name
-  """
-  name: String
-}
-
-"""
-Input for listing remote executor pools
-"""
-input ListExecutorPoolsInput {
-  """
-  The starting offset of the result set
-  """
-  start: Int
-
-  """
-  The number of results to be returned
-  """
-  count: Int
-
-  """
-  An optional search query
-  """
-  query: String
-}
-
-"""
-Result of listing remote executor pools
-"""
-type ListExecutorPoolsResult {
-  """
-  The starting offset of the result set
-  """
-  start: Int!
-
-  """
-  The number of results returned
-  """
-  count: Int!
-
-  """
-  The total number of pools
-  """
-  total: Int!
-
-  """
-  The executor pools
-  """
-  pools: [ExecutorPool!]!
 }
 
 """
