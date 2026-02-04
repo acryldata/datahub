@@ -128,6 +128,9 @@ import com.linkedin.datahub.graphql.resolvers.ingest.execution.GetLatestSuccessf
 import com.linkedin.datahub.graphql.resolvers.ingest.execution.IngestionSourceExecutionRequestsResolver;
 import com.linkedin.datahub.graphql.resolvers.ingest.execution.ListExecutionRequestsResolver;
 import com.linkedin.datahub.graphql.resolvers.ingest.execution.RollbackIngestionResolver;
+import com.linkedin.datahub.graphql.resolvers.ingest.executor.CreateExecutorPoolResolver;
+import com.linkedin.datahub.graphql.resolvers.ingest.executor.DeleteExecutorPoolsResolver;
+import com.linkedin.datahub.graphql.resolvers.ingest.executor.ListExecutorPoolsResolver;
 import com.linkedin.datahub.graphql.resolvers.ingest.secret.CreateSecretResolver;
 import com.linkedin.datahub.graphql.resolvers.ingest.secret.DeleteSecretResolver;
 import com.linkedin.datahub.graphql.resolvers.ingest.secret.GetSecretValuesResolver;
@@ -1126,6 +1129,7 @@ public class GmsGraphQLEngine {
                 .dataFetcher(
                     "listExecutionRequests", new ListExecutionRequestsResolver(this.entityClient))
                 .dataFetcher("executionRequest", getResolver(executionRequestType))
+                .dataFetcher("listExecutorPools", new ListExecutorPoolsResolver())
                 .dataFetcher("getSchemaBlame", new GetSchemaBlameResolver(this.timelineService))
                 .dataFetcher("getTimeline", new GetTimelineResolver(this.timelineService))
                 .dataFetcher(
@@ -1314,6 +1318,8 @@ public class GmsGraphQLEngine {
               .dataFetcher("deleteSecret", new DeleteSecretResolver(this.entityClient))
               .dataFetcher(
                   "updateSecret", new UpdateSecretResolver(this.entityClient, this.secretService))
+              .dataFetcher("createExecutorPool", new CreateExecutorPoolResolver())
+              .dataFetcher("deleteExecutorPools", new DeleteExecutorPoolsResolver())
               .dataFetcher(
                   "createAccessToken",
                   new CreateAccessTokenResolver(this.statefulTokenService, this.entityClient))

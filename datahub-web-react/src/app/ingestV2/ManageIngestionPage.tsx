@@ -8,6 +8,7 @@ import { Tab } from '@components/components/Tabs/Tabs';
 import analytics, { EventType } from '@app/analytics';
 import { useUserContext } from '@app/context/useUserContext';
 import { ExecutionsTab } from '@app/ingestV2/executions/ExecutionsTab';
+import { ExecutorPoolsTab } from '@app/ingestV2/executor/ExecutorPoolsTab';
 import { useIngestionOnboardingRedesignV1 } from '@app/ingestV2/hooks/useIngestionOnboardingRedesignV1';
 import { SecretsList } from '@app/ingestV2/secret/SecretsList';
 import { IngestionSourceList } from '@app/ingestV2/source/IngestionSourceList';
@@ -79,6 +80,7 @@ export const ManageIngestionPage = () => {
     const canManageIngestion = platformPrivileges?.manageIngestion;
     const showIngestionTab = isIngestionEnabled && canManageIngestion;
     const showSecretsTab = isIngestionEnabled && platformPrivileges?.manageSecrets;
+    const showExecutorsTab = isIngestionEnabled && canManageIngestion;
     const showIngestionOnboardingRedesignV1 = useIngestionOnboardingRedesignV1();
 
     // undefined == not loaded, null == no permissions
@@ -176,6 +178,11 @@ export const ManageIngestionPage = () => {
             ),
             key: TabType.RunHistory as string,
             name: 'Run History',
+        },
+        showExecutorsTab && {
+            component: <ExecutorPoolsTab />,
+            key: TabType.RemoteExecutors as string,
+            name: TabType.RemoteExecutors as string,
         },
         showSecretsTab && {
             component: (
