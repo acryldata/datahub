@@ -24,6 +24,8 @@ base_requirements = {
     "mixpanel>=4.9.0",
     # Airflow depends on fairly old versions of sentry-sdk, which is why we need to be loose with our constraints.
     "sentry-sdk>=1.33.1",
+    # setuptools 82.0.0 deprecated pkg_resources
+    "setuptools<82.0.0",
 }
 
 framework_common = {
