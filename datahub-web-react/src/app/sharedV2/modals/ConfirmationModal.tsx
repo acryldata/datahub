@@ -34,6 +34,8 @@ interface Props {
     confirmButtonText?: string;
     isDeleteModal?: boolean;
     closeOnPrimaryAction?: boolean;
+    /** When true, only the close button is shown (e.g. for informational/blocked state). */
+    hideConfirmButton?: boolean;
 }
 
 export const ConfirmationModal = ({
@@ -47,28 +49,35 @@ export const ConfirmationModal = ({
     confirmButtonText,
     isDeleteModal,
     closeOnPrimaryAction,
+    hideConfirmButton = false,
 }: Props) => {
+    const buttons = [
+        {
+            variant: 'text' as const,
+            onClick: handleClose,
+            buttonDataTestId: 'modal-cancel-button',
+            text: closeButtonText || (hideConfirmButton ? 'Close' : 'Cancel'),
+            color: closeButtonColor,
+        },
+        ...(hideConfirmButton
+            ? []
+            : [
+                  {
+                      variant: 'filled' as const,
+                      onClick: handleConfirm,
+                      buttonDataTestId: 'modal-confirm-button',
+                      text: confirmButtonText || 'Yes',
+                      color: (isDeleteModal ? 'red' : 'primary') as ModalButton['color'],
+                  },
+              ]),
+    ];
+
     return (
         <StyledModal
             open={isOpen}
             onCancel={closeOnPrimaryAction ? handleConfirm : handleClose}
             centered
-            buttons={[
-                {
-                    variant: 'text',
-                    onClick: handleClose,
-                    buttonDataTestId: 'modal-cancel-button',
-                    text: closeButtonText || 'Cancel',
-                    color: closeButtonColor,
-                },
-                {
-                    variant: 'filled',
-                    onClick: handleConfirm,
-                    buttonDataTestId: 'modal-confirm-button',
-                    text: confirmButtonText || 'Yes',
-                    color: isDeleteModal ? 'red' : 'primary',
-                },
-            ]}
+            buttons={buttons}
             title={modalTitle || 'Confirm'}
         >
             <Text color="gray" size="lg">
