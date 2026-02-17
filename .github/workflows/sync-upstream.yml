@@ -12,20 +12,20 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-    
+
     steps:
       - name: Sync fork with upstream
         id: fork-sync
         uses: tgymnich/fork-sync@v2.0.10
         with:
-          token: ${{ secrets.PAT_FOR_UPSTREAM_SYNC_ACTION }}          
+          token: ${{ secrets.PAT_FOR_UPSTREAM_SYNC_ACTION }}
           base: test-sync-upstream
           head: master
           auto_approve: false
-          pr_title: 'chore(sync): Sync fork with upstream master'
+          pr_title: "chore(sync): Sync fork with upstream master"
           pr_message: |
             This PR automatically syncs the test-sync-upstream branch with upstream datahub-project/datahub:master.
-            
+
             **Note:** This is a TEST sync operation. If there are conflicts, this workflow will stop and require manual intervention.
           merge_method: rebase
         continue-on-error: false
@@ -47,4 +47,3 @@ jobs:
           echo "::notice::Fork sync completed successfully."
           echo "**Sync Status:** ✅ Success"
           echo "**Action:** PR created and merged automatically (no conflicts detected)"
-
