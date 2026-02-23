@@ -121,3 +121,23 @@ mutation createTestConnectionRequest($input: CreateTestConnectionRequestInput!) 
 mutation rollbackIngestion($input: RollbackIngestionInput!) {
     rollbackIngestion(input: $input)
 }
+
+query listExecutorPools($input: ListExecutorPoolsInput!) {
+    listExecutorPools(input: $input) {
+        start
+        count
+        total
+        pools {
+            id
+            name
+        }
+    }
+}
+
+mutation createExecutorPool($input: CreateExecutorPoolInput!) {
+    createExecutorPool(input: $input)
+}
+
+mutation deleteExecutorPools($poolIds: [String!]!) {
+    deleteExecutorPools(poolIds: $poolIds)
+}
