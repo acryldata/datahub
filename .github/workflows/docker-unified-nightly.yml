@@ -564,7 +564,7 @@ jobs:
             --branch "${GH_HEAD_REF}" \
             --run-id "${{ github.run_id }}" \
             --run-attempt "${{ github.run_attempt }}" \
-            --batch "${{ matrix.profile }}-${{ matrix.architecture }}" \
+            --batch "${{ strategy.job-index }}" \
             --batch-count "${{ strategy.job-total }}" \
             --test-strategy "${{ matrix.test_strategy }}"
 
