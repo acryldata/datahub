@@ -403,6 +403,13 @@ def build_workflow_metadata(args: argparse.Namespace) -> Dict[str, Any]:
 
 def main() -> None:
     """Main entry point for the script."""
+    def parse_batch(value: str) -> Any:
+        """Preserve numeric batch values while accepting string identifiers."""
+        try:
+            return int(value)
+        except ValueError:
+            return value
+
     parser = argparse.ArgumentParser(
         description='Send failed test results to PostHog for CI metrics',
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -479,8 +486,8 @@ Examples:
     )
     parser.add_argument(
         '--batch',
-        type=int,
-        help='Batch number (for docker-unified matrix)'
+        type=parse_batch,
+        help='Batch identifier (for docker-unified matrix)'
     )
     parser.add_argument(
         '--batch-count',
