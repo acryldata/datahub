@@ -221,6 +221,28 @@ This makes it easy to track your ingestion performance and troubleshoot any issu
   <img width="80%"  src="https://raw.githubusercontent.com/datahub-project/static-assets/main/imgs/ingestion/run-history-tab.png"/>
 </p>
 
+### Managing Executor Pools (Executors tab)
+
+The **Executors** tab on the Manage Data Sources page lets you create and delete **executor pools**. Executor pools group remote executors and can be selected when configuring an ingestion source (e.g. in Advanced settings via **Executor ID**).
+
+**To create a pool:**
+
+1. Go to **Manage Data Sources** and open the **Executors** tab.
+2. Click **Create pool**.
+3. Enter a **Pool ID** (required) and optional **Name**, then click **Create**.
+
+**To delete pools:**
+
+1. On the Executors tab, select one or more pools using the checkboxes.
+2. Click **Delete Pool(s)**.
+3. Confirm in the dialog.
+
+Pools that are in use by ingestion sources cannot be deleted until those sources are removed or reassigned to another executor. When you try to delete such a pool, the UI shows which sources use it and only a **Close** button until you resolve the dependency.
+
+:::note OSS behavior
+In open-source DataHub, executor pools are stored in memory for the lifetime of the backend process. Created pools appear in the list and can be deleted, but they do not persist across restarts. DataHub Cloud may use durable storage and additional pool metadata.
+:::
+
 ### Viewing Ingestion Results
 
 After successful ingestion, you can view detailed information about what was extracted:
