@@ -479,7 +479,7 @@ Examples:
     )
     parser.add_argument(
         '--batch',
-        type=int,
+        type=str,
         help='Batch number (for docker-unified matrix)'
     )
     parser.add_argument(
