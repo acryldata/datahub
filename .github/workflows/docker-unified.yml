@@ -1,33 +1,11 @@
 name: Docker Build, Scan, Test
-on:
-  workflow_dispatch:
-    inputs:
-      profileName:
-        description: "Profile name for the smoke-test. Defaults to quickstart-consumers if not specified"
-        required: false
-        default: "quickstart-consumers"
-        type: string
-  push:
-    branches:
-      - master
-      - releases/**
-  pull_request:
-    types: [opened, synchronize, reopened]
-    branches:
-      - "**"
-    paths-ignore:
-      - ".github/**"
-      - "!.github/workflows/docker-unified.yml"
-      - "!.github/scripts/send_failed_tests_to_posthog.py"
-      - "!.github/scripts/docker_helpers.sh"
-      - "!.github/actions/ci-optimization"
-      - "!.github/actions/restore-dependency-caches"
-      - "!.github/scripts/check_python_package.py"
-      - "!.github/scripts/parse_failed_cypress_tests.py"
-      - "!.github/scripts/parse_failed_pytest_tests.py"
-      - "!.github/scripts/docker_logs.sh"
-  release:
-    types: [published]
+#### IMPORTANT ####
+#### THIS IS A CHANGE TO PREVENT OSS QUICKSTART INSTABILITY, DO NOT OVERWRITE THIS CHANGE IN MERGES ####
+#### IMPORTANT ####
+on: workflow_dispatch
+#### IMPORTANT ####
+#### END CHANGES ####
+#### IMPORTANT ####
 
 concurrency:
   # Using `github.run_id` (unique val) instead of `github.ref` here
@@ -37,8 +15,13 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  DOCKER_REGISTRY: "acryldata"
-  PROFILE_NAME: "${{ github.event.inputs.profileName || 'quickstart-consumers' }}"
+  #### IMPORTANT ####
+  #### THIS IS A CHANGE TO PREVENT OSS QUICKSTART INSTABILITY, DO NOT OVERWRITE THIS CHANGE IN MERGES ####
+  #### IMPORTANT ####
+  DOCKER_REGISTRY: "acryldata-do-not-publish"
+  #### IMPORTANT ####
+  #### END CHANGES ####
+  #### IMPORTANT ####
 
   DOCKER_CACHE: "DEPOT"
   DEPOT_PROJECT_ID: "s0gr1cr3jd"

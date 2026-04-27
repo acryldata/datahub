@@ -98,3 +98,11 @@ function echo_tags {
     echo "branch_name=${GITHUB_HEAD_REF:-${REF#refs/heads/}}"
     echo "repository_name=${GITHUB_REPOSITORY#*/}"
 }
+
+function validate_github_ref_for_python_tag {
+    if [[ ! "$GITHUB_REF" =~ ^refs/tags/v ]]; then
+        echo "Error: This workflow must be triggered by a tag starting with 'v'"
+        echo "Current GITHUB_REF: $GITHUB_REF"
+        exit 1
+    fi
+}

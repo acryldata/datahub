@@ -410,6 +410,9 @@ module.exports = {
             require.resolve("./src/styles/config-table.scss"),
           ],
         },
+        gtag: {
+          trackingID: "G-2G54RXWD4D",
+        },
         pages: {
           path: "src/pages",
           mdxPageComponent: "@theme/MDXPage",
