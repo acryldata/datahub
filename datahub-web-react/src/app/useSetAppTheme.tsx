@@ -4,6 +4,9 @@ import { useAppConfig } from '@app/useAppConfig';
 import themes from '@conf/theme/themes';
 import { useCustomTheme } from '@src/customThemeContext';
 
+// Pre-declare theme JSON modules so Vite can resolve them (avoids blank page from dynamic import failure)
+const themeJsonModules = import.meta.glob<{ default: unknown }>('../conf/theme/*.json');
+
 export function useCustomThemeId(): string | null {
     const { config, loaded } = useAppConfig();
 
@@ -29,13 +32,19 @@ export function useSetAppTheme() {
     useEffect(() => {
         if (customThemeId && customThemeId.endsWith('.json')) {
             if (import.meta.env.DEV) {
-                import(/* @vite-ignore */ `./conf/theme/${customThemeId}`)
-                    .then((theme) => {
-                        updateTheme(theme);
-                    })
-                    .catch((error) => {
-                        console.error(`Failed to load theme from './conf/theme/${customThemeId}':`, error);
-                    });
+                const key = `../conf/theme/${customThemeId}`;
+                const loader = themeJsonModules[key];
+                if (loader) {
+                    loader()
+                        .then((mod) => {
+                            updateTheme(mod.default);
+                        })
+                        .catch((error) => {
+                            console.error(`Failed to load theme from '${key}':`, error);
+                        });
+                } else {
+                    updateTheme(isThemeV2 ? themes.themeV2 : themes.themeV1);
+                }
             } else {
                 fetch(`assets/conf/theme/${customThemeId}`)
                     .then((response) => response.json())
