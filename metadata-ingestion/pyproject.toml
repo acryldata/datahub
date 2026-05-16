@@ -400,7 +400,7 @@ delta-lake = [
     "pyspark~=3.5.6,<4.0.0",
     "smart-open[azure,s3]>=5.2.1,<8.0.0",
     "tableschema>=1.20.2,<2.0.0",
-    "ujson>=5.12.1,<6.0.0",
+    "ujson>=5.12.0,<6.0.0",
     "wcmatch<11.0.0",
 ]
 
@@ -480,7 +480,7 @@ excel = [
     "pyspark~=3.5.6,<4.0.0",
     "smart-open[azure]>=5.2.1,<8.0.0",
     "tableschema>=1.20.2,<2.0.0",
-    "ujson>=5.12.1,<6.0.0",
+    "ujson>=5.12.0,<6.0.0",
     "wcmatch<11.0.0",
 ]
 
@@ -555,7 +555,7 @@ gcs = [
     "pyspark~=3.5.6,<4.0.0",
     "smart-open[gcs,s3]>=5.2.1,<8.0.0",
     "tableschema>=1.20.2,<2.0.0",
-    "ujson>=5.12.1,<6.0.0",
+    "ujson>=5.12.0,<6.0.0",
     "wcmatch<11.0.0",
 ]
 
@@ -567,7 +567,7 @@ gcs-slim = [
     "pyarrow>14.0.0,<24.0.0",
     "smart-open[gcs,s3]>=5.2.1,<8.0.0",
     "tableschema>=1.20.2,<2.0.0",
-    "ujson>=5.12.1,<6.0.0",
+    "ujson>=5.12.0,<6.0.0",
     "wcmatch<11.0.0",
 ]
 
@@ -986,7 +986,7 @@ s3 = [
     "pyarrow>14.0.0,<24.0.0",
     "smart-open[s3]>=5.2.1,<8.0.0",
     "tableschema>=1.20.2,<2.0.0",
-    "ujson>=5.12.1,<6.0.0",
+    "ujson>=5.12.0,<6.0.0",
     "wcmatch<11.0.0",
 ]
 
@@ -998,7 +998,7 @@ s3-slim = [
     "pyarrow>14.0.0,<24.0.0",
     "smart-open[s3]>=5.2.1,<8.0.0",
     "tableschema>=1.20.2,<2.0.0",
-    "ujson>=5.12.1,<6.0.0",
+    "ujson>=5.12.0,<6.0.0",
     "wcmatch<11.0.0",
 ]
 
@@ -1833,8 +1833,7 @@ integration-tests = [
     "starrocks>=1.3.3,<2.0",
     "tableschema>=1.20.2,<2.0.0",
     "tenacity>=8.0.1,!=8.4.0,<9.0.0",
-    "traitlets!=5.2.2,<6.0.0",
-    "ujson>=5.12.1,<6.0.0",
+    "ujson>=5.12.0,<6.0.0",
     "vcrpy>=8.0.0,<9.0",
     "vertica-sqlalchemy-dialect[vertica-python]==0.0.8.2",
     "wcmatch<11.0.0",
