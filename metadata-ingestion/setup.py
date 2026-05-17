@@ -38,7 +38,10 @@ base_requirements = {
     "sentry-sdk>=1.33.1,<3.0.0",
     # For JSON logging support via DATAHUB_LOG_CONFIG_FILE
     "python-json-logger>=2.0.0,<5.0.0",
-    # setuptools 82.0.0 deprecated pkg_resource
+    # setuptools 82.0.0 deprecated pkg_resources; cap below that.
+    # Note: setuptools CVEs (CVE-2022-40897, CVE-2024-6345, CVE-2025-47273) are build-time
+    # vulnerabilities. A >=floor here would conflict with transitive deps like gcloud-aio-auth
+    # (apache-airflow-providers-google) which pins setuptools<67. Enforce via build constraints.
     "setuptools<82.0.0",
 }
 
@@ -182,33 +185,37 @@ great_expectations_lib = {
     "jupyter_server>=2.14.1,<3.0.0",  # CVE-2024-35178
 }
 
+profiling_ge = {
+    *great_expectations_lib,
+    # scipy version restricted to reduce backtracking, used by great-expectations.
+    "scipy>=1.7.2,<2.0.0",
+    # GE added handling for higher version of jinja2.
+    # https://github.com/great-expectations/great_expectations/pull/5382/files
+    # datahub does not depend on traitlets directly but great-expectations does.
+    # https://github.com/ipython/traitlets/issues/741
+    "traitlets!=5.2.2,<6.0.0",
+    # GE depends on IPython - we have no direct dependency on it.
+    # IPython 8.22.0 added a dependency on traitlets 5.13.x, but only declared a
+    # version requirement of traitlets>5.
+    # See https://github.com/ipython/ipython/issues/14352.
+    # This issue was fixed by https://github.com/ipython/ipython/pull/14353,
+    # which first appeared in IPython 8.22.1.
+    # As such, we just need to avoid that version in order to get the
+    # dependencies that we need. IPython probably should've yanked 8.22.0.
+    "IPython!=8.22.0,<9.0.0",
+}
+
 sqlalchemy_lib = {
     # Required for all SQL sources.
     # Multiple packages require <2: sqlalchemy-redshift, databricks-sql-connector, great-expectations
     "sqlalchemy>=1.4.39,<2",
+    # greenlet is imported directly by datahub.utilities.sqlalchemy_query_combiner, which
+    # is used by both the SQLAlchemy and GE profilers (via sql_report.py).
+    "greenlet<4.0.0",
 }
 sql_common = (
     {
         *sqlalchemy_lib,
-        # Required for SQL profiling.
-        *great_expectations_lib,
-        # scipy version restricted to reduce backtracking, used by great-expectations,
-        "scipy>=1.7.2,<2.0.0",
-        # GE added handling for higher version of jinja2
-        # https://github.com/great-expectations/great_expectations/pull/5382/files
-        # datahub does not depend on traitlets directly but great expectations does.
-        # https://github.com/ipython/traitlets/issues/741
-        "traitlets!=5.2.2,<6.0.0",
-        # GE depends on IPython - we have no direct dependency on it.
-        # IPython 8.22.0 added a dependency on traitlets 5.13.x, but only declared a
-        # version requirement of traitlets>5.
-        # See https://github.com/ipython/ipython/issues/14352.
-        # This issue was fixed by https://github.com/ipython/ipython/pull/14353,
-        # which first appeared in IPython 8.22.1.
-        # As such, we just need to avoid that version in order to get the
-        # dependencies that we need. IPython probably should've yanked 8.22.0.
-        "IPython!=8.22.0,<9.0.0",
-        "greenlet<4.0.0",
         *cachetools_lib,
     }
     | usage_common
@@ -223,12 +230,14 @@ aws_common = {
     # Deal with a version incompatibility between botocore (used by boto3) and urllib3.
     # See https://github.com/boto/botocore/pull/2563.
     "botocore!=1.23.0",
-    # Known vulnerability: urllib3 has CVEs (CVE-2025-66418, CVE-2025-66471, CVE-2026-21441)
-    # fixed in urllib3>=2.6.0
-    # We cannot require >=2.6.0 due to great expectations
-    "urllib3>=1.26,<3.0",
+    # urllib3: CVE-2025-66418, CVE-2025-66471, CVE-2026-21441 fixed in 2.6.3.
+    # CVE-2026-44431, CVE-2026-44432 fixed in 2.7.0.
+    "urllib3>=2.7.0,<3.0",
     "botocore!=1.23.0,<2.0.0",
 }
+# Self-reference to the aws-common extra so that declaring [elasticsearch, aws-common]
+# as a uv conflict is sufficient to isolate elasticsearch from all aws-using extras.
+aws_common_ref = {"acryl-datahub[aws-common]"}
 
 path_spec_common = {
     "parse>=1.19.0,<2.0.0",
@@ -385,15 +394,17 @@ postgres_common = {
 }
 
 s3_base = {
-    *aws_common,
+    *aws_common_ref,
     "more-itertools>=8.12.0,<11.0.0",
     "parse>=1.19.0,<2.0.0",
     *pyarrow_common,
     "tableschema>=1.20.2,<2.0.0",
     # ujson 5.2.0 has the JSONDecodeError exception type, which we need for error handling.
     # >=5.12.0: fixes DoS (memory growth on parsing huge integers in 5.4–5.11; dumps() indent
-    # overflow/infinite loop GHSA-c8rr-9gxc-jprv). Keep <6 until major API review.
-    "ujson>=5.12.0,<6.0.0",
+    # overflow/infinite loop GHSA-c8rr-9gxc-jprv).
+    # >=5.12.1: CVE-2026-44660 — memory leak in ujson.dump() on write failure.
+    # Keep <6 until major API review.
+    "ujson>=5.12.1,<6.0.0",
     "smart-open[s3]>=5.2.1,<8.0.0",
     *path_spec_common,
     # cachetools is used by operation_config which is imported by profiling config
@@ -405,7 +416,7 @@ threading_timeout_common = {
     # stopit uses pkg_resources internally, which means there's an implied
     # dependency on setuptools.
     # setuptools 82 removed pkg_resources.
-    "setuptools<82",
+    "setuptools>=78.1.1,<82",
 }
 
 abs_base = {
@@ -419,8 +430,10 @@ abs_base = {
     *pyarrow_common,
     "smart-open[azure]>=5.2.1,<8.0.0",
     "tableschema>=1.20.2,<2.0.0",
-    "ujson>=5.12.0,<6.0.0",
+    "ujson>=5.12.1,<6.0.0",
     *path_spec_common,
+    # cachetools is used by operation_config which is imported by profiling config
+    *cachetools_lib,
 }
 
 azure_data_factory = {
@@ -468,7 +481,6 @@ databricks_common = {
 }
 
 databricks = {
-    "pyspark~=3.5.6,<4.0.0",
     "requests<3.0.0",
     # Due to https://github.com/databricks/databricks-sql-python/issues/326
     # databricks-sql-connector<3.0.0 requires pandas<2.2.0
@@ -476,7 +488,7 @@ databricks = {
 }
 
 mysql = {"pymysql>=1.0.2,<2.0.0"}
-mysql_common = sql_common | mysql | aws_common
+mysql_common = sql_common | mysql | aws_common_ref
 
 sac = {
     "requests<3.0.0",
@@ -494,7 +506,7 @@ embedding_common = {
     # AWS SDK for Bedrock embedding support (SigV4 + AWS credential chain).
     # OpenAI, Cohere, and the local provider all hit raw HTTP endpoints via
     # `requests` (already required by acryl-datahub) — no SDKs needed.
-    *aws_common,
+    *aws_common_ref,
     # google-auth handles ADC / OAuth refresh for Vertex AI; the Vertex
     # :predict call itself goes over plain HTTP.
     "google-auth>=2.0.0,<3.0.0",
@@ -554,10 +566,14 @@ plugins: Dict[str, Set[str]] = {
     "great-expectations": {
         f"acryl-datahub-gx-plugin{_self_pin}",
     },
+    # Opt-in extra for the legacy Great Expectations SQL profiler.
+    # Without this extra, SQL connectors fall back to the SQLAlchemy profiler.
+    "profiling-ge": profiling_ge,
     # Misc plugins.
     "sql-parser": sqlglot_lib,
     # Source plugins
     "aerospike": {"aerospike>=15.0.0,<20.0.0"},
+    "aws-common": aws_common,
     # sqlalchemy-bigquery is included here since it provides an implementation of
     # a SQLalchemy-conform STRUCT type definition
     "athena": sql_common
@@ -597,7 +613,7 @@ plugins: Dict[str, Set[str]] = {
     "clickhouse-usage": sql_common | usage_common | clickhouse_common,
     "cockroachdb": sql_common
     | postgres_common
-    | aws_common
+    | aws_common_ref
     | {"sqlalchemy-cockroachdb<2.0.0"},
     "datahub-lineage-file": set(),
     "datahub-business-glossary": set(),
@@ -609,11 +625,11 @@ plugins: Dict[str, Set[str]] = {
         "pyodbc<6.0.0",
         *sql_common,
     },
-    "dbt": {"requests<3.0.0"} | dbt_common | aws_common,
+    "dbt": {"requests<3.0.0"} | dbt_common | aws_common_ref,
     "dbt-cloud": {"requests<3.0.0"} | dbt_common,
     "dremio": {"requests<3.0.0"} | sql_common,
     "druid": sql_common | {"pydruid>=0.6.2,<=0.6.9"},
-    "dynamodb": aws_common | classification_lib,
+    "dynamodb": aws_common_ref | classification_lib,
     # Starting with 7.14.0 python client is checking if it is connected to elasticsearch client. If its not it throws
     # UnsupportedProductError
     # https://www.elastic.co/guide/en/elasticsearch/client/python-api/current/release-notes.html#rn-7-14-0
@@ -622,7 +638,7 @@ plugins: Dict[str, Set[str]] = {
     "excel": {
         "openpyxl>=3.1.5,<4.0.0",
         "pandas<3.0.0",
-        *aws_common,
+        *aws_common_ref,
         *abs_base,
         *cachetools_lib,
         *data_lake_profiling,
@@ -648,7 +664,7 @@ plugins: Dict[str, Set[str]] = {
     "flink": {"requests<3.0.0", "tenacity>=8.0.1,<9.0.0"},
     "grafana": {"requests<3.0.0", *sqlglot_lib},
     "omni": {"requests<3.0.0", "PyYAML>=5.4"},
-    "glue": aws_common | cachetools_lib | sqlglot_lib,
+    "glue": aws_common_ref | cachetools_lib | sqlglot_lib,
     # hdbcli is supported officially by SAP, sqlalchemy-hana is built on top but not officially supported
     "hana": sql_common
     | {
@@ -660,7 +676,6 @@ plugins: Dict[str, Set[str]] = {
     | pyhive_common
     | {
         "databricks-dbapi<0.7.0",
-        *great_expectations_lib,
     },
     # keep in sync with presto-on-hive until presto-on-hive will be removed
     # Supports both SQL (psycopg2/pymysql) and Thrift (pymetastore) connection types
@@ -675,7 +690,7 @@ plugins: Dict[str, Set[str]] = {
         "kerberos>=1.3.0,<2.0.0",
     },
     "iceberg": iceberg_common,
-    "iceberg-catalog": aws_common,
+    "iceberg-catalog": aws_common_ref,
     "informatica": {
         "requests<3.0.0",
         # Safe XML parsing for IDMC v3 Export .TASKFLOW.xml payloads
@@ -698,7 +713,7 @@ plugins: Dict[str, Set[str]] = {
         # or we have a reliable and backward-compatible way to handle prompt filtering.
         # It's technically wrong for packages to depend on setuptools. However, it seems mlflow does it anyways.
         # setuptools 82 removed pkg_resources, which mlflow uses at runtime.
-        "setuptools<82",
+        "setuptools>=78.1.1,<82",
     },
     "datahub-debug": {"dnspython==2.7.0", "requests<3.0.0"},
     "datahub-gc": set(),
@@ -714,7 +729,7 @@ plugins: Dict[str, Set[str]] = {
     "doris": mysql_common,
     "okta": {"okta~=1.7.0,<2.0.0", "nest-asyncio<2.0.0", "flatdict!=4.0.1"},
     "oracle": sql_common | {"oracledb<4.0.0"},
-    "postgres": sql_common | postgres_common | aws_common,
+    "postgres": sql_common | postgres_common | aws_common_ref,
     "presto": sql_common | pyhive_common | trino,
     # presto-on-hive is an alias for hive-metastore and needs to be kept in sync
     "presto-on-hive": sql_common
@@ -743,16 +758,17 @@ plugins: Dict[str, Set[str]] = {
     | classification_lib
     | {"db-dtypes"}
     | cachetools_lib,
-    # S3 includes PySpark by default for profiling support (backward compatible)
-    # Standard installation: pip install 'acryl-datahub[s3]' (with PySpark)
-    # Lightweight installation: pip install 'acryl-datahub[s3-slim]' (no PySpark, no profiling)
-    "s3": {*s3_base, *data_lake_profiling},
+    # PySpark + Deequ for data lake profiling. Install alongside a connector:
+    #   pip install 'acryl-datahub[s3,pyspark]'    # S3 with profiling
+    #   pip install 'acryl-datahub[abs,pyspark]'   # ABS with profiling
+    "pyspark": data_lake_profiling,
+    "s3": {*s3_base},
     "s3-slim": {*s3_base},
     "gcs": {*s3_base, *data_lake_profiling, "smart-open[gcs]>=5.2.1,<8.0.0"},
     "gcs-slim": {*s3_base, "smart-open[gcs]>=5.2.1,<8.0.0"},
-    "abs": {*abs_base, *data_lake_profiling},
+    "abs": {*abs_base},
     "abs-slim": {*abs_base},
-    "sagemaker": aws_common,
+    "sagemaker": aws_common_ref,
     "salesforce": {"simple-salesforce<2.0.0", *cachetools_lib},
     "snowflake": snowflake_common | sql_common | usage_common | sqlglot_lib,
     "snowflake-slim": snowflake_common,
@@ -762,7 +778,7 @@ plugins: Dict[str, Set[str]] = {
     "sqlalchemy": sql_common,
     "sql-queries": usage_common
     | sqlglot_lib
-    | aws_common
+    | aws_common_ref
     | {"smart-open[s3]>=5.2.1,<8.0.0"},
     "slack": slack,
     "superset": superset_common,
@@ -829,7 +845,7 @@ plugins: Dict[str, Set[str]] = {
         # The plugin is designed to be installed alongside source connectors, not standalone.
     },
     # Cloud secret store plugins.
-    "aws-secret-manager": aws_common | cachetools_lib,
+    "aws-secret-manager": aws_common_ref | cachetools_lib,
     "gcp-secret-manager": gcp_sm_common | cachetools_lib,
 }
 
@@ -841,6 +857,12 @@ all_exclude_plugins: Set[str] = {
     # The great-expectations extra is only retained for compatibility, but new users should
     # be using the datahub-gx-plugin package instead.
     "great-expectations",
+    # profiling-ge (acryl-great-expectations) pins urllib3<1.27 which conflicts with the
+    # urllib3>=2.7.0 floor required elsewhere in [all].
+    "profiling-ge",
+    # elasticsearch==7.13.4 pins urllib3<2 which conflicts with the urllib3>=2.7.0 floor.
+    # Pinned to 7.13.4 to avoid the server-check introduced in 7.14.0.
+    "elasticsearch",
     # SQL Server ODBC requires additional drivers, and so we don't want to keep
     # it included in the default "all" installation.
     "mssql-odbc",
@@ -946,7 +968,7 @@ base_dev_requirements = {
             "dlt",
             "dremio",
             "druid",
-            "elasticsearch",
+            # elasticsearch==7.13.4 pins urllib3<2; install separately for connector-specific tests.
             "feast",
             "iceberg",
             "iceberg-catalog",
