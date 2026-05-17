@@ -323,7 +323,7 @@ class UnityCatalogSourceConfig(
         UnityCatalogAnalyzeProfilerConfig,
         UnityCatalogSQLAlchemyProfilerConfig,
     ] = Field(  # type: ignore
-        default=UnityCatalogGEProfilerConfig(),
+        default=UnityCatalogSQLAlchemyProfilerConfig(),
         description="Data profiling configuration",
         discriminator="method",
     )
