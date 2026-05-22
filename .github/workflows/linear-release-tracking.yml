@@ -71,6 +71,14 @@ on:
           "testing_release" works.
         required: false
         type: string
+      base_ref:
+        description: >
+          Optional. Previous tag to scan from when running sync (e.g. v1.5.0.18).
+          Leave blank to auto-detect via "git describe --tags --abbrev=0 <version>^".
+          Required when no commits in the range contain Linear references —
+          forces release creation even with zero commit matches.
+        required: false
+        type: string
 
 env:
   CLI_NEXT_RELEASE_ID: "7de48387-0024-4156-9c60-33a237985f65"
@@ -150,6 +158,36 @@ jobs:
         if: github.event_name == 'release'
         run: echo "RELEASE_VERSION=${{ github.event.release.tag_name }}" >> "$GITHUB_ENV"
 
+      # Resolve the base ref for sync. Forces the action to create the release even when
+      # the commit range has zero Linear-resolvable references (current state until the
+      # native Linear GitHub app is installed). For workflow_dispatch the user can
+      # override; otherwise derived from the previous tag via git ancestry.
+      - name: Resolve base_ref for sync
+        if: >
+          (github.event_name == 'release' && github.event.action == 'published') ||
+          (github.event_name == 'workflow_dispatch' && inputs.command == 'sync')
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.version }}"
+            OVERRIDE="${{ inputs.base_ref }}"
+          else
+            TAG="${{ github.event.release.tag_name }}"
+            OVERRIDE=""
+          fi
+
+          if [ -n "$OVERRIDE" ]; then
+            BASE_REF="$OVERRIDE"
+            echo "Using user-supplied base_ref: $BASE_REF"
+          else
+            BASE_REF=$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)
+            if [ -z "$BASE_REF" ]; then
+              echo "Could not auto-detect base_ref for $TAG — sync may skip release creation"
+            else
+              echo "Auto-detected base_ref: $BASE_REF (previous tag before $TAG)"
+            fi
+          fi
+          echo "BASE_REF=$BASE_REF" >> "$GITHUB_ENV"
+
       # RC: sync issues to versioned release + advance to Testing Release stage
       - name: Sync issues on RC publish
         if: github.event_name == 'release' && contains(github.event.release.tag_name, 'rc')
@@ -157,6 +195,7 @@ jobs:
         with:
           access_key: ${{ secrets.LINEAR_ACCESS_KEY }}
           version: ${{ env.RELEASE_VERSION }}
+          base_ref: ${{ env.BASE_REF }}
 
       - name: Advance to Testing Release stage on RC
         if: github.event_name == 'release' && contains(github.event.release.tag_name, 'rc')
@@ -174,6 +213,7 @@ jobs:
         with:
           access_key: ${{ secrets.LINEAR_ACCESS_KEY }}
           version: ${{ env.RELEASE_VERSION }}
+          base_ref: ${{ env.BASE_REF }}
 
       - name: Complete release + generate release notes
         if: github.event_name == 'release' && !contains(github.event.release.tag_name, 'rc')
@@ -285,6 +325,7 @@ jobs:
           command: ${{ inputs.command }}
           stage: ${{ inputs.stage }}
           version: ${{ inputs.version }}
+          base_ref: ${{ env.BASE_REF }}
 
   # ── JOB 3: RELEASE DELETED IN GITHUB → delete corresponding Linear release ─
   delete-linear-release:
