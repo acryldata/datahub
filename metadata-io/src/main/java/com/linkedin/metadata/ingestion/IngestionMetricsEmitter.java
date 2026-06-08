@@ -140,10 +140,13 @@ public class IngestionMetricsEmitter extends MCPObserver {
           report.getSink() != null ? report.getSink().getReport() : null;
 
       long eventsProduced = sourceReport != null ? sourceReport.getEventsProduced() : 0;
-      // NOTE: warnings and failures are counted by list size, but the ingestion framework's
-      // LossyList caps these lists at 10 entries. A run with 200 failures emits failures_count=10.
-      // There is no separate total count field in the structured report — this is a known
-      // limitation.
+      // NOTE: warnings and failures are counted by list size. The Python ingestion framework's
+      // LossyList caps each list at 10 real entries, but when the original list exceeded 10 it
+      // appends an 11th element that is a plain string sentinel such as
+      // "... sampled of N total elements". LogEntryDeserializer handles that sentinel by mapping
+      // it to an empty LogEntry, which toLogEntryMaps() silently drops — so the count here
+      // reflects only real entries (max 10). There is no separate total-count field in the
+      // structured report.
       int warningsCount = sourceReport != null ? sourceReport.getWarnings().size() : 0;
       int failuresCount = sourceReport != null ? sourceReport.getFailures().size() : 0;
       long recordsWritten = sinkReport != null ? sinkReport.getTotalRecordsWritten() : 0;
@@ -410,13 +413,19 @@ public class IngestionMetricsEmitter extends MCPObserver {
 
   /**
    * Converts structured log entries to a list of maps for JSON serialization. The ingestion
-   * framework caps entries at 10 per level via LossyDict, so no additional cap is needed here.
+   * framework caps entries at 10 per level via LossyList, so no additional cap is needed here. Null
+   * entries (defensive guard against unexpected deserializer behaviour) and entries where all
+   * fields are null (e.g. empty placeholders produced for LossyList sentinels) are silently
+   * dropped.
    */
   @Nonnull
   private List<Map<String, Object>> toLogEntryMaps(
       @Nonnull List<IngestionRunReport.LogEntry> entries) {
     List<Map<String, Object>> result = new ArrayList<>();
     for (IngestionRunReport.LogEntry entry : entries) {
+      if (entry == null) {
+        continue;
+      }
       Map<String, Object> map = new LinkedHashMap<>();
       if (entry.getTitle() != null) {
         map.put(LOG_ENTRY_TITLE, entry.getTitle());

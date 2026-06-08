@@ -4,6 +4,12 @@ import static com.linkedin.metadata.ingestion.Constants.*;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
+import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -106,10 +112,13 @@ public class IngestionRunReport {
     @Nullable
     private Map<String, Double> ingestionHighStageSeconds;
 
+    @JsonDeserialize(contentUsing = LogEntryDeserializer.class)
     private List<LogEntry> warnings = Collections.emptyList();
 
+    @JsonDeserialize(contentUsing = LogEntryDeserializer.class)
     private List<LogEntry> failures = Collections.emptyList();
 
+    @JsonDeserialize(contentUsing = LogEntryDeserializer.class)
     private List<LogEntry> infos = Collections.emptyList();
   }
 
@@ -143,6 +152,7 @@ public class IngestionRunReport {
 
     @Nullable private String mode;
 
+    @JsonDeserialize(contentUsing = LogEntryDeserializer.class)
     private List<LogEntry> failures = Collections.emptyList();
   }
 
@@ -159,5 +169,45 @@ public class IngestionRunReport {
     @JsonProperty(LOG_CATEGORY)
     @Nullable
     private String logCategory;
+  }
+
+  /**
+   * Custom element deserializer for {@code List<LogEntry>} fields.
+   *
+   * <p>The Python ingestion framework's {@code LossyList} caps log-entry arrays at 10 items and
+   * appends a plain-string sentinel (e.g. {@code "... sampled of 1246 total elements"}) as the 11th
+   * element when the original list was larger. Without this deserializer, Jackson throws a {@code
+   * MismatchedInputException} when it encounters that sentinel string while trying to construct a
+   * {@link LogEntry} object.
+   *
+   * <p>Strategy: annotate every {@code List<LogEntry>} field with
+   * {@code @JsonDeserialize(contentUsing = LogEntryDeserializer.class)}. When Jackson processes
+   * each list element it dispatches here:
+   *
+   * <ul>
+   *   <li>String token → return an empty {@link LogEntry} (silently dropped by {@code
+   *       toLogEntryMaps} because all fields are null and the resulting map is empty).
+   *   <li>Object token → delegate to standard bean deserialization via {@code ctxt.readValue(p,
+   *       LogEntry.class)}, which is safe because {@link LogEntry} itself does <em>not</em> carry
+   *       {@code @JsonDeserialize} — so there is no recursion.
+   * </ul>
+   */
+  public static class LogEntryDeserializer extends StdDeserializer<LogEntry> {
+
+    public LogEntryDeserializer() {
+      super(LogEntry.class);
+    }
+
+    @Override
+    public LogEntry deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
+      if (p.currentToken() == JsonToken.VALUE_STRING) {
+        // Python LossyList sentinel string — skip gracefully by returning an empty entry.
+        // toLogEntryMaps() already filters out entries where all fields are null.
+        return new LogEntry();
+      }
+      // Standard bean deserialization. No recursion: LogEntry itself has no @JsonDeserialize,
+      // so ctxt.readValue uses the default BeanDeserializer, not this class.
+      return ctxt.readValue(p, LogEntry.class);
+    }
   }
 }
