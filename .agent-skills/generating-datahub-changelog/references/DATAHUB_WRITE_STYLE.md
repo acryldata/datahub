@@ -202,6 +202,10 @@ Always convert raw timestamps to the most readable unit. Use the largest appropr
 ### Structure
 
 ```markdown
+## 🚨 Breaking Changes
+
+- 🚨 **PR #XXXX** (Component): What changed and the migration step (#PR)
+
 ## 🌟 New Features
 
 - **Feature Name** - Brief description of user benefit (#PR)
@@ -210,9 +214,9 @@ Always convert raw timestamps to the most readable unit. Use the largest appropr
 
 - **Area** - What was broken and now works (#PR)
 
-## 📚 Documentation
+## 🛠️ Other Improvements
 
-- Description of doc improvement (#PR)
+- **Area** - Improvement and its benefit (#PR)
 ```
 
 ### PR References
