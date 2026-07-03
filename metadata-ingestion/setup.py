@@ -136,7 +136,9 @@ sqlglot_lib = {
     # sqlglot[c] was removed in a prior PR as a workaround for a memory leak
     # (https://github.com/tobymao/sqlglot/issues/7506). 30.8.0 fixes the leak
     # upstream, so we restore [c] here for performance.
-    "sqlglot[c]==30.8.0",
+    # TEST BRANCH: Using pure Python sqlglot (no [c]) to verify if C tokenizer
+    # is the cause of OOM issues in v1.6.0
+    "sqlglot==30.8.0",
     "patchy==2.8.0",
 }
 

@@ -1641,8 +1641,6 @@ sqlglot==30.8.0
     # via
     #   acryl-datahub
     #   dlt
-sqlglotc==30.8.0
-    # via sqlglot
 sqlparse==0.5.5
     # via
     #   acryl-datahub
