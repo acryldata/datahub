@@ -186,10 +186,19 @@ non-negotiable: mismatches between the promised format and the delivered notes c
 downstream (release page edits, customer comms regeneration).
 
 **Scope the changelog to what actually ships.** When invoking the changelog skill, pass a
-filter that matches what the OSS CLI actually ships — typically
-`filter:custom:metadata-ingestion/,metadata-ingestion-modules/,docs/`. Frontend, backend,
-and web-react changes do not appear in the `acryl-datahub` Python wheel and should not
-appear in the notes.
+filter that matches what the OSS release actually ships — typically
+`filter:custom:metadata-ingestion/,metadata-ingestion-modules/,datahub-actions/,docs/`.
+Frontend, backend, and web-react changes do not appear in the released Python packages and
+should not appear in the notes.
+
+**Do not forget `datahub-actions/`.** The release publishes more than the `acryl-datahub`
+wheel — a `release: published` event fires a separate `pypi-release` workflow for each
+sibling package, including `acryl-datahub-actions` (`.github/workflows/publish-actions-pypi-release.yml`),
+the airflow/dagster/gx/prefect plugins, and `datahub-agent-context`. Changes under
+`datahub-actions/` (e.g. Kafka event-source fixes) ship to PyPI and MUST be in the notes,
+so `datahub-actions/` belongs in the changelog filter alongside `metadata-ingestion*`.
+`compare-upstream.sh` and `release-range-diff.sh` already scan `datahub-actions/`; keep the
+changelog filter in sync with them.
 
 After the changelog skill produces output, you MUST prepend the standard **Release Info
 header**. Read `.agent-skills/oss-release/templates/release-info-header.md` for the
