@@ -1,0 +1,141 @@
+# Generates versioned connector docs + config schemas and publishes the
+# datahub-ingestion-docsbase image. For each acryl-datahub release it checks out
+# the tag, runs docGen (which produces config_schemas/), and captures the raw
+# docs/sources — then assembles one image keyed by version: /<version>/{docs,schemas}.
+#
+# NOTE (scaffold): action refs use version tags for readability; pin to SHAs to
+# match repo policy before merge. JDK/Python versions mirror documentation.yml.
+# The `push:` trigger on the dev branch is for validation and should be removed
+# before merge — steady state is workflow_dispatch on master.
+name: connector-docsbase
+
+on:
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "Look back N days of four-part releases (ignored if 'versions' set)"
+        default: "90"
+      versions:
+        description: 'Explicit JSON array of versions, e.g. ["1.6.0.10"] (overrides days)'
+        default: ""
+      dry_run:
+        description: "Build the image but do NOT push"
+        type: boolean
+        default: true
+      image_tag:
+        description: "Tag for the published image (default: yyyymmdd)"
+        default: ""
+  push:
+    branches: [ci-connector-docsbase] # validation only; remove before merge
+
+permissions:
+  contents: read
+
+jobs:
+  versions:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.pick.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: pick
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.versions }}" ]; then
+            M='${{ inputs.versions }}'
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            M="$(python3 metadata-ingestion/scripts/docsbase/list_versions.py --days ${{ inputs.days }})"
+          else
+            # branch-push validation: newest single version only
+            M="$(python3 metadata-ingestion/scripts/docsbase/list_versions.py --days 120 --limit 1)"
+          fi
+          echo "matrix=$M" >> "$GITHUB_OUTPUT"
+          echo "Selected versions: $M"
+
+  generate:
+    needs: versions
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        version: ${{ fromJson(needs.versions.outputs.matrix) }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the release tag
+        uses: actions/checkout@v4
+        with:
+          ref: v${{ matrix.version }}
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: "zulu"
+          java-version: "21"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      # docGen installs the connector extras for this tag and emits
+      # docs/generated/ingestion/config_schemas/<plugin>_config.json
+      - name: Run docGen (produces config schemas)
+        run: ./gradlew --no-daemon :metadata-ingestion:docGen
+
+      - name: Assemble this version's corpus
+        run: |
+          set -euo pipefail
+          V="${{ matrix.version }}"
+          mkdir -p "out/$V/schemas" "out/$V/docs"
+          cp docs/generated/ingestion/config_schemas/*_config.json "out/$V/schemas/" 2>/dev/null || \
+            echo "::warning::no config_schemas produced for $V"
+          cp -R metadata-ingestion/docs/sources/. "out/$V/docs/" 2>/dev/null || \
+            echo "::warning::no docs/sources for $V"
+          echo "schemas: $(ls out/$V/schemas | wc -l) | docs dirs: $(ls out/$V/docs | wc -l)"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: docsbase-${{ matrix.version }}
+          path: out/
+          if-no-files-found: warn
+          retention-days: 3
+
+  assemble-and-publish:
+    needs: generate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: docsbase-*
+          path: corpus
+          merge-multiple: true
+
+      - name: Layout check
+        run: |
+          set -euo pipefail
+          echo "versions present:"; ls corpus || true
+          find corpus -maxdepth 2 -type d | head -50
+
+      - name: Build image
+        run: |
+          set -euo pipefail
+          printf 'FROM scratch\nCOPY corpus/ /\n' > Dockerfile.docsbase
+          TAG="${{ inputs.image_tag }}"; [ -n "$TAG" ] || TAG="$(date -u +%Y%m%d)"
+          echo "IMAGE=acryldata/datahub-ingestion-docsbase:$TAG" >> "$GITHUB_ENV"
+          docker build -f Dockerfile.docsbase -t "acryldata/datahub-ingestion-docsbase:$TAG" .
+
+      - name: Log in to Docker Hub
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == false }}
+        uses: docker/login-action@v3
+        with:
+          username: acryldata
+          password: ${{ secrets.DOCSBASE_DH_TOKEN }}
+
+      - name: Push
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == false }}
+        run: |
+          docker push "$IMAGE"
+          docker tag "$IMAGE" acryldata/datahub-ingestion-docsbase:latest
+          docker push acryldata/datahub-ingestion-docsbase:latest
+          echo "pushed $IMAGE (+ latest)"
+
+      - name: Dry-run notice
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run == true }}
+        run: echo "DRY RUN — built $IMAGE but did not push."
