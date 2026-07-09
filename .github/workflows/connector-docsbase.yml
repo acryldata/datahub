@@ -46,8 +46,8 @@ jobs:
           elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             M="$(python3 metadata-ingestion/scripts/docsbase/list_versions.py --days ${{ inputs.days }})"
           else
-            # branch-push validation: newest single version only
-            M="$(python3 metadata-ingestion/scripts/docsbase/list_versions.py --days 120 --limit 1)"
+            # branch-push: full backfill window (temporary; remove push trigger before merge)
+            M="$(python3 metadata-ingestion/scripts/docsbase/list_versions.py --days 90)"
           fi
           echo "matrix=$M" >> "$GITHUB_OUTPUT"
           echo "Selected versions: $M"
@@ -107,6 +107,7 @@ jobs:
 
   assemble-and-publish:
     needs: generate
+    if: ${{ !cancelled() }} # publish whatever versions succeeded, even if some legs failed
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -130,14 +131,14 @@ jobs:
           docker build -f Dockerfile.docsbase -t "acryldata/datahub-ingestion-docsbase:$TAG" .
 
       - name: Log in to Docker Hub
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == false }}
+        if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == false) }}
         uses: docker/login-action@v3
         with:
           username: acryldata
           password: ${{ secrets.DOCSBASE_DH_TOKEN }}
 
       - name: Push
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == false }}
+        if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == false) }}
         run: |
           docker push "$IMAGE"
           docker tag "$IMAGE" acryldata/datahub-ingestion-docsbase:latest
@@ -145,5 +146,5 @@ jobs:
           echo "pushed $IMAGE (+ latest)"
 
       - name: Dry-run notice
-        if: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run == true }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true }}
         run: echo "DRY RUN — built $IMAGE but did not push."
