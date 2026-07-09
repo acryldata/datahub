@@ -23,7 +23,7 @@ on:
         type: boolean
         default: true
       image_tag:
-        description: "Tag for the published image (default: yyyymmdd)"
+        description: "Extra alias tag (optional). Primary tag is the <floor>-<ceiling> range; :latest is always pushed."
         default: ""
 
 permissions:
@@ -114,16 +114,57 @@ jobs:
       - name: Layout check
         run: |
           set -euo pipefail
-          echo "versions present:"; ls corpus || true
+          echo "versions present:"
+          find corpus -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort -V || true
           find corpus -maxdepth 2 -type d | head -50
+
+      # The corpus is a sliding window of four-part releases; its true identity is
+      # the [floor, ceiling] range it covers. Compute that from the versions that
+      # actually landed (a failed matrix leg drops its version), and record it in
+      # an in-image manifest + OCI labels so consumers can inspect coverage
+      # cheaply and pin by digest.
+      - name: Compute coverage + write manifest
+        id: coverage
+        run: |
+          set -euo pipefail
+          REPO=acryldata/datahub-ingestion-docsbase
+          versions="$(find corpus -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | sort -V || true)"
+          [ -n "$versions" ] || { echo "::error::no version trees in corpus"; exit 1; }
+          floor="$(echo "$versions" | head -1)"
+          ceiling="$(echo "$versions" | tail -1)"
+          versions_json="$(echo "$versions" | jq -R . | jq -cs .)"
+          generated_at="$(date -u +%FT%TZ)"
+          cat > corpus/CORPUS_MANIFEST.json <<EOF
+          {"floor":"$floor","ceiling":"$ceiling","versions":$versions_json,"source_sha":"$GITHUB_SHA","generated_at":"$generated_at"}
+          EOF
+          # Tags: range = true identity (primary), latest = moving pointer.
+          # An explicit image_tag, if given, is published as an extra alias.
+          tags="$REPO:$floor-$ceiling
+          $REPO:latest"
+          [ -n "${{ inputs.image_tag }}" ] && tags="$tags
+          $REPO:${{ inputs.image_tag }}"
+          {
+            echo "repo=$REPO"
+            echo "floor=$floor"
+            echo "ceiling=$ceiling"
+            echo "range=$floor-$ceiling"
+            echo "generated_at=$generated_at"
+            echo "tags<<TAGS"; echo "$tags"; echo "TAGS"
+          } >> "$GITHUB_OUTPUT"
+          echo "Coverage $floor .. $ceiling ($(echo "$versions" | wc -l | tr -d ' ') versions)"
 
       - name: Build image
         run: |
           set -euo pipefail
           printf 'FROM scratch\nCOPY corpus/ /\n' > Dockerfile.docsbase
-          TAG="${{ inputs.image_tag }}"; [ -n "$TAG" ] || TAG="$(date -u +%Y%m%d)"
-          echo "IMAGE=acryldata/datahub-ingestion-docsbase:$TAG" >> "$GITHUB_ENV"
-          docker build -f Dockerfile.docsbase -t "acryldata/datahub-ingestion-docsbase:$TAG" .
+          tag_args=()
+          while IFS= read -r t; do [ -n "$t" ] && tag_args+=(-t "$t"); done <<< "${{ steps.coverage.outputs.tags }}"
+          docker build -f Dockerfile.docsbase \
+            --label "org.acryl.docsbase.floor=${{ steps.coverage.outputs.floor }}" \
+            --label "org.acryl.docsbase.ceiling=${{ steps.coverage.outputs.ceiling }}" \
+            --label "org.acryl.docsbase.source_sha=$GITHUB_SHA" \
+            --label "org.acryl.docsbase.generated_at=${{ steps.coverage.outputs.generated_at }}" \
+            "${tag_args[@]}" .
 
       - name: Log in to Docker Hub
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == false }}
@@ -135,11 +176,23 @@ jobs:
       - name: Push
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == false }}
         run: |
-          docker push "$IMAGE"
-          docker tag "$IMAGE" acryldata/datahub-ingestion-docsbase:latest
-          docker push acryldata/datahub-ingestion-docsbase:latest
-          echo "pushed $IMAGE (+ latest)"
+          set -euo pipefail
+          while IFS= read -r t; do [ -n "$t" ] && docker push "$t"; done <<< "${{ steps.coverage.outputs.tags }}"
+          # Emit the immutable digest — this is what a consumer pins (resolve->record->bake).
+          digest="$(docker inspect --format '{{index .RepoDigests 0}}' "${{ steps.coverage.outputs.repo }}:${{ steps.coverage.outputs.range }}")"
+          echo "pushed:"; echo "${{ steps.coverage.outputs.tags }}" | sed 's/^/  - /'
+          echo "digest: $digest"
+          {
+            echo "### docsbase published"
+            echo ""
+            echo "- range: \`${{ steps.coverage.outputs.range }}\`"
+            echo "- digest: \`$digest\`"
+            echo ""
+            echo "Pin the digest in the consumer (\`release-lock.yml\` → \`DOCSBASE_DIGEST\`)."
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Dry-run notice
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true }}
-        run: echo "DRY RUN — built $IMAGE but did not push."
+        run: |
+          echo "DRY RUN — built but did not push:"
+          echo "${{ steps.coverage.outputs.tags }}" | sed 's/^/  - /'
