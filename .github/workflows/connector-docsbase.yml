@@ -74,6 +74,14 @@ jobs:
         with:
           python-version: "3.10"
 
+      # Connector extras build C-extensions (gssapi->krb5, python-ldap->sasl/ldap);
+      # the bare runner lacks these headers. Mirrors install_deps.sh used by docs CI.
+      - name: Install system build deps for connector extras
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libkrb5-dev libsasl2-dev libldap2-dev
+
       # docGen installs the connector extras for this tag and emits
       # docs/generated/ingestion/config_schemas/<plugin>_config.json
       - name: Run docGen (produces config schemas)
