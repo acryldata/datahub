@@ -25,8 +25,6 @@ on:
       image_tag:
         description: "Tag for the published image (default: yyyymmdd)"
         default: ""
-  push:
-    branches: [ci-connector-docsbase] # validation only; remove before merge
 
 permissions:
   contents: read
@@ -41,13 +39,10 @@ jobs:
       - id: pick
         run: |
           set -euo pipefail
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.versions }}" ]; then
+          if [ -n "${{ inputs.versions }}" ]; then
             M='${{ inputs.versions }}'
-          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            M="$(python3 metadata-ingestion/scripts/docsbase/list_versions.py --days ${{ inputs.days }})"
           else
-            # branch-push: full backfill window (temporary; remove push trigger before merge)
-            M="$(python3 metadata-ingestion/scripts/docsbase/list_versions.py --days 90)"
+            M="$(python3 metadata-ingestion/scripts/docsbase/list_versions.py --days ${{ inputs.days }})"
           fi
           echo "matrix=$M" >> "$GITHUB_OUTPUT"
           echo "Selected versions: $M"
@@ -131,14 +126,14 @@ jobs:
           docker build -f Dockerfile.docsbase -t "acryldata/datahub-ingestion-docsbase:$TAG" .
 
       - name: Log in to Docker Hub
-        if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == false) }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == false }}
         uses: docker/login-action@v3
         with:
           username: acryldata
           password: ${{ secrets.DOCSBASE_DH_TOKEN }}
 
       - name: Push
-        if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == false) }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == false }}
         run: |
           docker push "$IMAGE"
           docker tag "$IMAGE" acryldata/datahub-ingestion-docsbase:latest
