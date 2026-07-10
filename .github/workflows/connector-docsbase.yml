@@ -133,9 +133,10 @@ jobs:
           floor="$(echo "$versions" | head -1)"
           ceiling="$(echo "$versions" | tail -1)"
           versions_json="$(echo "$versions" | jq -R . | jq -cs .)"
+          versions_count="$(echo "$versions" | wc -l | tr -d ' ')"
           generated_at="$(date -u +%FT%TZ)"
           cat > corpus/CORPUS_MANIFEST.json <<EOF
-          {"floor":"$floor","ceiling":"$ceiling","versions":$versions_json,"source_sha":"$GITHUB_SHA","generated_at":"$generated_at"}
+          {"floor":"$floor","ceiling":"$ceiling","versions_count":$versions_count,"versions":$versions_json,"source_sha":"$GITHUB_SHA","generated_at":"$generated_at"}
           EOF
           # Tags: range = true identity (primary), latest = moving pointer.
           # An explicit image_tag, if given, is published as an extra alias.
@@ -148,6 +149,7 @@ jobs:
             echo "floor=$floor"
             echo "ceiling=$ceiling"
             echo "range=$floor-$ceiling"
+            echo "versions_count=$versions_count"
             echo "generated_at=$generated_at"
             echo "tags<<TAGS"; echo "$tags"; echo "TAGS"
           } >> "$GITHUB_OUTPUT"
@@ -162,6 +164,7 @@ jobs:
           docker build -f Dockerfile.docsbase \
             --label "org.acryl.docsbase.floor=${{ steps.coverage.outputs.floor }}" \
             --label "org.acryl.docsbase.ceiling=${{ steps.coverage.outputs.ceiling }}" \
+            --label "org.acryl.docsbase.versions_count=${{ steps.coverage.outputs.versions_count }}" \
             --label "org.acryl.docsbase.source_sha=$GITHUB_SHA" \
             --label "org.acryl.docsbase.generated_at=${{ steps.coverage.outputs.generated_at }}" \
             "${tag_args[@]}" .
