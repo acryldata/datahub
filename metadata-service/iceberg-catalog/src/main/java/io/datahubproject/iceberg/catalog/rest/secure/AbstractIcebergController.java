@@ -195,6 +195,11 @@ public class AbstractIcebergController {
         true);
   }
 
+  /** Public Iceberg endpoints use the system context (same as master). */
+  protected OperationContext publicOpContext(HttpServletRequest request, String operationName) {
+    return systemOperationContext;
+  }
+
   protected DataHubRestCatalog catalog(
       OperationContext operationContext, DataHubIcebergWarehouse warehouse) {
     DataHubRestCatalog catalog =

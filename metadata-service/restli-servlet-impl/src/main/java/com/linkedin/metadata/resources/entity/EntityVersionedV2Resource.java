@@ -97,7 +97,7 @@ public class EntityVersionedV2Resource
     if (versionedUrnStrs.size() <= 0) {
       return Task.value(Collections.emptyMap());
     }
-    return RestliUtils.toTask(systemOperationContext,
+    return RestliUtils.toTask(opContext,
         () -> {
           final Set<String> projectedAspects =
               aspectNames == null
