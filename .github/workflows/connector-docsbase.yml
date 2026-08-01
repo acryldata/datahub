@@ -1,0 +1,328 @@
+# Generates versioned connector docs + config schemas and publishes the
+# datahub-ingestion-docsbase image. For each acryl-datahub release it checks out
+# the tag, runs docGen (which produces config_schemas/), and captures the raw
+# docs/sources — then assembles one image keyed by version: /<version>/{docs,schemas}.
+#
+# :latest is a sliding window, not a per-run snapshot: assemble-and-publish pulls
+# forward whatever :latest already has, merges in this run's freshly generated
+# versions (which win over stale copies), then prunes anything outside the
+# `days` retention window. This is what makes a single-version workflow_call
+# from publish-pypi-release.yml safe — it extends the corpus instead of
+# replacing it with just that one version.
+#
+# JDK/Python versions mirror documentation.yml. Steady state is workflow_dispatch
+# (manual/backfill) plus workflow_call from publish-pypi-release.yml (auto-refresh
+# on each final release).
+name: connector-docsbase
+
+concurrency:
+  # Every run writes the mutable :latest tag — serialize so the last one to
+  # finish is also the last one started, not just the fastest.
+  group: connector-docsbase
+  cancel-in-progress: false
+
+on:
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "N-day window of final releases: what to generate (ignored if 'versions' set) and, always, what to retain in the published image — anything older is pruned"
+        default: "90"
+      versions:
+        description: 'Explicit JSON array of versions, e.g. ["1.6.0.10"] (overrides days)'
+        default: ""
+      dry_run:
+        description: "Build the image but do NOT push"
+        type: boolean
+        default: true
+      image_tag:
+        description: "Extra alias tag (optional). Primary tag is the <floor>-<ceiling> range; :latest is always pushed."
+        default: ""
+  # Called from publish-pypi-release.yml right after a final release
+  # lands on PyPI, so the image refreshes with that connector version instead
+  # of waiting for someone to remember to click workflow_dispatch.
+  workflow_call:
+    inputs:
+      days:
+        description: "N-day window of final releases: what to generate (ignored if 'versions' set) and, always, what to retain in the published image — anything older is pruned"
+        type: string
+        default: "90"
+      versions:
+        description: 'Explicit JSON array of versions, e.g. ["1.6.0.10"] (overrides days)'
+        type: string
+        default: ""
+      dry_run:
+        description: "Build the image but do NOT push"
+        type: boolean
+        default: true
+      image_tag:
+        description: "Extra alias tag (optional). Primary tag is the <floor>-<ceiling> range; :latest is always pushed."
+        type: string
+        default: ""
+    secrets:
+      DOCSBASE_DH_TOKEN:
+        required: false
+
+permissions:
+  contents: read
+
+env:
+  # A version directory/tag looks like X.Y.Z or X.Y.Z.W, all numeric (no
+  # rc/post/dev). Mirrored in list_versions.py's _FINAL_RELEASE and
+  # publish-pypi-release.yml's is_final_release check — keep all three in
+  # sync if this changes.
+  DOCSBASE_VERSION_RE: '^[0-9]+(\.[0-9]+){2,3}$'
+
+jobs:
+  versions:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.pick.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: pick
+        env:
+          VERSIONS: ${{ inputs.versions }}
+          DAYS: ${{ inputs.days }}
+        run: |
+          set -euo pipefail
+          if [ -n "$VERSIONS" ]; then
+            M="$VERSIONS"
+          else
+            M="$(python3 metadata-ingestion/scripts/docsbase/list_versions.py --days "$DAYS")"
+          fi
+          echo "matrix=$M" >> "$GITHUB_OUTPUT"
+          echo "Selected versions: $M"
+
+  generate:
+    needs: versions
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        version: ${{ fromJson(needs.versions.outputs.matrix) }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the release tag
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: v${{ matrix.version }}
+
+      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          distribution: "zulu"
+          java-version: "21"
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: "3.10"
+
+      # Connector extras build C-extensions (gssapi->krb5, python-ldap->sasl/ldap);
+      # the bare runner lacks these headers. Mirrors install_deps.sh used by docs CI.
+      - name: Install system build deps for connector extras
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libkrb5-dev libsasl2-dev libldap2-dev
+
+      # docGen installs the connector extras for this tag and emits
+      # docs/generated/ingestion/config_schemas/<plugin>_config.json
+      - name: Run docGen (produces config schemas)
+        run: ./gradlew --no-daemon :metadata-ingestion:docGen
+
+      - name: Assemble this version's corpus
+        env:
+          V: ${{ matrix.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p "out/$V/schemas" "out/$V/docs"
+          shopt -s nullglob
+          schemas=(docs/generated/ingestion/config_schemas/*_config.json)
+          if [ ${#schemas[@]} -eq 0 ]; then
+            echo "::error::no config_schemas produced for $V"
+            exit 1
+          fi
+          cp "${schemas[@]}" "out/$V/schemas/"
+          cp -R metadata-ingestion/docs/sources/. "out/$V/docs/"
+          echo "schemas: $(find "out/$V/schemas" -mindepth 1 -maxdepth 1 | wc -l) | docs dirs: $(find "out/$V/docs" -mindepth 1 -maxdepth 1 | wc -l)"
+
+      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: docsbase-${{ matrix.version }}
+          path: out/
+          if-no-files-found: error
+          retention-days: 3
+
+  assemble-and-publish:
+    needs: generate
+    if: ${{ success() }} # a failed leg means a hole in the range — don't publish a partial corpus
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: docsbase-*
+          path: corpus
+          merge-multiple: true
+
+      # :latest is a sliding window: pull it forward so this run extends the
+      # corpus instead of replacing it (critical for a single-version
+      # workflow_call — without this, an auto-refresh would publish :latest
+      # containing only the one new release). This run's freshly generated
+      # versions always win over whatever :latest already had. Then prune to
+      # the `days` retention window (unioned with this run's own versions, so
+      # an explicit one-off backfill of an old version isn't immediately
+      # pruned in the same run that generated it) so the image doesn't grow
+      # without bound.
+      - name: Accumulate onto :latest, then prune to the retention window
+        env:
+          DAYS: ${{ inputs.days }}
+        run: |
+          set -euo pipefail
+          this_run="$(find corpus -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | grep -E "$DOCSBASE_VERSION_RE" | sort -u || true)"
+          echo "this run generated: $(echo "$this_run" | tr '\n' ' ')"
+
+          REPO_REF=acryldata/datahub-ingestion-docsbase:latest
+          mkdir -p previous
+          if docker pull "$REPO_REF" >pull.log 2>&1; then
+            # FROM scratch has no CMD/ENTRYPOINT, so create needs an explicit
+            # (never-executed — we only cp out of it) command to accept.
+            cid="$(docker create "$REPO_REF" noop)"
+            docker cp "$cid:/." previous/ >/dev/null
+            docker rm "$cid" >/dev/null
+            pulled="$(find previous -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | grep -E "$DOCSBASE_VERSION_RE" | sort -u || true)"
+            echo "pulled forward from $REPO_REF: $(echo "$pulled" | tr '\n' ' ')"
+            while IFS= read -r v; do
+              [ -n "$v" ] || continue
+              if [ -d "corpus/$v" ]; then
+                continue # this run regenerated it — keep the fresh copy
+              fi
+              cp -R "previous/$v" "corpus/$v"
+            done <<< "$pulled"
+          elif grep -qiE 'manifest unknown|repository does not exist|not found' pull.log; then
+            echo "no existing $REPO_REF yet — starting a fresh corpus"
+          else
+            echo "::error::could not pull $REPO_REF to accumulate onto (not a missing-image error)"
+            cat pull.log
+            exit 1
+          fi
+
+          window="$(python3 metadata-ingestion/scripts/docsbase/list_versions.py --days "$DAYS")"
+          if [ -n "$this_run" ]; then
+            this_run_json="$(echo "$this_run" | jq -R . | jq -cs .)"
+          else
+            this_run_json="[]"
+          fi
+          keep="$(jq -cn --argjson w "$window" --argjson m "$this_run_json" '($w + $m) | unique')"
+          echo "retaining (${DAYS}d window + this run): $keep"
+
+          for d in corpus/*/; do
+            [ -d "$d" ] || continue
+            v="$(basename "$d")"
+            echo "$v" | grep -qE "$DOCSBASE_VERSION_RE" || continue
+            if ! jq -e --arg v "$v" 'index($v) != null' <<< "$keep" >/dev/null; then
+              echo "::notice::pruning $v — outside the ${DAYS}-day retention window"
+              rm -rf "$d"
+            fi
+          done
+
+      - name: Layout check
+        run: |
+          set -euo pipefail
+          echo "versions present:"
+          find corpus -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort -V || true
+          find corpus -maxdepth 2 -type d | head -50
+
+      # The corpus is a sliding window of releases; its true identity is the
+      # [floor, ceiling] range it covers, computed from whatever the previous
+      # step (accumulate + prune) left in corpus/ — record it in an in-image
+      # manifest + OCI labels so consumers can inspect coverage cheaply and
+      # pin by digest.
+      - name: Compute coverage + write manifest
+        id: coverage
+        env:
+          IMAGE_TAG: ${{ inputs.image_tag }}
+        run: |
+          set -euo pipefail
+          REPO=acryldata/datahub-ingestion-docsbase
+          versions="$(find corpus -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | grep -E "$DOCSBASE_VERSION_RE" | sort -V || true)"
+          [ -n "$versions" ] || { echo "::error::no version trees in corpus"; exit 1; }
+          floor="$(echo "$versions" | head -1)"
+          ceiling="$(echo "$versions" | tail -1)"
+          versions_json="$(echo "$versions" | jq -R . | jq -cs .)"
+          versions_count="$(echo "$versions" | wc -l | tr -d ' ')"
+          generated_at="$(date -u +%FT%TZ)"
+          cat > corpus/CORPUS_MANIFEST.json <<EOF
+          {"floor":"$floor","ceiling":"$ceiling","versions_count":$versions_count,"versions":$versions_json,"source_sha":"$GITHUB_SHA","generated_at":"$generated_at"}
+          EOF
+          # Tags: range = true identity (primary), latest = moving pointer.
+          # An explicit image_tag, if given, is published as an extra alias.
+          tags="$REPO:$floor-$ceiling
+          $REPO:latest"
+          [ -n "$IMAGE_TAG" ] && tags="$tags
+          $REPO:$IMAGE_TAG"
+          {
+            echo "repo=$REPO"
+            echo "floor=$floor"
+            echo "ceiling=$ceiling"
+            echo "range=$floor-$ceiling"
+            echo "versions_count=$versions_count"
+            echo "generated_at=$generated_at"
+            echo "tags<<TAGS"; echo "$tags"; echo "TAGS"
+          } >> "$GITHUB_OUTPUT"
+          echo "Coverage $floor .. $ceiling ($(echo "$versions" | wc -l | tr -d ' ') versions)"
+
+      - name: Build image
+        run: |
+          set -euo pipefail
+          printf 'FROM scratch\nCOPY corpus/ /\n' > Dockerfile.docsbase
+          tag_args=()
+          while IFS= read -r t; do [ -n "$t" ] && tag_args+=(-t "$t"); done <<< "${{ steps.coverage.outputs.tags }}"
+          docker build -f Dockerfile.docsbase \
+            --label "org.acryl.docsbase.floor=${{ steps.coverage.outputs.floor }}" \
+            --label "org.acryl.docsbase.ceiling=${{ steps.coverage.outputs.ceiling }}" \
+            --label "org.acryl.docsbase.versions_count=${{ steps.coverage.outputs.versions_count }}" \
+            --label "org.acryl.docsbase.source_sha=$GITHUB_SHA" \
+            --label "org.acryl.docsbase.generated_at=${{ steps.coverage.outputs.generated_at }}" \
+            "${tag_args[@]}" .
+
+      # Note: this step's condition can't reference github.event_name — in a
+      # called (workflow_call) workflow, that context is the CALLER's event
+      # (e.g. 'release'), never 'workflow_call', so an event_name check here
+      # is always false on the automated path. inputs.dry_run already carries
+      # the intent regardless of trigger type.
+      - name: Check whether docker login is possible
+        id: docker-login
+        env:
+          ENABLE_DOCKER_LOGIN: ${{ secrets.DOCSBASE_DH_TOKEN != '' }}
+        run: echo "docker-login=$ENABLE_DOCKER_LOGIN" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to Docker Hub
+        if: ${{ inputs.dry_run == false && steps.docker-login.outputs.docker-login == 'true' }}
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
+        with:
+          username: acryldata
+          password: ${{ secrets.DOCSBASE_DH_TOKEN }}
+
+      - name: Push
+        if: ${{ inputs.dry_run == false && steps.docker-login.outputs.docker-login == 'true' }}
+        run: |
+          set -euo pipefail
+          while IFS= read -r t; do [ -n "$t" ] && docker push "$t"; done <<< "${{ steps.coverage.outputs.tags }}"
+          # Emit the immutable digest — this is what a consumer pins (resolve->record->bake).
+          digest="$(docker inspect --format '{{index .RepoDigests 0}}' "${{ steps.coverage.outputs.repo }}:${{ steps.coverage.outputs.range }}")"
+          echo "pushed:"; echo "${{ steps.coverage.outputs.tags }}" | sed 's/^/  - /'
+          echo "digest: $digest"
+          {
+            echo "### docsbase published"
+            echo ""
+            echo "- range: \`${{ steps.coverage.outputs.range }}\`"
+            echo "- digest: \`$digest\`"
+            echo ""
+            echo "Pin the digest in the consumer (\`release-lock.yml\` → \`DOCSBASE_DIGEST\`)."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Dry-run notice
+        if: ${{ inputs.dry_run == true }}
+        run: |
+          echo "DRY RUN — built but did not push:"
+          echo "${{ steps.coverage.outputs.tags }}" | sed 's/^/  - /'
