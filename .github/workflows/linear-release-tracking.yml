@@ -202,8 +202,9 @@ jobs:
           command: complete
           version: ${{ env.RELEASE_VERSION }}
 
-      # Both RC and stable: migrate cli-next issues that are confirmed in this release's commit range
-      - name: Migrate issues from cli-next to versioned release
+      # Both RC and stable: attach the issues whose PRs are in this release's commit range,
+      # and de-stage any of them that were sitting in cli-next
+      - name: Attach release issues and clear them from cli-next
         if: github.event_name == 'release'
         env:
           LINEAR_API_KEY: ${{ secrets.INGESTION_LINEAR_KEY }}
@@ -273,29 +274,48 @@ jobs:
           fi
           echo "Linear issues confirmed in this release:$ISSUES_IN_RELEASE"
 
-          # 5. Get all issues currently in cli-next
-          CLI_NEXT_ISSUES=$(curl -s -X POST https://api.linear.app/graphql \
+          # 5. Snapshot which of those issues are currently staged in cli-next, so they can be
+          #    de-staged after being attached. Membership is looked up per identifier below.
+          CLI_NEXT_IDENTIFIERS=$(curl -s -X POST https://api.linear.app/graphql \
             -H "Authorization: $LINEAR_API_KEY" \
             -H "Content-Type: application/json" \
-            -d "{\"query\": \"{ release(id: \\\"$CLI_NEXT_RELEASE_ID\\\") { issues { nodes { id identifier } } } }\"}" \
-            | jq -r '.data.release.issues.nodes[] | .id + " " + .identifier')
+            -d "{\"query\": \"{ release(id: \\\"$CLI_NEXT_RELEASE_ID\\\") { issues { nodes { identifier } } } }\"}" \
+            | jq -r '.data.release.issues.nodes[].identifier')
 
-          # 6. Migrate only issues that are both in cli-next AND confirmed in this release
-          echo "$CLI_NEXT_ISSUES" | while read -r UUID IDENTIFIER; do
-            if echo "$ISSUES_IN_RELEASE" | grep -qw "$IDENTIFIER"; then
-              echo "  Migrating $IDENTIFIER..."
-              curl -s -X POST https://api.linear.app/graphql \
-                -H "Authorization: $LINEAR_API_KEY" \
-                -H "Content-Type: application/json" \
-                -d "{\"query\": \"mutation { issueToReleaseCreate(input: { releaseId: \\\"$RELEASE_ID\\\", issueId: \\\"$UUID\\\" }) { success } }\"}" \
-                | jq -r '"    add to versioned: " + (.data.issueToReleaseCreate.success | tostring)'
+          # 6. Attach every confirmed issue to the versioned release, then de-stage the ones
+          #    that were in cli-next.
+          #
+          #    This used to iterate cli-next and attach only issues found in BOTH sets. That
+          #    intersection is empty whenever cli-next is — which is the steady state here,
+          #    since add-to-cli-next fires on pull_request_target in this fork and the fork
+          #    mostly receives upstream sync-merges rather than individual PRs. The release's
+          #    own commit range is the authoritative membership signal, so drive off that and
+          #    treat cli-next purely as a staging area to clean up.
+          for IDENTIFIER in $ISSUES_IN_RELEASE; do
+            UUID=$(curl -s -X POST https://api.linear.app/graphql \
+              -H "Authorization: $LINEAR_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d "{\"query\": \"{ issue(id: \\\"$IDENTIFIER\\\") { id } }\"}" \
+              | jq -r '.data.issue.id // empty')
+
+            if [ -z "$UUID" ]; then
+              echo "  Could not resolve $IDENTIFIER to a Linear issue — skipping"
+              continue
+            fi
+
+            echo "  Attaching $IDENTIFIER..."
+            curl -s -X POST https://api.linear.app/graphql \
+              -H "Authorization: $LINEAR_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d "{\"query\": \"mutation { issueToReleaseCreate(input: { releaseId: \\\"$RELEASE_ID\\\", issueId: \\\"$UUID\\\" }) { success } }\"}" \
+              | jq -r '"    add to versioned: " + (.data.issueToReleaseCreate.success | tostring)'
+
+            if echo "$CLI_NEXT_IDENTIFIERS" | grep -qw "$IDENTIFIER"; then
               curl -s -X POST https://api.linear.app/graphql \
                 -H "Authorization: $LINEAR_API_KEY" \
                 -H "Content-Type: application/json" \
                 -d "{\"query\": \"mutation { issueToReleaseDeleteByIssueAndRelease(issueId: \\\"$UUID\\\", releaseId: \\\"$CLI_NEXT_RELEASE_ID\\\") { success } }\"}" \
                 | jq -r '"    remove from cli-next: " + (.data.issueToReleaseDeleteByIssueAndRelease.success | tostring)'
-            else
-              echo "  Skipping $IDENTIFIER — not confirmed in $TAG commit range"
             fi
           done
 
