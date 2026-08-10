@@ -249,24 +249,62 @@ jobs:
           fi
           echo "PRs in this release: $(echo "$PR_NUMBERS" | tr '\n' ' ')"
 
-          # 4. Build a set of Linear issue identifiers whose PRs are in this release,
-          #    by reading the "Linear: XXX-NNNN" comment that pr-to-linear.yml posts.
-          #    Accept any team prefix — we track ingestion-path changes regardless of which
-          #    team owns the Linear ticket.
+          # 4. Build a set of Linear issue identifiers whose PRs are in this release. Accept
+          #    any team prefix — ingestion-path changes are tracked regardless of which team
+          #    owns the ticket.
+          #
           #    Look the PRs up UPSTREAM: this repo is a fork, and the "(#NNNNN)" numbers in
           #    commit subjects are datahub-project/datahub PR numbers. The fork has its own,
           #    much lower, PR numbering, so querying it here resolved nothing — every lookup
           #    404'd into the `// ""` fallback and the step reported "No Linear issues resolved".
+          #
+          #    Three directions, unioned. Measured over the 25 PRs in v1.7.0.2: (a) alone
+          #    resolved 2, adding (b) resolved 8. (c) resolved 0 there — this workspace's
+          #    [PR Review] tickets carry the PR in their description rather than as an
+          #    attachment — but it is the only direction that finds a ticket someone attached
+          #    a PR to by hand, which is the case Support cares about.
+          PREFIXES='(ING|OSS|CUS|PLAT|PFP|CAT|OBS|ACR|SE)'
           ISSUES_IN_RELEASE=""
           for PR in $PR_NUMBERS; do
-            IDENTIFIER=$(gh pr view "$PR" \
-              --repo datahub-project/datahub \
-              --json comments \
-              --jq '[.comments[].body | match("Linear: ([A-Z]+-[0-9]+)") | .captures[0].string] | first // ""' 2>/dev/null)
-            if [ -n "$IDENTIFIER" ]; then
-              ISSUES_IN_RELEASE="$ISSUES_IN_RELEASE $IDENTIFIER"
-            fi
+            # (a) the "Linear: XXX-NNNN" comment pr-to-linear.yml posts. Restricted to that
+            #     exact prefix: a bare identifier in a comment is usually a reviewer
+            #     referencing some other ticket, not a link to this PR's work.
+            CANDIDATES=$(gh pr view "$PR" --repo datahub-project/datahub --json comments \
+              --jq '[.comments[]?.body // ""] | join("\n")' 2>/dev/null \
+              | grep -oE "Linear: ${PREFIXES}-[0-9]+" | sed 's/^Linear: //')
+
+            # (b) identifiers in the branch name or title. Branch names are the largest
+            #     single source (Linear's copy-git-branch convention) and are conventionally
+            #     lowercase, so match case-insensitively and normalise below.
+            #
+            #     The body is deliberately NOT searched: it routinely mentions adjacent
+            #     tickets ("part 1 of the X work (CAT-2789 / CAT-2783)") that are not what
+            #     this PR shipped, and in testing it surfaced no identifier the branch name
+            #     did not already give. \b matters too — without it "phase-1" matches the
+            #     SE prefix and yields a bogus SE-1.
+            CANDIDATES="${CANDIDATES}
+          $(gh pr view "$PR" --repo datahub-project/datahub --json headRefName,title \
+              --jq '[.headRefName, .title] | join("\n")' 2>/dev/null \
+              | grep -oiE "\b${PREFIXES}-[0-9]+")"
+
+            # (c) tickets carrying this PR as an attachment — the reverse lookup, which is
+            #     the only way to find a link that exists solely on the Linear side.
+            CANDIDATES="${CANDIDATES}
+          $(curl -s -X POST https://api.linear.app/graphql \
+              -H "Authorization: $LINEAR_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d "{\"query\": \"{ attachmentsForURL(url: \\\"https://github.com/datahub-project/datahub/pull/${PR}\\\") { nodes { issue { identifier } } } }\"}" \
+              | jq -r '.data.attachmentsForURL.nodes[]?.issue.identifier // empty')"
+
+            for ID in $(printf '%s\n' "$CANDIDATES" | tr '[:lower:]' '[:upper:]' \
+                        | grep -E "^${PREFIXES}-[0-9]+$" | sort -u); do
+              ISSUES_IN_RELEASE="$ISSUES_IN_RELEASE $ID"
+            done
           done
+
+          # Several PRs commonly share one ticket, so dedup before attaching.
+          # shellcheck disable=SC2086
+          ISSUES_IN_RELEASE=$(printf '%s\n' $ISSUES_IN_RELEASE | sort -u | tr '\n' ' ')
 
           if [ -z "$ISSUES_IN_RELEASE" ]; then
             echo "No Linear issues resolved from PRs in this range"
