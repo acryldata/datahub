@@ -300,6 +300,26 @@ jobs:
           done
 
       # ── 3. MANUAL DISPATCH ────────────────────────────────────────────────
+
+      # The action takes the release's commit from HEAD — it has no input for it. On a
+      # `release` event HEAD is already the tagged commit, but a dispatch checks out the ref
+      # it was launched from, so a backfill run from a branch stamps the release with that
+      # branch's tip. That SHA is what later runs use as their scan baseline, so a wrong
+      # value silently mis-scopes every subsequent sync (and breaks outright if the branch
+      # is later deleted). Pin HEAD to the tag so the stored SHA is right regardless of the
+      # ref the backfill was dispatched from.
+      - name: Check out the tag being backfilled
+        if: github.event_name == 'workflow_dispatch' && inputs.version != ''
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if ! git rev-parse -q --verify "refs/tags/${VERSION}" >/dev/null; then
+            echo "::error::Tag ${VERSION} not found. Pass a version matching an existing release tag."
+            exit 1
+          fi
+          git checkout --detach "refs/tags/${VERSION}"
+          echo "HEAD is now $(git rev-parse HEAD) (${VERSION})"
+
       - name: Manual release command
         if: github.event_name == 'workflow_dispatch'
         uses: linear/linear-release-action@v0
