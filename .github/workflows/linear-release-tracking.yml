@@ -95,13 +95,13 @@ env:
   # `release: published` event publishes acryl-datahub-actions and the
   # airflow/dagster/gx/prefect plugins too.
   #
-  # Top-level docs/ is NOT a code path here. Taking every commit that touches it sweeps in
-  # backend and SaaS work that happened to update documentation — on v1.7.0.2 that was
-  # perf(gms) batch-form performance, feat(assertions) model changes and feat(data products)
-  # hierarchies, none of which ship in these packages. Documentation PRs proper are still
-  # tracked, via the docs-subject rule in step 3 below.
-  # Connector documentation is unaffected either way: it lives under
-  # metadata-ingestion/docs/sources/, inside a code path.
+  # Top-level docs/ is excluded. This pipeline tracks what ships in these packages, and a
+  # change confined to docs/ ships in none of them. Including it also swept in backend and
+  # SaaS work that merely updated documentation — on v1.7.0.2 that was perf(gms) batch-form
+  # performance, feat(assertions) model changes and feat(data products) hierarchies, the last
+  # of which pulled a Catalog ticket into an ingestion release.
+  # Connector documentation is unaffected: it lives under metadata-ingestion/docs/sources/,
+  # inside a code path.
   # Keep in sync with RELEASE_PATHSPECS below.
   INCLUDE_PATHS: "metadata-ingestion/**,metadata-ingestion-modules/**,datahub-actions/**"
   # Same scope as INCLUDE_PATHS, in git pathspec form for `git log`.
@@ -263,28 +263,17 @@ jobs:
           fi
           echo "Commit range: $PREV_TAG..$TAG"
 
-          # 3. Extract PR numbers from commits in this release's range. Two sources, unioned.
-          #
-          #    (i)  any commit touching a shipping code path. Without a pathspec the range
-          #         also yields GMS, GraphQL and web-react PRs that ship in none of these
-          #         packages and do not belong in this pipeline.
-          #
-          #    (ii) commits under docs/ whose subject carries a docs prefix. A `docs(...)` or
-          #         `docs:` subject marks a genuine documentation change, which is part of the
-          #         release. A backend PR that merely edited documentation keeps its own
-          #         prefix — perf(gms), feat(assertions), feat(data products) — and is
-          #         correctly left out. The subject prefix is what separates the two; the path
-          #         alone cannot.
+          # 3. Extract PR numbers from commits in this release's range, scoped to the paths
+          #    that actually ship. Without the pathspec the range also yields GMS, GraphQL and
+          #    web-react PRs, plus backend work that only touched docs/ — none of which ship
+          #    in these packages or belong in this pipeline.
           #
           #    Requiring the parentheses matches the "(#NNNNN)" squash-merge suffix rather
           #    than any PR mentioned mid-subject (e.g. "revert #18000 (#18955)").
           # shellcheck disable=SC2086
-          CODE_PRS=$(git log "$PREV_TAG".."$TAG" --format="%s" --no-merges -- $RELEASE_PATHSPECS \
-            | grep -oE '\(#[0-9]+\)' | tr -d '(#)')
-          DOCS_PRS=$(git log "$PREV_TAG".."$TAG" --format="%s" --no-merges -- docs/ \
-            | grep -E '^docs[(:]' \
-            | grep -oE '\(#[0-9]+\)' | tr -d '(#)')
-          PR_NUMBERS=$(printf '%s\n%s\n' "$CODE_PRS" "$DOCS_PRS" | grep . | sort -u)
+          PR_NUMBERS=$(git log "$PREV_TAG".."$TAG" --format="%s" --no-merges -- $RELEASE_PATHSPECS \
+            | grep -oE '\(#[0-9]+\)' \
+            | tr -d '(#)' | sort -u)
 
           if [ -z "$PR_NUMBERS" ]; then
             echo "No PRs found in range $PREV_TAG..$TAG"
