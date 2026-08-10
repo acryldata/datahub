@@ -85,12 +85,19 @@ on:
 env:
   CLI_NEXT_RELEASE_ID: "7de48387-0024-4156-9c60-33a237985f65"
   LINEAR_PIPELINE_ID: "1dded0ef-0a6a-421a-805b-2761579688b4"
-  # Repo-relative globs, matching this workflow's own push/PR path filters. Set explicitly
-  # because the pipeline-side default was owner/repo-qualified
-  # ("acryldata/datahub/metadata-ingestion/**"), which matches no commit path — every sync
-  # then logged "Found 0 matching commits" and skipped release creation, so the follow-up
-  # `complete` failed with "No release found with version <v>".
-  INCLUDE_PATHS: "metadata-ingestion/**,docs/**"
+  # Repo-relative globs. Set explicitly because the pipeline-side default was
+  # owner/repo-qualified ("acryldata/datahub/metadata-ingestion/**"), which matches no commit
+  # path — every sync then logged "Found 0 matching commits" and skipped release creation, so
+  # the follow-up `complete` failed with "No release found with version <v>".
+  #
+  # Scope matches the oss-release changelog filter, i.e. what the release actually ships to
+  # PyPI: the CLI plus the sibling plugin packages. metadata-ingestion-modules/ and
+  # datahub-actions/ are included for that reason — a `release: published` event publishes
+  # acryl-datahub-actions and the airflow/dagster/gx/prefect plugins too.
+  # Keep in sync with RELEASE_PATHSPECS below.
+  INCLUDE_PATHS: "metadata-ingestion/**,metadata-ingestion-modules/**,datahub-actions/**,docs/**"
+  # Same scope as INCLUDE_PATHS, in git pathspec form for `git log`.
+  RELEASE_PATHSPECS: "metadata-ingestion/ metadata-ingestion-modules/ datahub-actions/ docs/"
 
 jobs:
   # ── JOB 1: PR MERGED → add associated Linear issue to cli-next ──────────────
@@ -224,24 +231,39 @@ jobs:
           fi
           echo "Linear release ID for $TAG: $RELEASE_ID"
 
-          # 2. Find the previous tag via git ancestry, not chronological order.
-          #    git describe walks the commit graph backwards from TAG^ and finds the
-          #    nearest ancestor tag — correctly handles cherry-pick/backport releases
-          #    (e.g. v1.5.0.13.post3 → v1.5.0.13.post2, not v1.5.0.19 which was
-          #    published around the same time but is on a different branch).
-          PREV_TAG=$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null)
+          # 2. Pick the comparison base the same way the oss-release skill does, so a
+          #    release's Linear issues match the PRs in its published release notes.
+          #
+          #    Stable: compare against the previous STABLE tag. A stable is promoted from the
+          #    final RC and therefore tags the same commit, so the nearest ancestor tag is
+          #    that RC — basing on it would capture only the last RC's delta and drop every
+          #    earlier RC's work. For v1.7.0.2 that was the difference between 14 PRs and 25.
+          #    Tags are matched on 3- and 4-segment forms, since major bumps (v1.7.0) are
+          #    3-segment by design.
+          #
+          #    RC: compare against the immediately preceding tag, giving the narrow RC-to-RC
+          #    delta that `oss-release rc` notes describe.
+          if echo "$TAG" | grep -q 'rc'; then
+            PREV_TAG=$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null)
+          else
+            PREV_TAG=$(git tag --merged "${TAG}^" --sort=-v:refname \
+              | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$' | head -1)
+          fi
           if [ -z "$PREV_TAG" ]; then
             echo "No previous tag found — cannot determine commit range"
             exit 0
           fi
           echo "Commit range: $PREV_TAG..$TAG"
 
-          # 3. Extract PR numbers from commits actually in this release's range.
-          #    git log --cherry-pick --right-only handles cherry-picks correctly:
-          #    only commits unique to TAG (not already in PREV_TAG) are included.
-          PR_NUMBERS=$(git log "$PREV_TAG".."$TAG" --format="%s" --no-merges \
+          # 3. Extract PR numbers from commits in this release's range, scoped to the paths
+          #    that actually ship. Without the pathspec the range also yields GMS, GraphQL and
+          #    web-react PRs, which do not ship in these packages and do not belong in this
+          #    pipeline. Requiring the parentheses matches the "(#NNNNN)" squash-merge suffix
+          #    rather than any PR mentioned mid-subject (e.g. "revert #18000 (#18955)").
+          # shellcheck disable=SC2086
+          PR_NUMBERS=$(git log "$PREV_TAG".."$TAG" --format="%s" --no-merges -- $RELEASE_PATHSPECS \
             | grep -oE '\(#[0-9]+\)' \
-            | tr -d '(#)')
+            | tr -d '(#)' | sort -u)
 
           if [ -z "$PR_NUMBERS" ]; then
             echo "No PRs found in range $PREV_TAG..$TAG"
