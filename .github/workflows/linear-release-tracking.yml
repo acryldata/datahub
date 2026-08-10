@@ -71,10 +71,26 @@ on:
           "testing_release" works.
         required: false
         type: string
+      base_ref:
+        description: >
+          Only for backfills with sync. Exclusive scan base — the action scans
+          <base_ref>..HEAD. Leave empty for normal runs, where the base is derived from the
+          most recent release's commitSha. Set it when that base is stale (e.g. after a
+          period where no release was recorded), otherwise sync attributes every commit
+          since that stale base to the release being backfilled. Pass the previous stable
+          tag, e.g. v1.7.0 when backfilling v1.7.0.2.
+        required: false
+        type: string
 
 env:
   CLI_NEXT_RELEASE_ID: "7de48387-0024-4156-9c60-33a237985f65"
   LINEAR_PIPELINE_ID: "1dded0ef-0a6a-421a-805b-2761579688b4"
+  # Repo-relative globs, matching this workflow's own push/PR path filters. Set explicitly
+  # because the pipeline-side default was owner/repo-qualified
+  # ("acryldata/datahub/metadata-ingestion/**"), which matches no commit path — every sync
+  # then logged "Found 0 matching commits" and skipped release creation, so the follow-up
+  # `complete` failed with "No release found with version <v>".
+  INCLUDE_PATHS: "metadata-ingestion/**,docs/**"
 
 jobs:
   # ── JOB 1: PR MERGED → add associated Linear issue to cli-next ──────────────
@@ -144,6 +160,7 @@ jobs:
         uses: linear/linear-release-action@v0
         with:
           access_key: ${{ secrets.LINEAR_ACCESS_KEY }}
+          include_paths: ${{ env.INCLUDE_PATHS }}
 
       # ── 2. ANY RELEASE PUBLISHED ─────────────────────────────────────────
       - name: Extract version from GitHub release tag
@@ -157,6 +174,7 @@ jobs:
         with:
           access_key: ${{ secrets.LINEAR_ACCESS_KEY }}
           version: ${{ env.RELEASE_VERSION }}
+          include_paths: ${{ env.INCLUDE_PATHS }}
 
       - name: Advance to Testing Release stage on RC
         if: github.event_name == 'release' && contains(github.event.release.tag_name, 'rc')
@@ -174,6 +192,7 @@ jobs:
         with:
           access_key: ${{ secrets.LINEAR_ACCESS_KEY }}
           version: ${{ env.RELEASE_VERSION }}
+          include_paths: ${{ env.INCLUDE_PATHS }}
 
       - name: Complete release + generate release notes
         if: github.event_name == 'release' && !contains(github.event.release.tag_name, 'rc')
@@ -233,10 +252,14 @@ jobs:
           #    by reading the "Linear: XXX-NNNN" comment that pr-to-linear.yml posts.
           #    Accept any team prefix — we track ingestion-path changes regardless of which
           #    team owns the Linear ticket.
+          #    Look the PRs up UPSTREAM: this repo is a fork, and the "(#NNNNN)" numbers in
+          #    commit subjects are datahub-project/datahub PR numbers. The fork has its own,
+          #    much lower, PR numbering, so querying it here resolved nothing — every lookup
+          #    404'd into the `// ""` fallback and the step reported "No Linear issues resolved".
           ISSUES_IN_RELEASE=""
           for PR in $PR_NUMBERS; do
             IDENTIFIER=$(gh pr view "$PR" \
-              --repo acryldata/datahub \
+              --repo datahub-project/datahub \
               --json comments \
               --jq '[.comments[].body | match("Linear: ([A-Z]+-[0-9]+)") | .captures[0].string] | first // ""' 2>/dev/null)
             if [ -n "$IDENTIFIER" ]; then
@@ -285,6 +308,8 @@ jobs:
           command: ${{ inputs.command }}
           stage: ${{ inputs.stage }}
           version: ${{ inputs.version }}
+          include_paths: ${{ env.INCLUDE_PATHS }}
+          base_ref: ${{ inputs.base_ref }}
 
   # ── JOB 3: RELEASE DELETED IN GITHUB → delete corresponding Linear release ─
   delete-linear-release:
