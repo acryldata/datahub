@@ -227,7 +227,6 @@ jobs:
           command: complete
           version: ${{ env.RELEASE_VERSION }}
 
-
       # ── 3. MANUAL DISPATCH ────────────────────────────────────────────────
 
       # The action takes the release's commit from HEAD — it has no input for it. On a
