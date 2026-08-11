@@ -177,10 +177,20 @@ jobs:
           access_key: ${{ secrets.LINEAR_ACCESS_KEY }}
           include_paths: ${{ env.INCLUDE_PATHS }}
 
-      # ── 2. ANY RELEASE PUBLISHED ─────────────────────────────────────────
-      - name: Extract version from GitHub release tag
-        if: github.event_name == 'release'
-        run: echo "RELEASE_VERSION=${{ github.event.release.tag_name }}" >> "$GITHUB_ENV"
+      # ── 2. ANY RELEASE PUBLISHED, OR A MANUAL BACKFILL ───────────────────
+
+      # Single source of truth for the version every step below operates on: the published
+      # tag on a release event, the operator-supplied version on a manual dispatch. Steps
+      # then read env.RELEASE_VERSION and do not care which triggered them, so a backfill
+      # follows the same path as a real release instead of a partial one.
+      #
+      # The value goes through env rather than being interpolated into the run block — a tag
+      # name is attacker-influenceable text and must not reach the shell as source.
+      - name: Resolve release version
+        if: github.event_name != 'push'
+        env:
+          VERSION: ${{ github.event.release.tag_name || inputs.version }}
+        run: echo "RELEASE_VERSION=${VERSION}" >> "$GITHUB_ENV"
 
       # RC: sync issues to versioned release + advance to Testing Release stage
       - name: Sync issues on RC publish
@@ -217,14 +227,47 @@ jobs:
           command: complete
           version: ${{ env.RELEASE_VERSION }}
 
+
+      # ── 3. MANUAL DISPATCH ────────────────────────────────────────────────
+
+      # The action takes the release's commit from HEAD — it has no input for it. On a
+      # `release` event HEAD is already the tagged commit, but a dispatch checks out the ref
+      # it was launched from, so a backfill run from a branch stamps the release with that
+      # branch's tip. That SHA is what later runs use as their scan baseline, so a wrong
+      # value silently mis-scopes every subsequent sync (and breaks outright if the branch
+      # is later deleted). Pin HEAD to the tag so the stored SHA is right regardless of the
+      # ref the backfill was dispatched from.
+      - name: Check out the tag being backfilled
+        if: github.event_name == 'workflow_dispatch' && env.RELEASE_VERSION != ''
+        env:
+          VERSION: ${{ env.RELEASE_VERSION }}
+        run: |
+          if ! git rev-parse -q --verify "refs/tags/${VERSION}" >/dev/null; then
+            echo "::error::Tag ${VERSION} not found. Pass a version matching an existing release tag."
+            exit 1
+          fi
+          git checkout --detach "refs/tags/${VERSION}"
+          echo "HEAD is now $(git rev-parse HEAD) (${VERSION})"
+
+      - name: Manual release command
+        if: github.event_name == 'workflow_dispatch'
+        uses: linear/linear-release-action@v0
+        with:
+          access_key: ${{ secrets.LINEAR_ACCESS_KEY }}
+          command: ${{ inputs.command }}
+          stage: ${{ inputs.stage }}
+          version: ${{ env.RELEASE_VERSION }}
+          include_paths: ${{ env.INCLUDE_PATHS }}
+          base_ref: ${{ inputs.base_ref }}
+
       # Both RC and stable: attach the issues whose PRs are in this release's commit range,
       # and de-stage any of them that were sitting in cli-next
       - name: Attach release issues and clear them from cli-next
-        if: github.event_name == 'release'
+        if: env.RELEASE_VERSION != ''
         env:
           LINEAR_API_KEY: ${{ secrets.INGESTION_LINEAR_KEY }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ github.event.release.tag_name }}
+          TAG: ${{ env.RELEASE_VERSION }}
         run: |
           # 1. Find the Linear release we just created/synced (match by version + pipeline)
           RELEASE_ID=$(curl -s -X POST https://api.linear.app/graphql \
@@ -388,38 +431,6 @@ jobs:
                 | jq -r '"    remove from cli-next: " + (.data.issueToReleaseDeleteByIssueAndRelease.success | tostring)'
             fi
           done
-
-      # ── 3. MANUAL DISPATCH ────────────────────────────────────────────────
-
-      # The action takes the release's commit from HEAD — it has no input for it. On a
-      # `release` event HEAD is already the tagged commit, but a dispatch checks out the ref
-      # it was launched from, so a backfill run from a branch stamps the release with that
-      # branch's tip. That SHA is what later runs use as their scan baseline, so a wrong
-      # value silently mis-scopes every subsequent sync (and breaks outright if the branch
-      # is later deleted). Pin HEAD to the tag so the stored SHA is right regardless of the
-      # ref the backfill was dispatched from.
-      - name: Check out the tag being backfilled
-        if: github.event_name == 'workflow_dispatch' && inputs.version != ''
-        env:
-          VERSION: ${{ inputs.version }}
-        run: |
-          if ! git rev-parse -q --verify "refs/tags/${VERSION}" >/dev/null; then
-            echo "::error::Tag ${VERSION} not found. Pass a version matching an existing release tag."
-            exit 1
-          fi
-          git checkout --detach "refs/tags/${VERSION}"
-          echo "HEAD is now $(git rev-parse HEAD) (${VERSION})"
-
-      - name: Manual release command
-        if: github.event_name == 'workflow_dispatch'
-        uses: linear/linear-release-action@v0
-        with:
-          access_key: ${{ secrets.LINEAR_ACCESS_KEY }}
-          command: ${{ inputs.command }}
-          stage: ${{ inputs.stage }}
-          version: ${{ inputs.version }}
-          include_paths: ${{ env.INCLUDE_PATHS }}
-          base_ref: ${{ inputs.base_ref }}
 
   # ── JOB 3: RELEASE DELETED IN GITHUB → delete corresponding Linear release ─
   delete-linear-release:
