@@ -11,6 +11,12 @@ name: Linear — Ingestion CLI/PyPI Release Tracking
 #
 # Manual dispatch supports backfilling past releases and one-off stage overrides.
 #
+# There is deliberately no `push` trigger. linear-release-action's push sync is the pattern for
+# CONTINUOUS pipelines, where each push becomes its own release. This pipeline is `scheduled`, so
+# a versionless sync does not create anything — it targets the most recent release, rewrites its
+# commitSha to master HEAD and attaches commits published after it. Staging work on merge is the
+# add-to-cli-next job's responsibility, via pull_request_target.
+#
 # Required secrets:
 #   LINEAR_ACCESS_KEY     — pipeline access key (Linear Settings → Releases → CI setup).
 #                           Used by linear-release-action. Scoped to release-pipeline ops only.
@@ -29,13 +35,6 @@ on:
   pull_request_target:
     types: [closed]
     branches: [master]
-    paths:
-      - "metadata-ingestion/**"
-      - "docs/**"
-
-  push:
-    branches:
-      - master
     paths:
       - "metadata-ingestion/**"
       - "docs/**"
@@ -172,7 +171,6 @@ jobs:
   # ── JOB 2: RELEASE PUBLISHED or MANUAL DISPATCH ─────────────────────────────
   linear-release:
     if: >
-      github.event_name == 'push' ||
       (github.event_name == 'release' && github.event.action == 'published') ||
       github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
@@ -187,14 +185,6 @@ jobs:
         with:
           fetch-depth: 0 # required — action scans full commit history
 
-      # ── 1. MERGE TO MASTER ────────────────────────────────────────────────
-      - name: Sync issues on merge to master
-        if: github.event_name == 'push'
-        uses: linear/linear-release-action@v0
-        with:
-          access_key: ${{ secrets.LINEAR_ACCESS_KEY }}
-          include_paths: ${{ env.INCLUDE_PATHS }}
-
       # ── 2. ANY RELEASE PUBLISHED, OR A MANUAL BACKFILL ───────────────────
 
       # Single source of truth for the version every step below operates on: the published
@@ -205,7 +195,6 @@ jobs:
       # The value goes through env rather than being interpolated into the run block — a tag
       # name is attacker-influenceable text and must not reach the shell as source.
       - name: Resolve release version
-        if: github.event_name != 'push'
         env:
           VERSION: ${{ github.event.release.tag_name || inputs.version }}
         run: echo "RELEASE_VERSION=${VERSION}" >> "$GITHUB_ENV"
