@@ -185,7 +185,7 @@ jobs:
         with:
           fetch-depth: 0 # required — action scans full commit history
 
-      # ── 2. ANY RELEASE PUBLISHED, OR A MANUAL BACKFILL ───────────────────
+      # ── 1. RELEASE PUBLISHED (RC or stable) ──────────────────────────────
 
       # Single source of truth for the version every step below operates on: the published
       # tag on a release event, the operator-supplied version on a manual dispatch. Steps
@@ -234,7 +234,7 @@ jobs:
           command: complete
           version: ${{ env.RELEASE_VERSION }}
 
-      # ── 3. MANUAL DISPATCH ────────────────────────────────────────────────
+      # ── 2. MANUAL DISPATCH (backfill) ─────────────────────────────────────
 
       # The action takes the release's commit from HEAD — it has no input for it. On a
       # `release` event HEAD is already the tagged commit, but a dispatch checks out the ref
@@ -266,8 +266,13 @@ jobs:
           include_paths: ${{ env.INCLUDE_PATHS }}
           base_ref: ${{ inputs.base_ref }}
 
-      # Both RC and stable: attach the issues whose PRs are in this release's commit range,
-      # and de-stage any of them that were sitting in cli-next
+      # ── 3. EITHER PATH ────────────────────────────────────────────────────
+
+      # Attach the issues whose PRs are in this release's commit range, and de-stage any of
+      # them that were sitting in cli-next. Runs for a published release and for a backfill
+      # alike — it keys off RELEASE_VERSION, not the event. It must come last: on a release
+      # event the object already exists from the sync above, but on a dispatch it is created
+      # by the manual command, so attaching earlier would find no release and skip.
       - name: Attach release issues and clear them from cli-next
         if: env.RELEASE_VERSION != ''
         env:
