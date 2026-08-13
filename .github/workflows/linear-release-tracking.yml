@@ -14,10 +14,16 @@ name: Linear — Ingestion CLI/PyPI Release Tracking
 # Required secrets:
 #   LINEAR_ACCESS_KEY     — pipeline access key (Linear Settings → Releases → CI setup).
 #                           Used by linear-release-action. Scoped to release-pipeline ops only.
-#   INGESTION_LINEAR_KEY  — personal API key (already used by pr-to-linear.yml).
+#   INGESTION_LINEAR_KEY  — personal API key (also used by pr-to-linear.yml).
 #                           Used for direct GraphQL calls (issueToReleaseCreate,
 #                           issueToReleaseDeleteByIssueAndRelease, releaseDelete, issue lookups)
 #                           — the pipeline access key cannot authorize these.
+#                           NOTE: pr-to-linear.yml and linear-assignment-notify.yml also live
+#                           upstream in datahub-project/datahub, which is where that secret is
+#                           configured. Secrets do not cross the fork boundary, so this key must
+#                           be added to THIS repo as well; when it is missing, GitHub substitutes
+#                           an empty string and every Linear call silently 401s (releases get
+#                           created but end up with zero issues attached).
 
 on:
   pull_request_target:
@@ -114,6 +120,12 @@ jobs:
       github.event_name == 'pull_request_target' &&
       github.event.pull_request.merged == true
     runs-on: ubuntu-latest
+    # This repo's default workflow permission is "read", which grants only
+    # contents/metadata/packages — `gh pr view --json comments` needs pull-requests.
+    # Nothing here writes to GitHub; all writes go to Linear over its own API.
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - name: Find Linear issue from PR comment
         id: find-issue
@@ -164,6 +176,12 @@ jobs:
       (github.event_name == 'release' && github.event.action == 'published') ||
       github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    # contents: read      → actions/checkout, and linear-release-action's github_token
+    #                       (it uses it only to download the Linear release CLI)
+    # pull-requests: read → the `gh pr view` lookups in the attach step
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -435,6 +453,8 @@ jobs:
   delete-linear-release:
     if: github.event_name == 'release' && github.event.action == 'deleted'
     runs-on: ubuntu-latest
+    # Talks only to the Linear API — no GitHub token needed at all.
+    permissions: {}
     steps:
       - name: Delete Linear release for ${{ github.event.release.tag_name }}
         env:
