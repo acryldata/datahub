@@ -454,6 +454,9 @@ databricks_common = {
     # TODO: When upgrading to >=3.0.0, remove proxy authentication monkey patching
     # in src/datahub/ingestion/source/unity/proxy.py (_patch_databricks_sql_proxy_auth)
     # as the fix was included natively in 3.0.0 via https://github.com/databricks/databricks-sql-python/pull/354
+    # TODO: When upgrading to >=3.0.0, also drop the get_columns type-map patch in
+    # src/datahub/ingestion/source/sqlalchemy_profiler/adapters/databricks.py -- v2 of
+    # the dialect replaced the local _type_map with parse_column_info_from_tgetcolumnsresponse.
     "databricks-sql-connector>=2.8.0,<3.0.0",
 }
 
@@ -553,11 +556,10 @@ plugins: Dict[str, Set[str]] = {
     "airflow": {
         f"acryl-datahub-airflow-plugin{_self_pin}",
     },
-    "circuit-breaker": {
-        # In gql v4, the execute() method's signature changed. Since we've updated
-        # our code to use the new signature, we need to pin to gql v4.
-        "gql[requests]>=4.0.0",
-    },
+    # The circuit breakers query GMS through DataHubGraph, so this needs no
+    # extra dependencies. Kept as an empty extra so existing installs that
+    # pin acryl-datahub[circuit-breaker] keep resolving.
+    "circuit-breaker": set(),
     # TODO: Eventually we should reorganize our imports so that this depends on sqlalchemy_lib
     # but not the full sql_common.
     "datahub": sql_common | mysql | kafka_common,
@@ -694,6 +696,9 @@ plugins: Dict[str, Set[str]] = {
         # (blocks billion-laughs / external-entity attacks).
         "defusedxml>=0.7.1,<0.8.0",
     },
+    # sqlglot_lib: view lineage reuses datahub.sql_parsing (sqlglot), which is not
+    # in the base install; JPype1/jdk4py bridge to the JDBC driver (no SQLAlchemy).
+    "informix": sqlglot_lib | {"JPype1<2.0.0", "jdk4py>=21.0,<22.0"},
     "json-schema": {"requests<3.0.0"},
     "kafka": kafka_common | kafka_protobuf,
     "kafka-connect": sql_common
@@ -1208,6 +1213,7 @@ entry_points = {
         "powerbi-report-server = datahub.ingestion.source.powerbi_report_server:PowerBiReportServerDashboardSource",
         "iceberg = datahub.ingestion.source.iceberg.iceberg:IcebergSource",
         "informatica = datahub.ingestion.source.informatica.source:InformaticaSource",
+        "informix = datahub.ingestion.source.informix.source:InformixSource",
         "vertica = datahub.ingestion.source.sql.vertica:VerticaSource",
         "presto = datahub.ingestion.source.sql.presto:PrestoSource",
         # This is only here for backward compatibility. Use the `hive-metastore` source instead.
