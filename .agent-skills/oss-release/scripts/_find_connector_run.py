@@ -44,8 +44,15 @@ def _set_version_job_id(repo: str, run_id: int) -> str:
 
 def _job_log(repo: str, job_id: str) -> str | None:
     """Return the job's log as text, or None if gh refuses to fetch it."""
+    # Job logs contain ANSI escape sequences; without this flag newer gh
+    # versions refuse to emit them to a non-terminal and exit non-zero.
     res = subprocess.run(
-        ["gh", "api", f"/repos/{repo}/actions/jobs/{job_id}/logs"],
+        [
+            "gh",
+            "api",
+            "--allow-escape-sequences",
+            f"/repos/{repo}/actions/jobs/{job_id}/logs",
+        ],
         capture_output=True,
         text=True,
     )
