@@ -138,7 +138,7 @@ jobs:
           ISSUE=$(gh pr view "$PR_NUMBER" \
             --repo acryldata/datahub \
             --json comments \
-            --jq '[.comments[].body | match("Linear: ([A-Z]+-[0-9]+)") | .captures[0].string] | first // ""')
+            --jq '[.comments[].body | match("Linear: ([A-Z]+-[0-9]+)") | .captures[0].string] | first // ""' || true)
           echo "issue=$ISSUE" >> "$GITHUB_OUTPUT"
           echo "Found Linear issue: ${ISSUE:-none}"
 
@@ -319,7 +319,7 @@ jobs:
           #    RC: compare against the immediately preceding tag, giving the narrow RC-to-RC
           #    delta that `oss-release rc` notes describe.
           if echo "$TAG" | grep -q 'rc'; then
-            PREV_TAG=$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null)
+            PREV_TAG=$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)
           else
             PREV_TAG=$(git tag --merged "${TAG}^" --sort=-v:refname \
               | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$' | head -1)
@@ -339,7 +339,7 @@ jobs:
           #    than any PR mentioned mid-subject (e.g. "revert #18000 (#18955)").
           # shellcheck disable=SC2086
           PR_NUMBERS=$(git log "$PREV_TAG".."$TAG" --format="%s" --no-merges -- $RELEASE_PATHSPECS \
-            | grep -oE '\(#[0-9]+\)' \
+            | { grep -oE '\(#[0-9]+\)' || true; } \
             | tr -d '(#)' | sort -u)
 
           if [ -z "$PR_NUMBERS" ]; then
@@ -362,6 +362,10 @@ jobs:
           #    [PR Review] tickets carry the PR in their description rather than as an
           #    attachment — but it is the only direction that finds a ticket someone attached
           #    a PR to by hand, which is the case Support cares about.
+          # Every grep below is wrapped in `|| true`. Most PRs carry no Linear reference at
+          # all, so no-match is the common case, not an error — but grep exits 1 on no match
+          # and GitHub runs this block as `bash -e`, so an unguarded grep aborts the step on
+          # the first PR without a ticket.
           PREFIXES='(ING|OSS|CUS|PLAT|PFP|CAT|OBS|ACR|SE)'
           ISSUES_IN_RELEASE=""
           for PR in $PR_NUMBERS; do
@@ -370,7 +374,7 @@ jobs:
             #     referencing some other ticket, not a link to this PR's work.
             CANDIDATES=$(gh pr view "$PR" --repo datahub-project/datahub --json comments \
               --jq '[.comments[]?.body // ""] | join("\n")' 2>/dev/null \
-              | grep -oE "Linear: ${PREFIXES}-[0-9]+" | sed 's/^Linear: //')
+              | { grep -oE "Linear: ${PREFIXES}-[0-9]+" || true; } | sed 's/^Linear: //')
 
             # (b) identifiers in the branch name or title. Branch names are the largest
             #     single source (Linear's copy-git-branch convention) and are conventionally
@@ -384,7 +388,7 @@ jobs:
             CANDIDATES="${CANDIDATES}
           $(gh pr view "$PR" --repo datahub-project/datahub --json headRefName,title \
               --jq '[.headRefName, .title] | join("\n")' 2>/dev/null \
-              | grep -oiE "\b${PREFIXES}-[0-9]+")"
+              | { grep -oiE "\b${PREFIXES}-[0-9]+" || true; })"
 
             # (c) tickets carrying this PR as an attachment — the reverse lookup, which is
             #     the only way to find a link that exists solely on the Linear side.
@@ -396,7 +400,7 @@ jobs:
               | jq -r '.data.attachmentsForURL.nodes[]?.issue.identifier // empty')"
 
             for ID in $(printf '%s\n' "$CANDIDATES" | tr '[:lower:]' '[:upper:]' \
-                        | grep -E "^${PREFIXES}-[0-9]+$" | sort -u); do
+                        | { grep -E "^${PREFIXES}-[0-9]+$" || true; } | sort -u); do
               ISSUES_IN_RELEASE="$ISSUES_IN_RELEASE $ID"
             done
           done
@@ -417,7 +421,7 @@ jobs:
             -H "Authorization: $LINEAR_API_KEY" \
             -H "Content-Type: application/json" \
             -d "{\"query\": \"{ release(id: \\\"$CLI_NEXT_RELEASE_ID\\\") { issues { nodes { identifier } } } }\"}" \
-            | jq -r '.data.release.issues.nodes[].identifier')
+            | jq -r '.data.release.issues.nodes[]?.identifier // empty')
 
           # 6. Attach every confirmed issue to the versioned release, then de-stage the ones
           #    that were in cli-next.
@@ -469,11 +473,22 @@ jobs:
           TAG: ${{ github.event.release.tag_name }}
         run: |
           # 1. Find the Linear release by version
-          RELEASE_ID=$(curl -s -X POST https://api.linear.app/graphql \
+          RESP=$(curl -s -X POST https://api.linear.app/graphql \
             -H "Authorization: $LINEAR_API_KEY" \
             -H "Content-Type: application/json" \
-            -d "{\"query\": \"{ releasePipeline(id: \\\"$LINEAR_PIPELINE_ID\\\") { releases(first: 250) { nodes { id version } } } }\"}" \
-            | jq -r --arg v "$TAG" '.data.releasePipeline.releases.nodes[]
+            -d "{\"query\": \"{ releasePipeline(id: \\\"$LINEAR_PIPELINE_ID\\\") { releases(first: 250) { nodes { id version } } } }\"}")
+
+          # Same reasoning as the attach step: without this, an auth or scope failure is
+          # indistinguishable from the release genuinely not existing, and Linear silently
+          # drifts out of sync with GitHub.
+          if [ "$(printf '%s' "$RESP" | jq -r 'has("errors")')" = "true" ]; then
+            echo "::error::Linear API error querying release $TAG:"
+            printf '%s' "$RESP" | jq -c '.errors[]' | sed 's/^/  /'
+            exit 1
+          fi
+
+          RELEASE_ID=$(printf '%s' "$RESP" \
+            | jq -r --arg v "$TAG" '.data.releasePipeline.releases.nodes[]?
                                     | select(.version == $v) | .id' | head -1)
 
           if [ -z "$RELEASE_ID" ]; then
