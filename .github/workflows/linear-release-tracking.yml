@@ -339,7 +339,7 @@ jobs:
           #    than any PR mentioned mid-subject (e.g. "revert #18000 (#18955)").
           # shellcheck disable=SC2086
           PR_NUMBERS=$(git log "$PREV_TAG".."$TAG" --format="%s" --no-merges -- $RELEASE_PATHSPECS \
-            | grep -oE '\(#[0-9]+\)' \
+            | { grep -oE '\(#[0-9]+\)' || true; } \
             | tr -d '(#)' | sort -u)
 
           if [ -z "$PR_NUMBERS" ]; then
@@ -362,6 +362,10 @@ jobs:
           #    [PR Review] tickets carry the PR in their description rather than as an
           #    attachment — but it is the only direction that finds a ticket someone attached
           #    a PR to by hand, which is the case Support cares about.
+          # Every grep below is wrapped in `|| true`. Most PRs carry no Linear reference at
+          # all, so no-match is the common case, not an error — but grep exits 1 on no match
+          # and GitHub runs this block as `bash -e`, so an unguarded grep aborts the step on
+          # the first PR without a ticket.
           PREFIXES='(ING|OSS|CUS|PLAT|PFP|CAT|OBS|ACR|SE)'
           ISSUES_IN_RELEASE=""
           for PR in $PR_NUMBERS; do
@@ -370,7 +374,7 @@ jobs:
             #     referencing some other ticket, not a link to this PR's work.
             CANDIDATES=$(gh pr view "$PR" --repo datahub-project/datahub --json comments \
               --jq '[.comments[]?.body // ""] | join("\n")' 2>/dev/null \
-              | grep -oE "Linear: ${PREFIXES}-[0-9]+" | sed 's/^Linear: //')
+              | { grep -oE "Linear: ${PREFIXES}-[0-9]+" || true; } | sed 's/^Linear: //')
 
             # (b) identifiers in the branch name or title. Branch names are the largest
             #     single source (Linear's copy-git-branch convention) and are conventionally
@@ -384,7 +388,7 @@ jobs:
             CANDIDATES="${CANDIDATES}
           $(gh pr view "$PR" --repo datahub-project/datahub --json headRefName,title \
               --jq '[.headRefName, .title] | join("\n")' 2>/dev/null \
-              | grep -oiE "\b${PREFIXES}-[0-9]+")"
+              | { grep -oiE "\b${PREFIXES}-[0-9]+" || true; })"
 
             # (c) tickets carrying this PR as an attachment — the reverse lookup, which is
             #     the only way to find a link that exists solely on the Linear side.
@@ -396,7 +400,7 @@ jobs:
               | jq -r '.data.attachmentsForURL.nodes[]?.issue.identifier // empty')"
 
             for ID in $(printf '%s\n' "$CANDIDATES" | tr '[:lower:]' '[:upper:]' \
-                        | grep -E "^${PREFIXES}-[0-9]+$" | sort -u); do
+                        | { grep -E "^${PREFIXES}-[0-9]+$" || true; } | sort -u); do
               ISSUES_IN_RELEASE="$ISSUES_IN_RELEASE $ID"
             done
           done
