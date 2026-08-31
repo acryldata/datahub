@@ -11,25 +11,30 @@ name: Linear — Ingestion CLI/PyPI Release Tracking
 #
 # Manual dispatch supports backfilling past releases and one-off stage overrides.
 #
+# There is deliberately no `push` trigger. linear-release-action's push sync is the pattern for
+# CONTINUOUS pipelines, where each push becomes its own release. This pipeline is `scheduled`, so
+# a versionless sync does not create anything — it targets the most recent release, rewrites its
+# commitSha to master HEAD and attaches commits published after it. Staging work on merge is the
+# add-to-cli-next job's responsibility, via pull_request_target.
+#
 # Required secrets:
 #   LINEAR_ACCESS_KEY     — pipeline access key (Linear Settings → Releases → CI setup).
 #                           Used by linear-release-action. Scoped to release-pipeline ops only.
-#   INGESTION_LINEAR_KEY  — personal API key (already used by pr-to-linear.yml).
+#   INGESTION_LINEAR_KEY  — personal API key (also used by pr-to-linear.yml).
 #                           Used for direct GraphQL calls (issueToReleaseCreate,
 #                           issueToReleaseDeleteByIssueAndRelease, releaseDelete, issue lookups)
 #                           — the pipeline access key cannot authorize these.
+#                           NOTE: pr-to-linear.yml and linear-assignment-notify.yml also live
+#                           upstream in datahub-project/datahub, which is where that secret is
+#                           configured. Secrets do not cross the fork boundary, so this key must
+#                           be added to THIS repo as well; when it is missing, GitHub substitutes
+#                           an empty string and every Linear call silently 401s (releases get
+#                           created but end up with zero issues attached).
 
 on:
   pull_request_target:
     types: [closed]
     branches: [master]
-    paths:
-      - "metadata-ingestion/**"
-      - "docs/**"
-
-  push:
-    branches:
-      - master
     paths:
       - "metadata-ingestion/**"
       - "docs/**"
@@ -114,6 +119,12 @@ jobs:
       github.event_name == 'pull_request_target' &&
       github.event.pull_request.merged == true
     runs-on: ubuntu-latest
+    # This repo's default workflow permission is "read", which grants only
+    # contents/metadata/packages — `gh pr view --json comments` needs pull-requests.
+    # Nothing here writes to GitHub; all writes go to Linear over its own API.
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - name: Find Linear issue from PR comment
         id: find-issue
@@ -160,24 +171,21 @@ jobs:
   # ── JOB 2: RELEASE PUBLISHED or MANUAL DISPATCH ─────────────────────────────
   linear-release:
     if: >
-      github.event_name == 'push' ||
       (github.event_name == 'release' && github.event.action == 'published') ||
       github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    # contents: read      → actions/checkout, and linear-release-action's github_token
+    #                       (it uses it only to download the Linear release CLI)
+    # pull-requests: read → the `gh pr view` lookups in the attach step
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0 # required — action scans full commit history
 
-      # ── 1. MERGE TO MASTER ────────────────────────────────────────────────
-      - name: Sync issues on merge to master
-        if: github.event_name == 'push'
-        uses: linear/linear-release-action@v0
-        with:
-          access_key: ${{ secrets.LINEAR_ACCESS_KEY }}
-          include_paths: ${{ env.INCLUDE_PATHS }}
-
-      # ── 2. ANY RELEASE PUBLISHED, OR A MANUAL BACKFILL ───────────────────
+      # ── 1. RELEASE PUBLISHED (RC or stable) ──────────────────────────────
 
       # Single source of truth for the version every step below operates on: the published
       # tag on a release event, the operator-supplied version on a manual dispatch. Steps
@@ -187,7 +195,6 @@ jobs:
       # The value goes through env rather than being interpolated into the run block — a tag
       # name is attacker-influenceable text and must not reach the shell as source.
       - name: Resolve release version
-        if: github.event_name != 'push'
         env:
           VERSION: ${{ github.event.release.tag_name || inputs.version }}
         run: echo "RELEASE_VERSION=${VERSION}" >> "$GITHUB_ENV"
@@ -227,7 +234,7 @@ jobs:
           command: complete
           version: ${{ env.RELEASE_VERSION }}
 
-      # ── 3. MANUAL DISPATCH ────────────────────────────────────────────────
+      # ── 2. MANUAL DISPATCH (backfill) ─────────────────────────────────────
 
       # The action takes the release's commit from HEAD — it has no input for it. On a
       # `release` event HEAD is already the tagged commit, but a dispatch checks out the ref
@@ -259,8 +266,13 @@ jobs:
           include_paths: ${{ env.INCLUDE_PATHS }}
           base_ref: ${{ inputs.base_ref }}
 
-      # Both RC and stable: attach the issues whose PRs are in this release's commit range,
-      # and de-stage any of them that were sitting in cli-next
+      # ── 3. EITHER PATH ────────────────────────────────────────────────────
+
+      # Attach the issues whose PRs are in this release's commit range, and de-stage any of
+      # them that were sitting in cli-next. Runs for a published release and for a backfill
+      # alike — it keys off RELEASE_VERSION, not the event. It must come last: on a release
+      # event the object already exists from the sync above, but on a dispatch it is created
+      # by the manual command, so attaching earlier would find no release and skip.
       - name: Attach release issues and clear them from cli-next
         if: env.RELEASE_VERSION != ''
         env:
@@ -269,11 +281,24 @@ jobs:
           TAG: ${{ env.RELEASE_VERSION }}
         run: |
           # 1. Find the Linear release we just created/synced (match by version + pipeline)
-          RELEASE_ID=$(curl -s -X POST https://api.linear.app/graphql \
+          RESP=$(curl -s -X POST https://api.linear.app/graphql \
             -H "Authorization: $LINEAR_API_KEY" \
             -H "Content-Type: application/json" \
-            -d "{\"query\": \"{ releasePipeline(id: \\\"$LINEAR_PIPELINE_ID\\\") { releases(filter: { version: { eq: \\\"$TAG\\\" } }) { nodes { id } } } }\"}" \
-            | jq -r '.data.releasePipeline.releases.nodes[0].id // empty')
+            -d "{\"query\": \"{ releasePipeline(id: \\\"$LINEAR_PIPELINE_ID\\\") { releases(first: 250) { nodes { id version } } } }\"}")
+
+          # Surface API errors instead of coercing them to "not found". An auth or scope
+          # failure returns errors[] with data:null, which the old `// empty` fallback
+          # rendered identically to a genuinely absent release — so a broken credential and
+          # a missing release were indistinguishable in the log.
+          if [ "$(printf '%s' "$RESP" | jq -r 'has("errors")')" = "true" ]; then
+            echo "::error::Linear API error querying release $TAG:"
+            printf '%s' "$RESP" | jq -c '.errors[]' | sed 's/^/  /'
+            exit 1
+          fi
+
+          RELEASE_ID=$(printf '%s' "$RESP" \
+            | jq -r --arg v "$TAG" '.data.releasePipeline.releases.nodes[]
+                                    | select(.version == $v) | .id' | head -1)
 
           if [ -z "$RELEASE_ID" ]; then
             echo "Could not find Linear release for $TAG — skipping migration"
@@ -435,6 +460,8 @@ jobs:
   delete-linear-release:
     if: github.event_name == 'release' && github.event.action == 'deleted'
     runs-on: ubuntu-latest
+    # Talks only to the Linear API — no GitHub token needed at all.
+    permissions: {}
     steps:
       - name: Delete Linear release for ${{ github.event.release.tag_name }}
         env:
@@ -445,8 +472,9 @@ jobs:
           RELEASE_ID=$(curl -s -X POST https://api.linear.app/graphql \
             -H "Authorization: $LINEAR_API_KEY" \
             -H "Content-Type: application/json" \
-            -d "{\"query\": \"{ releasePipeline(id: \\\"$LINEAR_PIPELINE_ID\\\") { releases(filter: { version: { eq: \\\"$TAG\\\" } }) { nodes { id } } } }\"}" \
-            | jq -r '.data.releasePipeline.releases.nodes[0].id // empty')
+            -d "{\"query\": \"{ releasePipeline(id: \\\"$LINEAR_PIPELINE_ID\\\") { releases(first: 250) { nodes { id version } } } }\"}" \
+            | jq -r --arg v "$TAG" '.data.releasePipeline.releases.nodes[]
+                                    | select(.version == $v) | .id' | head -1)
 
           if [ -z "$RELEASE_ID" ]; then
             echo "No Linear release found for $TAG — nothing to delete"
