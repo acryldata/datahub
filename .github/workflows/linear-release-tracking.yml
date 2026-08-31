@@ -281,11 +281,22 @@ jobs:
           TAG: ${{ env.RELEASE_VERSION }}
         run: |
           # 1. Find the Linear release we just created/synced (match by version + pipeline)
-          RELEASE_ID=$(curl -s -X POST https://api.linear.app/graphql \
+          RESP=$(curl -s -X POST https://api.linear.app/graphql \
             -H "Authorization: $LINEAR_API_KEY" \
             -H "Content-Type: application/json" \
-            -d "{\"query\": \"{ releasePipeline(id: \\\"$LINEAR_PIPELINE_ID\\\") { releases(filter: { version: { eq: \\\"$TAG\\\" } }) { nodes { id } } } }\"}" \
-            | jq -r '.data.releasePipeline.releases.nodes[0].id // empty')
+            -d "{\"query\": \"{ releasePipeline(id: \\\"$LINEAR_PIPELINE_ID\\\") { releases(filter: { version: { eq: \\\"$TAG\\\" } }) { nodes { id } } } }\"}")
+
+          # Surface API errors instead of coercing them to "not found". An auth or scope
+          # failure returns errors[] with data:null, which the old `// empty` fallback
+          # rendered identically to a genuinely absent release — so a broken credential and
+          # a missing release were indistinguishable in the log.
+          if [ "$(printf '%s' "$RESP" | jq -r 'has("errors")')" = "true" ]; then
+            echo "::error::Linear API error querying release $TAG:"
+            printf '%s' "$RESP" | jq -c '.errors[]' | sed 's/^/  /'
+            exit 1
+          fi
+
+          RELEASE_ID=$(printf '%s' "$RESP" | jq -r '.data.releasePipeline.releases.nodes[0].id // empty')
 
           if [ -z "$RELEASE_ID" ]; then
             echo "Could not find Linear release for $TAG — skipping migration"
