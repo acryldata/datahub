@@ -333,20 +333,27 @@ class SnowflakeOpenflowSource(StatefulIngestionSourceBase, TestableSource):
 
     @staticmethod
     def test_connection(config_dict: Dict[str, Any]) -> TestConnectionReport:
-        config = SnowflakeOpenflowSourceConfig.model_validate(config_dict)
         report = TestConnectionReport()
         try:
+            # Config parse and connect share one handler: neither is the
+            # visibility probe below, and either failing here means there is
+            # no connection to attribute a capability failure to.
+            config = SnowflakeOpenflowSourceConfig.model_validate(config_dict)
             connection = config.connection.get_connection()
         except Exception as exc:
             report.basic_connectivity = CapabilityReport(
                 capable=False, failure_reason=str(exc)
             )
             return report
+        report.basic_connectivity = CapabilityReport(capable=True)
         try:
-            report.basic_connectivity = CapabilityReport(capable=True)
             # A successful connection says nothing about Openflow visibility,
             # which is granted per object. Probe it separately so a role missing
-            # MONITOR is reported here rather than as an empty ingestion.
+            # MONITOR is reported here rather than as an empty ingestion. The
+            # probe itself erroring (a permission error, a transient failure) is
+            # caught below rather than escaping, and reported distinctly from
+            # the zero-rows case: both are "not capable", but only the latter
+            # names MONITOR.
             rows = list(connection.query(SnowflakeOpenflowQuery.show_deployments()))
             report.capability_report = {
                 SourceCapability.CONTAINERS: CapabilityReport(
@@ -355,6 +362,12 @@ class SnowflakeOpenflowSource(StatefulIngestionSourceBase, TestableSource):
                     if rows
                     else "No Openflow deployments are visible to this role. Grant "
                     "MONITOR on the deployments and runtimes to ingest.",
+                )
+            }
+        except Exception as exc:
+            report.capability_report = {
+                SourceCapability.CONTAINERS: CapabilityReport(
+                    capable=False, failure_reason=str(exc)
                 )
             }
         finally:
