@@ -1,0 +1,29 @@
+source:
+  type: snowflake-openflow
+  config:
+    connection:
+      account_id: "abc12345.us-west-2"
+      username: "${SNOWFLAKE_USER}"
+      private_key: "${SNOWFLAKE_PRIVATE_KEY}"
+      role: "datahub_role"
+      warehouse: "datahub_wh"
+
+    # Coordinates for Openflow's own entities.
+    env: PROD
+
+    # Coordinates of the Snowflake datasets lineage points at. These MUST match
+    # your `snowflake` recipe, or lineage produces well-formed URNs that join to
+    # nothing.
+    snowflake_platform_instance: null
+    snowflake_env: PROD
+
+    include_openflow_lineage: true
+    # Needs an extra grant on the account's event table; see Prerequisites.
+    include_run_history: false
+
+sink:
+  # datahub-rest, datahub-kafka, or any other sink
+  type: datahub-rest
+  config:
+    server: "http://localhost:8080"
+    token: "${DATAHUB_GMS_TOKEN}"

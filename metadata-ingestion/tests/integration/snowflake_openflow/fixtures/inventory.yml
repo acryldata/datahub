@@ -10,6 +10,7 @@ source:
       account_id: ${SNOWFLAKE_ACCOUNT}
       username: ${SNOWFLAKE_USER}
       private_key: ${SNOWFLAKE_PRIVATE_KEY}
+      authentication_type: KEY_PAIR_AUTHENTICATOR
       role: ${SNOWFLAKE_ROLE}
       warehouse: ${SNOWFLAKE_WAREHOUSE}
     # Openflow's own entities
