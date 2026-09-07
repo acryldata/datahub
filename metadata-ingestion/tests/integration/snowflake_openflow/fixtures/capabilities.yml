@@ -14,7 +14,6 @@ source:
     snowflake_env: PROD
     convert_urns_to_lowercase: true
     include_openflow_lineage: true
-    include_run_history: false
     stateful_ingestion:
       enabled: true
       remove_stale_metadata: true

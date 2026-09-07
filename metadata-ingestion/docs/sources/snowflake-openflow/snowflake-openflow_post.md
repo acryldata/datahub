@@ -6,8 +6,6 @@
 - **Ownership** — from each object's `OWNER`.
 - **Deletion detection** — via stateful ingestion, using `DELETED_ON` from the `ACCOUNT_USAGE`
   views.
-- **Run history** — optional `DataProcessInstance` per connector run, behind
-  `include_run_history`, which needs the extra event-table grant.
 
 Schema metadata, column-level lineage, profiling and dataset usage are deliberately **not**
 supported here; use the `snowflake` source for the destination tables.

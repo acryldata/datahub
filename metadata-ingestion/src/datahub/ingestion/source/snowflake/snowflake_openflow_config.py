@@ -111,17 +111,6 @@ class SnowflakeOpenflowSourceConfig(
         description="Emit table-level lineage from each connector's configuration to "
         "the Snowflake tables it writes.",
     )
-    include_run_history: bool = Field(
-        default=False,
-        description="Emit connector run history as DataProcessInstances. Requires read "
-        "access to the account's event table, which is a grant beyond the standard "
-        "ACCOUNT_USAGE set, so this defaults off and is feature-detected at runtime.",
-    )
-    event_table: Optional[str] = Field(
-        default=None,
-        description="Fully qualified event table holding Openflow telemetry. "
-        "Auto-discovered from the account's EVENT_TABLE parameter when unset.",
-    )
 
     @model_validator(mode="after")
     def default_snowflake_env_to_env(self) -> "SnowflakeOpenflowSourceConfig":

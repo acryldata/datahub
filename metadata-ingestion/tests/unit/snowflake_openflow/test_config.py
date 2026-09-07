@@ -13,12 +13,11 @@ MINIMAL = {
 }
 
 
-def test_defaults_are_conservative():
+def test_lineage_is_on_by_default():
+    # The docs tell operators to *disable* lineage with include_openflow_lineage:
+    # false, which is only true if the default is on.
     config = SnowflakeOpenflowSourceConfig.model_validate(MINIMAL)
-    # Run history needs an extra Snowflake grant, so it must not be on by default.
-    assert config.include_run_history is False
     assert config.include_openflow_lineage is True
-    assert config.event_table is None
 
 
 def test_foreign_snowflake_coordinates_are_independent_of_openflow_coordinates():

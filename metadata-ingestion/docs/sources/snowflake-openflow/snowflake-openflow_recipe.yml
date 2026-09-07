@@ -25,8 +25,6 @@ source:
     source_env: PROD
 
     include_openflow_lineage: true
-    # Needs an extra grant on the account's event table; see Prerequisites.
-    include_run_history: false
 
 sink:
   # datahub-rest, datahub-kafka, or any other sink

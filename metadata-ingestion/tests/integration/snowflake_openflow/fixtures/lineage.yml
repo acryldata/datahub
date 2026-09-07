@@ -13,7 +13,6 @@ source:
     snowflake_env: PROD
     convert_urns_to_lowercase: true
     include_openflow_lineage: true
-    include_run_history: false
 sink:
   type: datahub-rest
   config:

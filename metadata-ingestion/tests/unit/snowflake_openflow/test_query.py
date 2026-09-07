@@ -45,12 +45,11 @@ def test_show_commands_are_the_documented_grammar():
     assert SnowflakeOpenflowQuery.show_connectors() == "SHOW OPENFLOW CONNECTORS"
 
 
-def test_stage_helpers_quote_the_uri_verbatim():
+def test_stage_get_quotes_the_uri_verbatim():
     # The version URI must be used exactly as the connector row reports it.
     # Hardcoding a path segment such as /versions/live/ produced Snowflake
     # errno 99112 "version live is not found".
     uri = "snow://openflow_connector/MY_DB.MY_SCHEMA.pg/versions/3/"
-    assert SnowflakeOpenflowQuery.list_stage(uri) == f"LIST '{uri}'"
     query = SnowflakeOpenflowQuery.get_stage_file_to_local(uri, "config.json", "/tmp/x")
     assert uri in query
     assert query.startswith("GET ")

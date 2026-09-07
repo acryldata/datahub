@@ -49,14 +49,3 @@ on that object type.
 
 Lineage additionally reads each connector's `config.json` from its version stage, which the runtime
 grant above already permits.
-
-#### Run history — optional, `include_run_history: true`
-
-Reads the account's event table, which is a grant **beyond** the standard `ACCOUNT_USAGE` set:
-holding `ACCOUNT_USAGE` access does not imply access to `SNOWFLAKE.TELEMETRY`.
-
-```sql
-GRANT SELECT ON EVENT TABLE SNOWFLAKE.TELEMETRY.EVENTS TO ROLE <role>;
--- Broader fallback, which also exposes every other SNOWFLAKE schema:
--- GRANT IMPORTED PRIVILEGES ON DATABASE SNOWFLAKE TO ROLE <role>;
-```

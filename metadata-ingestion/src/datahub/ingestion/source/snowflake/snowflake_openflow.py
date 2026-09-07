@@ -508,7 +508,7 @@ def build_connector_job(
 @capability(
     SourceCapability.USAGE_STATS,
     "Not supported: OPENFLOW_USAGE_HISTORY reports credit consumption, not dataset "
-    "usage. Connector run history is available separately via `include_run_history`.",
+    "usage.",
     supported=False,
 )
 @capability(

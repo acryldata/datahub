@@ -52,14 +52,6 @@ class SnowflakeOpenflowQuery:
         return _history_query(CONNECTOR_HISTORY, cursor)
 
     @staticmethod
-    def event_table_parameter() -> str:
-        return "SHOW PARAMETERS LIKE 'EVENT_TABLE' IN ACCOUNT"
-
-    @staticmethod
-    def list_stage(version_location_uri: str) -> str:
-        return f"LIST '{version_location_uri}'"
-
-    @staticmethod
     def get_stage_file_to_local(
         version_location_uri: str, filename: str, local_dir: str
     ) -> str:
