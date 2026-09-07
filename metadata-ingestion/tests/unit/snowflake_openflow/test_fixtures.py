@@ -48,6 +48,14 @@ def test_fixture_recipe_validates_as_pipeline(filename):
     PipelineConfig.model_validate(recipe_dict)
 
 
+@pytest.mark.parametrize("filename", FIXTURES)
+def test_fixture_sink_mode_is_sync(filename):
+    # Verify that each fixture uses SYNC mode for the datahub-rest sink
+    # to ensure assertions observe a settled state (not async-batch race condition).
+    recipe = yaml.safe_load((FIXTURE_DIR / filename).read_text())
+    assert recipe["sink"]["config"]["mode"] == "SYNC"
+
+
 def _resolve_template_vars(recipe: dict[str, Any]) -> dict[str, Any]:
     """Recursively resolve ${VAR} placeholders with dummy values for validation."""
     dummy_vars = {
