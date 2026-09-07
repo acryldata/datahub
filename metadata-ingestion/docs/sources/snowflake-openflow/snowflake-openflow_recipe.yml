@@ -5,6 +5,7 @@ source:
       account_id: "abc12345.us-west-2"
       username: "${SNOWFLAKE_USER}"
       private_key: "${SNOWFLAKE_PRIVATE_KEY}"
+      authentication_type: KEY_PAIR_AUTHENTICATOR
       role: "datahub_role"
       warehouse: "datahub_wh"
 

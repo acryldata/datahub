@@ -62,3 +62,12 @@ def test_measured_limitations_are_stated():
 def test_recipe_parses_and_names_the_source():
     recipe = yaml.safe_load(RECIPE.read_text())
     assert recipe["source"]["type"] == "snowflake-openflow"
+
+
+def test_recipe_sets_authentication_type_for_key_pair_auth():
+    # Setting private_key without authentication_type is rejected by
+    # SnowflakeConnectionConfig at load time (defaults to DEFAULT_AUTHENTICATOR),
+    # so the example recipe would fail on a reader's first run without this field.
+    recipe = yaml.safe_load(RECIPE.read_text())
+    connection = recipe["source"]["config"]["connection"]
+    assert connection["authentication_type"] == "KEY_PAIR_AUTHENTICATOR"
