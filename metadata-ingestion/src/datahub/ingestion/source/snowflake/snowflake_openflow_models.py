@@ -103,9 +103,15 @@ class OpenflowRuntime:
 
 @dataclasses.dataclass
 class OpenflowConnector:
-    connector_id: str
-    name: Optional[str] = None
-    runtime_name: Optional[str] = None
+    # Neither surface has a usable single-column id: CONNECTOR_HISTORY has no
+    # key column at all (CONNECTOR_ID is the only stable id it carries, and it
+    # lags ~20 minutes behind SHOW), while SHOW OPENFLOW CONNECTORS carries no
+    # id column at all. Connector names are also not unique account-wide (SHOW
+    # OPENFLOW CONNECTORS is account-wide, spanning many runtimes), so identity
+    # must be the composite of (runtime, name) that both surfaces agree on.
+    name: str
+    runtime_name: str
+    connector_id: Optional[str] = None
     connector_definition: Optional[str] = None
     status: Optional[str] = None
     owner: Optional[str] = None
@@ -117,16 +123,18 @@ class OpenflowConnector:
 
     @classmethod
     def from_row(cls, row: Dict[str, Any]) -> Optional["OpenflowConnector"]:
-        # CONNECTOR_HISTORY has no key column; CONNECTOR_ID is the only stable id.
-        # SHOW OPENFLOW CONNECTORS carries no id at all, so a SHOW-only row falls
-        # back to its name and is reconciled against the view by name.
-        connector_id = get_str(row, COL_CONNECTOR_ID) or get_str(row, COL_NAME)
-        if connector_id is None:
+        name = get_str(row, COL_NAME)
+        runtime_name = get_str(row, COL_RUNTIME, COL_RUNTIME_NAME)
+        # Both halves of the composite identity are required. Both surfaces
+        # carry the runtime association (SHOW as `runtime`, the view as
+        # RUNTIME_NAME), so a row missing it is not a usable connector rather
+        # than one with a degraded key.
+        if name is None or runtime_name is None:
             return None
         return cls(
-            connector_id=connector_id,
-            name=get_str(row, COL_NAME),
-            runtime_name=get_str(row, COL_RUNTIME, COL_RUNTIME_NAME),
+            name=name,
+            runtime_name=runtime_name,
+            connector_id=get_str(row, COL_CONNECTOR_ID),
             connector_definition=get_str(row, COL_CONNECTOR_DEFINITION),
             status=get_str(row, COL_STATUS),
             owner=get_str(row, COL_OWNER),
@@ -139,7 +147,10 @@ class OpenflowConnector:
 
     @property
     def key(self) -> str:
-        return self.connector_id
+        # "/" is not among the URN reserved characters (see
+        # datahub.utilities.urn_encoder.RESERVED_CHARS), so it needs no
+        # escaping when this key ends up inside a DataFlow URN component.
+        return f"{self.runtime_name}/{self.name}"
 
 
 RowModel = TypeVar("RowModel", OpenflowDeployment, OpenflowRuntime, OpenflowConnector)
@@ -156,6 +167,11 @@ def merge_show_and_history(
     # runtime visible to SHOW was still missing from the view ~20 minutes after
     # creation, so a view-only reading would report zero runtimes to a user who
     # had just created one.
+    # Non-mutating by design: `show_rows` items are caller-owned, and at least
+    # one downstream caller keeps its own reference to them after calling this
+    # function. dataclasses.replace() builds a new merged instance instead of
+    # setattr-ing onto the caller's object, so show_rows and its elements are
+    # left untouched.
     by_key: Dict[str, RowModel] = {row.key: row for row in show_rows}
     for history_row in history_rows:
         existing = by_key.get(history_row.key)
@@ -164,7 +180,12 @@ def merge_show_and_history(
             # privilege reasons. Deleted rows are filtered by the caller.
             by_key[history_row.key] = history_row
             continue
-        for field in dataclasses.fields(existing):
-            if getattr(existing, field.name) is None:
-                setattr(existing, field.name, getattr(history_row, field.name))
+        updates = {
+            field.name: getattr(history_row, field.name)
+            for field in dataclasses.fields(existing)
+            if getattr(existing, field.name) is None
+            and getattr(history_row, field.name) is not None
+        }
+        if updates:
+            by_key[history_row.key] = dataclasses.replace(existing, **updates)
     return list(by_key.values())
