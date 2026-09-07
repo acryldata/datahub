@@ -26,4 +26,3 @@ sink:
   config:
     server: ${DATAHUB_GMS_URL:-http://localhost:8080}
     token: ${DATAHUB_GMS_TOKEN}
-    mode: SYNC
