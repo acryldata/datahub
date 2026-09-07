@@ -3,7 +3,11 @@ from typing import Optional
 from pydantic import Field, model_validator
 
 from datahub.configuration.common import AllowDenyPattern
-from datahub.configuration.source_common import DatasetSourceConfigMixin
+from datahub.configuration.source_common import (
+    DatasetSourceConfigMixin,
+    LowerCaseDatasetUrnConfigMixin,
+)
+from datahub.emitter.mce_builder import ALL_ENV_TYPES
 from datahub.ingestion.source.snowflake.snowflake_config import (
     SnowflakeIdentifierConfig,
 )
@@ -16,7 +20,9 @@ from datahub.ingestion.source.state.stateful_ingestion_base import (
 
 
 class SnowflakeOpenflowSourceConfig(
-    StatefulIngestionConfigBase, DatasetSourceConfigMixin
+    StatefulIngestionConfigBase,
+    DatasetSourceConfigMixin,
+    LowerCaseDatasetUrnConfigMixin,
 ):
     connection: SnowflakeConnectionConfig = Field(
         description="Snowflake connection details. Reused unchanged from the snowflake "
@@ -52,7 +58,8 @@ class SnowflakeOpenflowSourceConfig(
         default=True,
         description="Whether to lowercase the destination Snowflake dataset URNs. Must "
         "match the `snowflake` recipe pointed at the same account, or the URNs will "
-        "not line up.",
+        "not line up. Inherited from LowerCaseDatasetUrnConfigMixin with default "
+        "overridden to True for compatibility with Snowflake identifiers.",
     )
 
     include_openflow_lineage: bool = Field(
@@ -76,6 +83,13 @@ class SnowflakeOpenflowSourceConfig(
     def default_snowflake_env_to_env(self) -> "SnowflakeOpenflowSourceConfig":
         if self.snowflake_env is None:
             self.snowflake_env = self.env
+        # Validate eagerly, so a typo'd snowflake_env fails at recipe-load time the
+        # way a typo'd `env` already does. Without this the bad value survives
+        # config validation and only raises deep inside lineage emission.
+        if self.snowflake_env not in ALL_ENV_TYPES:
+            raise ValueError(
+                f"snowflake_env must be one of {ALL_ENV_TYPES}, found {self.snowflake_env}"
+            )
         return self
 
     def get_snowflake_identifier_config(self) -> SnowflakeIdentifierConfig:

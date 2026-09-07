@@ -51,6 +51,13 @@ def test_invalid_env_is_rejected():
         SnowflakeOpenflowSourceConfig.model_validate({**MINIMAL, "env": "NOT_AN_ENV"})
 
 
+def test_invalid_snowflake_env_is_rejected():
+    with pytest.raises(ValueError):
+        SnowflakeOpenflowSourceConfig.model_validate(
+            {**MINIMAL, "snowflake_env": "NOT_AN_ENV"}
+        )
+
+
 def test_extra_keys_are_rejected():
     with pytest.raises(ValueError):
         SnowflakeOpenflowSourceConfig.model_validate({**MINIMAL, "typoed_key": True})
