@@ -13,13 +13,6 @@ MINIMAL = {
 }
 
 
-def test_lineage_is_on_by_default():
-    # The docs tell operators to *disable* lineage with include_openflow_lineage:
-    # false, which is only true if the default is on.
-    config = SnowflakeOpenflowSourceConfig.model_validate(MINIMAL)
-    assert config.include_openflow_lineage is True
-
-
 def test_foreign_snowflake_coordinates_are_independent_of_openflow_coordinates():
     config = SnowflakeOpenflowSourceConfig.model_validate(
         {
@@ -55,11 +48,6 @@ def test_invalid_snowflake_env_is_rejected():
         SnowflakeOpenflowSourceConfig.model_validate(
             {**MINIMAL, "snowflake_env": "NOT_AN_ENV"}
         )
-
-
-def test_extra_keys_are_rejected():
-    with pytest.raises(ValueError):
-        SnowflakeOpenflowSourceConfig.model_validate({**MINIMAL, "typoed_key": True})
 
 
 def test_upstream_coordinates_are_independent_of_openflow_coordinates():

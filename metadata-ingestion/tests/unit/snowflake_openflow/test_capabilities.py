@@ -1,4 +1,5 @@
 from datahub.ingestion.api.source import SourceCapability
+from datahub.ingestion.source.common.subtypes import SourceCapabilityModifier
 from datahub.ingestion.source.snowflake.snowflake_openflow import (
     SnowflakeOpenflowSource,
 )
@@ -59,8 +60,6 @@ def test_exactly_twelve_capabilities_are_declared():
 
 
 def test_container_capability_names_both_container_subtypes():
-    from datahub.ingestion.source.common.subtypes import SourceCapabilityModifier
-
     modifiers = _capabilities()[SourceCapability.CONTAINERS].subtype_modifier
     assert SourceCapabilityModifier.OPENFLOW_DEPLOYMENT in modifiers
     assert SourceCapabilityModifier.OPENFLOW_RUNTIME in modifiers

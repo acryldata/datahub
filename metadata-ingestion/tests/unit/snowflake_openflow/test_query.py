@@ -56,11 +56,9 @@ def test_stage_get_quotes_the_uri_verbatim():
     assert "'file:///tmp/x'" in query
 
 
-def test_page_size_attribute_is_accessible():
-    # Task 8 reads SnowflakeOpenflowQuery.PAGE_SIZE to decide when a page is last.
-    # Verify it exists and matches the LIMIT in generated queries.
-    assert hasattr(SnowflakeOpenflowQuery, "PAGE_SIZE")
-    assert SnowflakeOpenflowQuery.PAGE_SIZE == 1000
+def test_generated_limit_matches_the_page_size_the_pager_reads():
+    # The pager decides a page is the last one by comparing the row count against
+    # PAGE_SIZE, so a LIMIT that disagreed with it would silently truncate.
     assert (
         f"LIMIT {SnowflakeOpenflowQuery.PAGE_SIZE}"
         in SnowflakeOpenflowQuery.deployment_history(None)

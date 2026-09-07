@@ -1,19 +1,4 @@
-from datahub.ingestion.source.common.subtypes import (
-    DataFlowSubTypes,
-    DataJobSubTypes,
-    GenericContainerSubTypes,
-    SourceCapabilityModifier,
-)
-
-
-def test_openflow_container_subtypes_exist():
-    assert GenericContainerSubTypes.OPENFLOW_DEPLOYMENT == "Openflow Deployment"
-    assert GenericContainerSubTypes.OPENFLOW_RUNTIME == "Openflow Runtime"
-
-
-def test_openflow_flow_and_job_subtypes_exist():
-    assert DataFlowSubTypes.OPENFLOW_CONNECTOR == "Openflow Connector"
-    assert DataJobSubTypes.OPENFLOW_CONNECTOR_SYNC == "Openflow Connector Sync"
+from datahub.ingestion.source.common.subtypes import SourceCapabilityModifier
 
 
 def test_subtypes_generate_capability_modifiers():

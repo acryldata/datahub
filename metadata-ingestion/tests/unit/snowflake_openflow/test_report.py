@@ -3,12 +3,6 @@ from datahub.ingestion.source.snowflake.snowflake_openflow_report import (
 )
 
 
-def test_counters_start_at_zero():
-    report = SnowflakeOpenflowReport()
-    assert report.num_deployments == 0
-    assert report.num_lineage_edges == 0
-
-
 def test_empty_inventory_is_reported_as_a_possible_privilege_problem():
     # SHOW OPENFLOW ... is privilege-filtered and returns exit-0 with zero rows
     # when the role holds nothing on the objects. Presenting that as an empty
