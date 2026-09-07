@@ -24,6 +24,8 @@ class SnowflakeOpenflowReport(StaleEntityRemovalSourceReport):
     num_runtimes: int = 0
     num_connectors: int = 0
 
+    num_owners_emitted: int = 0
+
     num_lineage_edges: int = 0
     num_lineage_edges_skipped: int = 0
     # Connectors configured with a table PATTERN rather than explicit names.

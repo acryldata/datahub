@@ -8,7 +8,10 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tupl
 from urllib.parse import urlparse
 
 from datahub.configuration.common import AllowDenyPattern
-from datahub.emitter.mce_builder import make_dataset_urn_with_platform_instance
+from datahub.emitter.mce_builder import (
+    make_dataset_urn_with_platform_instance,
+    make_group_urn,
+)
 from datahub.emitter.mcp_builder import ContainerKey, gen_containers
 from datahub.ingestion.api.common import PipelineContext
 from datahub.ingestion.api.decorators import (
@@ -53,6 +56,7 @@ from datahub.ingestion.source.snowflake.snowflake_utils import (
 from datahub.ingestion.source.state.stateful_ingestion_base import (
     StatefulIngestionSourceBase,
 )
+from datahub.metadata.schema_classes import OwnerClass, OwnershipTypeClass
 from datahub.sdk.dataflow import DataFlow
 from datahub.sdk.datajob import DataJob
 
@@ -220,6 +224,37 @@ def destination_identifier(
     return f"{destination_database}.{source_schema}.{source_table}"
 
 
+# --- Ownership --------------------------------------------------------------
+
+# Snowflake's OWNER is the name of a ROLE, never a user, so it maps to a
+# corpGroup urn. The rest of the Snowflake family settles this the same way
+# (snowflake_tasks.py, snowflake_pipes.py, snowflake_stages.py).
+#
+# TECHNICAL_OWNER on every surface: the role that owns the Snowflake object is
+# who operates it, and using one type across containers, the DataFlow and the
+# DataJob keeps a single source field from showing up as two different
+# ownership kinds in the UI.
+OWNERSHIP_TYPE = OwnershipTypeClass.TECHNICAL_OWNER
+
+
+def _owner_group_urn(owner: Optional[str]) -> Optional[str]:
+    return make_group_urn(owner) if owner else None
+
+
+def _owner_classes(owner: Optional[str]) -> Optional[List[OwnerClass]]:
+    # Returns None -- not [] -- when there is no owner, so the SDK v2 entities
+    # skip the aspect entirely. An OwnershipClass with an empty owners list
+    # would overwrite owners a user had set in DataHub by hand.
+    #
+    # An explicit OwnerClass, never a bare string: `owners=["MY_ROLE"]` is
+    # routed through make_user_urn by HasOwnership._parse_owner_class
+    # (sdk/_shared.py), which would silently emit urn:li:corpuser:MY_ROLE.
+    urn = _owner_group_urn(owner)
+    if urn is None:
+        return None
+    return [OwnerClass(owner=urn, type=OWNERSHIP_TYPE)]
+
+
 # --- Connector DataFlow / DataJob -------------------------------------------
 
 
@@ -260,6 +295,7 @@ def build_connector_flow(
         display_name=connector.display_name or connector.name,
         subtype=DataFlowSubTypes.OPENFLOW_CONNECTOR,
         custom_properties=_connector_properties(connector),
+        owners=_owner_classes(connector.owner),
     )
 
 
@@ -277,6 +313,7 @@ def build_connector_job(
         custom_properties=_connector_properties(connector),
         inlets=list(inlets),
         outlets=list(outlets),
+        owners=_owner_classes(connector.owner),
     )
 
 
@@ -721,9 +758,12 @@ class SnowflakeOpenflowSource(StatefulIngestionSourceBase, TestableSource):
                 container_key=self._deployment_key(deployment),
                 name=deployment.display_name or deployment.name or deployment.key,
                 sub_types=[GenericContainerSubTypes.OPENFLOW_DEPLOYMENT],
-                owner_urn=None,
+                owner_urn=_owner_group_urn(deployment.owner),
+                ownership_type=OWNERSHIP_TYPE,
                 extra_properties=self._deployment_properties(deployment),
             )
+            if deployment.owner:
+                self.report.num_owners_emitted += 1
 
         for runtime in runtimes:
             parent_deployment = by_deployment_name.get(runtime.deployment_name)
@@ -742,8 +782,12 @@ class SnowflakeOpenflowSource(StatefulIngestionSourceBase, TestableSource):
                 name=runtime.display_name or runtime.name or runtime.key,
                 sub_types=[GenericContainerSubTypes.OPENFLOW_RUNTIME],
                 parent_container_key=self._deployment_key(parent_deployment),
+                owner_urn=_owner_group_urn(runtime.owner),
+                ownership_type=OWNERSHIP_TYPE,
                 extra_properties=self._runtime_properties(runtime),
             )
+            if runtime.owner:
+                self.report.num_owners_emitted += 1
 
         for connector in self._fetch_connectors():
             self.report.num_connectors += 1
@@ -753,6 +797,8 @@ class SnowflakeOpenflowSource(StatefulIngestionSourceBase, TestableSource):
                 env=self.config.env,
             )
             yield from flow.as_workunits()
+            if connector.owner:
+                self.report.num_owners_emitted += 1
             inlets: List[str] = []
             outlets: List[str] = []
             if self.config.include_openflow_lineage:
@@ -761,6 +807,8 @@ class SnowflakeOpenflowSource(StatefulIngestionSourceBase, TestableSource):
             # history and connector metadata have a stable anchor.
             job = build_connector_job(connector, flow, inlets=inlets, outlets=outlets)
             yield from job.as_workunits()
+            if connector.owner:
+                self.report.num_owners_emitted += 1
 
     @staticmethod
     def _deployment_properties(deployment: OpenflowDeployment) -> Dict[str, str]:
