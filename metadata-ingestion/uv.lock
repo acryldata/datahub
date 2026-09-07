@@ -1424,6 +1424,19 @@ snowflake = [
     { name = "sqlparse" },
     { name = "tenacity" },
 ]
+snowflake-openflow = [
+    { name = "cachetools" },
+    { name = "cryptography" },
+    { name = "greenlet" },
+    { name = "msal" },
+    { name = "pandas" },
+    { name = "snowflake-connector-python" },
+    { name = "snowflake-sqlalchemy" },
+    { name = "sqlalchemy" },
+    { name = "sqlglot", extra = ["c"] },
+    { name = "sqlparse" },
+    { name = "tenacity" },
+]
 snowflake-queries = [
     { name = "cachetools" },
     { name = "cryptography" },
@@ -1782,6 +1795,7 @@ requires-dist = [
     { name = "cachetools", marker = "extra == 's3-slim'", specifier = "<6.0.0" },
     { name = "cachetools", marker = "extra == 'salesforce'", specifier = "<6.0.0" },
     { name = "cachetools", marker = "extra == 'snowflake'", specifier = "<6.0.0" },
+    { name = "cachetools", marker = "extra == 'snowflake-openflow'", specifier = "<6.0.0" },
     { name = "cachetools", marker = "extra == 'snowflake-queries'", specifier = "<6.0.0" },
     { name = "cachetools", marker = "extra == 'snowflake-slim'", specifier = "<6.0.0" },
     { name = "cachetools", marker = "extra == 'snowflake-summary'", specifier = "<6.0.0" },
@@ -1831,6 +1845,7 @@ requires-dist = [
     { name = "cryptography", marker = "extra == 'docs'", specifier = ">=49.0.0,<51.0.0" },
     { name = "cryptography", marker = "extra == 'fivetran'", specifier = ">=49.0.0,<51.0.0" },
     { name = "cryptography", marker = "extra == 'snowflake'", specifier = ">=49.0.0,<51.0.0" },
+    { name = "cryptography", marker = "extra == 'snowflake-openflow'", specifier = ">=49.0.0,<51.0.0" },
     { name = "cryptography", marker = "extra == 'snowflake-queries'", specifier = ">=49.0.0,<51.0.0" },
     { name = "cryptography", marker = "extra == 'snowflake-slim'", specifier = ">=49.0.0,<51.0.0" },
     { name = "cryptography", marker = "extra == 'snowflake-summary'", specifier = ">=49.0.0,<51.0.0" },
@@ -2042,6 +2057,7 @@ requires-dist = [
     { name = "greenlet", marker = "extra == 'presto-on-hive'", specifier = "<4.0.0" },
     { name = "greenlet", marker = "extra == 'redshift'", specifier = "<4.0.0" },
     { name = "greenlet", marker = "extra == 'snowflake'", specifier = "<4.0.0" },
+    { name = "greenlet", marker = "extra == 'snowflake-openflow'", specifier = "<4.0.0" },
     { name = "greenlet", marker = "extra == 'snowflake-queries'", specifier = "<4.0.0" },
     { name = "greenlet", marker = "extra == 'snowflake-summary'", specifier = "<4.0.0" },
     { name = "greenlet", marker = "extra == 'sqlalchemy'", specifier = "<4.0.0" },
@@ -2169,6 +2185,7 @@ requires-dist = [
     { name = "msal", marker = "extra == 'fivetran'", specifier = "<2.0.0" },
     { name = "msal", marker = "extra == 'powerbi'", specifier = ">=1.31.1,<2.0.0" },
     { name = "msal", marker = "extra == 'snowflake'", specifier = "<2.0.0" },
+    { name = "msal", marker = "extra == 'snowflake-openflow'", specifier = "<2.0.0" },
     { name = "msal", marker = "extra == 'snowflake-queries'", specifier = "<2.0.0" },
     { name = "msal", marker = "extra == 'snowflake-slim'", specifier = "<2.0.0" },
     { name = "msal", marker = "extra == 'snowflake-summary'", specifier = "<2.0.0" },
@@ -2234,6 +2251,7 @@ requires-dist = [
     { name = "pandas", marker = "extra == 'integration-tests'", specifier = "<3.0.0" },
     { name = "pandas", marker = "extra == 'neo4j'", specifier = "<3.0.0" },
     { name = "pandas", marker = "extra == 'snowflake'", specifier = "<3.0.0" },
+    { name = "pandas", marker = "extra == 'snowflake-openflow'", specifier = "<3.0.0" },
     { name = "pandas", marker = "extra == 'snowflake-queries'", specifier = "<3.0.0" },
     { name = "pandas", marker = "extra == 'snowflake-slim'", specifier = "<3.0.0" },
     { name = "pandas", marker = "extra == 'snowflake-summary'", specifier = "<3.0.0" },
@@ -2501,6 +2519,7 @@ requires-dist = [
     { name = "snowflake-connector-python", marker = "extra == 'docs'", specifier = ">=4.4.0,<5.0.0" },
     { name = "snowflake-connector-python", marker = "extra == 'fivetran'", specifier = ">=4.4.0,<5.0.0" },
     { name = "snowflake-connector-python", marker = "extra == 'snowflake'", specifier = ">=4.4.0,<5.0.0" },
+    { name = "snowflake-connector-python", marker = "extra == 'snowflake-openflow'", specifier = ">=4.4.0,<5.0.0" },
     { name = "snowflake-connector-python", marker = "extra == 'snowflake-queries'", specifier = ">=4.4.0,<5.0.0" },
     { name = "snowflake-connector-python", marker = "extra == 'snowflake-slim'", specifier = ">=4.4.0,<5.0.0" },
     { name = "snowflake-connector-python", marker = "extra == 'snowflake-summary'", specifier = ">=4.4.0,<5.0.0" },
@@ -2509,6 +2528,7 @@ requires-dist = [
     { name = "snowflake-sqlalchemy", marker = "extra == 'docs'", specifier = ">=1.8.0,<2.0.0" },
     { name = "snowflake-sqlalchemy", marker = "extra == 'fivetran'", specifier = ">=1.8.0,<2.0.0" },
     { name = "snowflake-sqlalchemy", marker = "extra == 'snowflake'", specifier = ">=1.8.0,<2.0.0" },
+    { name = "snowflake-sqlalchemy", marker = "extra == 'snowflake-openflow'", specifier = ">=1.8.0,<2.0.0" },
     { name = "snowflake-sqlalchemy", marker = "extra == 'snowflake-queries'", specifier = ">=1.8.0,<2.0.0" },
     { name = "snowflake-sqlalchemy", marker = "extra == 'snowflake-slim'", specifier = ">=1.8.0,<2.0.0" },
     { name = "snowflake-sqlalchemy", marker = "extra == 'snowflake-summary'", specifier = ">=1.8.0,<2.0.0" },
@@ -2549,6 +2569,7 @@ requires-dist = [
     { name = "sqlalchemy", marker = "extra == 'presto-on-hive'", specifier = ">=1.4.39,<2" },
     { name = "sqlalchemy", marker = "extra == 'redshift'", specifier = ">=1.4.39,<2" },
     { name = "sqlalchemy", marker = "extra == 'snowflake'", specifier = ">=1.4.39,<2" },
+    { name = "sqlalchemy", marker = "extra == 'snowflake-openflow'", specifier = ">=1.4.39,<2" },
     { name = "sqlalchemy", marker = "extra == 'snowflake-queries'", specifier = ">=1.4.39,<2" },
     { name = "sqlalchemy", marker = "extra == 'snowflake-summary'", specifier = ">=1.4.39,<2" },
     { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.39,<2" },
@@ -2641,6 +2662,7 @@ requires-dist = [
     { name = "sqlglot", extras = ["c"], marker = "extra == 'redshift-slim'", specifier = "==30.12.0" },
     { name = "sqlglot", extras = ["c"], marker = "extra == 'sigma'", specifier = "==30.12.0" },
     { name = "sqlglot", extras = ["c"], marker = "extra == 'snowflake'", specifier = "==30.12.0" },
+    { name = "sqlglot", extras = ["c"], marker = "extra == 'snowflake-openflow'", specifier = "==30.12.0" },
     { name = "sqlglot", extras = ["c"], marker = "extra == 'snowflake-queries'", specifier = "==30.12.0" },
     { name = "sqlglot", extras = ["c"], marker = "extra == 'snowflake-summary'", specifier = "==30.12.0" },
     { name = "sqlglot", extras = ["c"], marker = "extra == 'sql-parser'", specifier = "==30.12.0" },
@@ -2693,6 +2715,7 @@ requires-dist = [
     { name = "sqlparse", marker = "extra == 'redshift-slim'", specifier = ">=0.6.0,<1.0.0" },
     { name = "sqlparse", marker = "extra == 'sigma'", specifier = ">=0.6.0,<1.0.0" },
     { name = "sqlparse", marker = "extra == 'snowflake'", specifier = ">=0.6.0,<1.0.0" },
+    { name = "sqlparse", marker = "extra == 'snowflake-openflow'", specifier = ">=0.6.0,<1.0.0" },
     { name = "sqlparse", marker = "extra == 'snowflake-queries'", specifier = ">=0.6.0,<1.0.0" },
     { name = "sqlparse", marker = "extra == 'snowflake-summary'", specifier = ">=0.6.0,<1.0.0" },
     { name = "sqlparse", marker = "extra == 'sql-queries'", specifier = ">=0.6.0,<1.0.0" },
@@ -2745,6 +2768,7 @@ requires-dist = [
     { name = "tenacity", marker = "extra == 'presto-on-hive'", specifier = ">=8.0.1,<9.0.0" },
     { name = "tenacity", marker = "extra == 'slack'", specifier = ">=8.0.1,<9.0.0" },
     { name = "tenacity", marker = "extra == 'snowflake'", specifier = ">=8.0.1,<9.0.0" },
+    { name = "tenacity", marker = "extra == 'snowflake-openflow'", specifier = ">=8.0.1,<9.0.0" },
     { name = "tenacity", marker = "extra == 'snowflake-queries'", specifier = ">=8.0.1,<9.0.0" },
     { name = "tenacity", marker = "extra == 'snowflake-slim'", specifier = ">=8.0.1,<9.0.0" },
     { name = "tenacity", marker = "extra == 'snowflake-summary'", specifier = ">=8.0.1,<9.0.0" },
@@ -2875,7 +2899,7 @@ requires-dist = [
     { name = "zstd", marker = "extra == 'docs'", specifier = "<1.5.6.8" },
     { name = "zstd", marker = "extra == 'integration-tests'", specifier = "<1.5.6.8" },
 ]
-provides-extras = ["base", "abs", "abs-slim", "aerospike", "airbyte", "athena", "aws-secret-manager", "azure-ad", "azure-auth", "azure-data-factory", "bigid", "bigquery", "bigquery-queries", "bigquery-slim", "cassandra", "circuit-breaker", "clickhouse", "clickhouse-usage", "cockroachdb", "confluence", "cube", "databricks", "datahub", "datahub-business-glossary", "datahub-debug", "datahub-documents", "datahub-gc", "datahub-kafka", "datahub-lineage-file", "datahub-lite", "datahub-pg-queue", "datahub-rest", "dataplex", "db2", "dbt", "dbt-cloud", "debug-recording", "delta-lake", "dlt", "doris", "dremio", "druid", "dynamodb", "elasticsearch", "excel", "fabric-data-factory", "fabric-onelake", "feast", "fivetran", "flink", "gcp-secret-manager", "gcs", "gcs-slim", "github-documents", "glue", "grafana", "hana", "hex", "hive", "hive-metastore", "iceberg", "iceberg-catalog", "informatica", "informix", "json-schema", "kafka", "kafka-connect", "kinesis", "ldap", "looker", "lookml", "mariadb", "matillion-dpc", "metabase", "microstrategy", "mlflow", "mode", "mongodb", "mssql", "mssql-odbc", "mysql", "neo4j", "nifi", "notion", "odcs", "okta", "omni", "oracle", "pinecone", "postgres", "powerbi", "powerbi-report-server", "preset", "presto", "presto-on-hive", "pulsar", "qlik-sense", "quicksight", "rdf", "redash", "redshift", "redshift-slim", "s3", "s3-slim", "sac", "sagemaker", "salesforce", "sap-datasphere", "sigma", "slack", "snaplogic", "snowflake", "snowflake-queries", "snowflake-slim", "snowflake-summary", "snowplow", "sql-parser", "sql-queries", "sqlalchemy", "starburst-trino-usage", "starrocks", "superset", "sync-file-emitter", "tableau", "teradata", "thoughtspot", "tidb", "timescaledb", "trino", "unity-catalog", "unstructured", "vertexai", "vertica", "all", "cloud", "dev", "docs", "lint", "testing-utils", "integration-tests", "debug"]
+provides-extras = ["base", "abs", "abs-slim", "aerospike", "airbyte", "athena", "aws-secret-manager", "azure-ad", "azure-auth", "azure-data-factory", "bigid", "bigquery", "bigquery-queries", "bigquery-slim", "cassandra", "circuit-breaker", "clickhouse", "clickhouse-usage", "cockroachdb", "confluence", "cube", "databricks", "datahub", "datahub-business-glossary", "datahub-debug", "datahub-documents", "datahub-gc", "datahub-kafka", "datahub-lineage-file", "datahub-lite", "datahub-pg-queue", "datahub-rest", "dataplex", "db2", "dbt", "dbt-cloud", "debug-recording", "delta-lake", "dlt", "doris", "dremio", "druid", "dynamodb", "elasticsearch", "excel", "fabric-data-factory", "fabric-onelake", "feast", "fivetran", "flink", "gcp-secret-manager", "gcs", "gcs-slim", "github-documents", "glue", "grafana", "hana", "hex", "hive", "hive-metastore", "iceberg", "iceberg-catalog", "informatica", "informix", "json-schema", "kafka", "kafka-connect", "kinesis", "ldap", "looker", "lookml", "mariadb", "matillion-dpc", "metabase", "microstrategy", "mlflow", "mode", "mongodb", "mssql", "mssql-odbc", "mysql", "neo4j", "nifi", "notion", "odcs", "okta", "omni", "oracle", "pinecone", "postgres", "powerbi", "powerbi-report-server", "preset", "presto", "presto-on-hive", "pulsar", "qlik-sense", "quicksight", "rdf", "redash", "redshift", "redshift-slim", "s3", "s3-slim", "sac", "sagemaker", "salesforce", "sap-datasphere", "sigma", "slack", "snaplogic", "snowflake", "snowflake-openflow", "snowflake-queries", "snowflake-slim", "snowflake-summary", "snowplow", "sql-parser", "sql-queries", "sqlalchemy", "starburst-trino-usage", "starrocks", "superset", "sync-file-emitter", "tableau", "teradata", "thoughtspot", "tidb", "timescaledb", "trino", "unity-catalog", "unstructured", "vertexai", "vertica", "all", "cloud", "dev", "docs", "lint", "testing-utils", "integration-tests", "debug"]
 
 [[package]]
 name = "acryl-datahub-cloud"
