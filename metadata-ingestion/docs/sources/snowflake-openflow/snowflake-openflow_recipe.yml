@@ -18,6 +18,12 @@ source:
     snowflake_platform_instance: null
     snowflake_env: PROD
 
+    # Coordinates of the upstream datasets lineage points at -- the systems
+    # Openflow connectors read from. These MUST match the recipe that ingests
+    # that system (e.g. your `postgres` recipe), for the same reason.
+    source_platform_instance: null
+    source_env: PROD
+
     include_openflow_lineage: true
     # Needs an extra grant on the account's event table; see Prerequisites.
     include_run_history: false

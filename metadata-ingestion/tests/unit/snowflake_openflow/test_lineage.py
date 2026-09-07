@@ -563,3 +563,51 @@ def test_include_openflow_lineage_false_skips_lineage_entirely():
     workunits = list(source.get_workunits_internal())  # must not raise
 
     assert workunits  # the flow and job workunits are still emitted
+
+
+def test_lineage_inlet_uses_configured_source_platform_instance():
+    # A Postgres recipe that sets platform_instance/env produces upstream URNs
+    # carrying those coordinates. Without threading them through here, the inlet
+    # is well-formed but names a dataset that recipe never emitted.
+    source = _make_source(source_platform_instance="pg_prod", source_env="DEV")
+    connector = _connector()
+    source._query_rows = _fake_get(json.dumps(CONFIG_JSON).encode())  # type: ignore[assignment]
+
+    inlets, outlets = source._lineage_for_connector(connector)
+
+    assert inlets == [
+        "urn:li:dataset:(urn:li:dataPlatform:postgres,pg_prod.appdb.public.testtable,DEV)"
+    ]
+    # The upstream coordinates must not leak into the destination side, which
+    # keeps following snowflake_platform_instance / snowflake_env.
+    assert outlets == [
+        "urn:li:dataset:(urn:li:dataPlatform:snowflake,openflow_dev.public.testtable,PROD)"
+    ]
+
+
+def test_lineage_inlet_urn_unchanged_when_source_coordinates_unset():
+    # Back-compatibility pin: with both new fields unset, the inlet URN must be
+    # byte-identical to what shipped before they existed -- no platform_instance
+    # segment, env from the source's own `env`. This is the assertion that
+    # protects already-ingested lineage from being re-keyed.
+    source = _make_source()
+    connector = _connector()
+    source._query_rows = _fake_get(json.dumps(CONFIG_JSON).encode())  # type: ignore[assignment]
+
+    inlets, _ = source._lineage_for_connector(connector)
+
+    assert inlets == [
+        "urn:li:dataset:(urn:li:dataPlatform:postgres,appdb.public.testtable,PROD)"
+    ]
+
+
+def test_lineage_inlet_env_follows_openflow_env_when_source_env_unset():
+    source = _make_source(env="DEV")
+    connector = _connector()
+    source._query_rows = _fake_get(json.dumps(CONFIG_JSON).encode())  # type: ignore[assignment]
+
+    inlets, _ = source._lineage_for_connector(connector)
+
+    assert inlets == [
+        "urn:li:dataset:(urn:li:dataPlatform:postgres,appdb.public.testtable,DEV)"
+    ]

@@ -67,6 +67,19 @@ class SnowflakeOpenflowSourceConfig(
         description="The `env` of the Snowflake ingestion that owns the destination "
         "tables. Defaults to this source's own `env`.",
     )
+    source_platform_instance: Optional[str] = Field(
+        default=None,
+        description="The `platform_instance` of the ingestion that owns the upstream "
+        "tables Openflow reads from (e.g. the Postgres recipe behind a CDC "
+        "connector). Must match that recipe exactly. A mismatch produces "
+        "well-formed lineage pointing at datasets that do not exist, which fails "
+        "silently.",
+    )
+    source_env: Optional[str] = Field(
+        default=None,
+        description="The `env` of the ingestion that owns the upstream tables "
+        "Openflow reads from. Defaults to this source's own `env`.",
+    )
     convert_urns_to_lowercase: bool = Field(
         default=True,
         description="Whether to lowercase the destination Snowflake dataset URNs. Must "
@@ -102,6 +115,18 @@ class SnowflakeOpenflowSourceConfig(
         if self.snowflake_env not in ALL_ENV_TYPES:
             raise ValueError(
                 f"snowflake_env must be one of {ALL_ENV_TYPES}, found {self.snowflake_env}"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def default_source_env_to_env(self) -> "SnowflakeOpenflowSourceConfig":
+        if self.source_env is None:
+            self.source_env = self.env
+        # Validated eagerly for the same reason as snowflake_env above: a typo'd
+        # source_env yields a well-formed upstream URN pointing nowhere.
+        if self.source_env not in ALL_ENV_TYPES:
+            raise ValueError(
+                f"source_env must be one of {ALL_ENV_TYPES}, found {self.source_env}"
             )
         return self
 

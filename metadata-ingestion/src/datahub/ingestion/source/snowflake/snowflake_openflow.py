@@ -602,8 +602,10 @@ class SnowflakeOpenflowSource(StatefulIngestionSourceBase, TestableSource):
                     make_dataset_urn_with_platform_instance(
                         platform=upstream_platform,
                         name=f"{lineage.source_database}.{source_schema}.{source_table}",
-                        platform_instance=None,
-                        env=self.config.env,
+                        platform_instance=self.config.source_platform_instance,
+                        # default_source_env_to_env guarantees source_env is set;
+                        # the fallback keeps that guarantee visible to mypy.
+                        env=self.config.source_env or self.config.env,
                     )
                 )
             self.report.num_lineage_edges += 1

@@ -43,6 +43,11 @@ without an error. Check with `SHOW GRANTS TO ROLE <role>` and `SHOW FUTURE GRANT
 and `snowflake_env` must match your `snowflake` recipe exactly. A mismatch produces well-formed URNs
 that resolve to nothing, and nothing reports an error.
 
+**Lineage points at upstream tables that do not exist in DataHub.** The same hazard on the other
+side of the edge: `source_platform_instance` and `source_env` must match the recipe that ingests the
+system a connector reads from (e.g. your `postgres` recipe). Both default to unset /
+this source's `env`, which is correct only when that recipe uses no platform instance.
+
 **A connector is catalogued but has no lineage.** Either its destination schema strategy is not
 `SOURCE_SCHEMA`, or it selects tables by pattern rather than by name. Both are counted in the
 ingestion report.
