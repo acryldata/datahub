@@ -1,3 +1,4 @@
+import copy
 import gzip
 import json
 import pathlib
@@ -31,6 +32,9 @@ from datahub.ingestion.source.snowflake.snowflake_openflow_query import (
 )
 from datahub.ingestion.source.snowflake.snowflake_openflow_report import (
     SnowflakeOpenflowReport,
+)
+from datahub.ingestion.workunit_processors.auto_lowercase_urns import (
+    AutoLowercaseUrnsProcessor,
 )
 
 
@@ -380,6 +384,39 @@ def test_lineage_for_connector_happy_path_returns_inlets_and_outlets():
     ]
     assert source.report.num_lineage_edges == 1
     assert source.report.num_lineage_edges_skipped == 0
+
+
+def test_lineage_for_connector_keeps_upstream_case_while_folding_destination():
+    # convert_urns_to_lowercase is one-sided by design: the destination Snowflake
+    # identifier folds, the upstream one does not. postgres/mysql/mssql default
+    # convert_urns_to_lowercase to False, so their sources write '"Public"."MyTable"'
+    # verbatim and a folded inlet would name a dataset that does not exist.
+    source = _make_source(convert_urns_to_lowercase=True)
+    connector = _connector()
+    config: Dict[str, Any] = copy.deepcopy(CONFIG_JSON)
+    config["configuration"][1]["properties"][
+        "Included Comma Separated Source Table Names"
+    ] = _wrap('"Public"."MyTable"')
+    source._query_rows = _fake_get(json.dumps(config).encode())  # type: ignore[assignment]
+
+    inlets, outlets = source._lineage_for_connector(connector)
+
+    assert inlets == [
+        "urn:li:dataset:(urn:li:dataPlatform:postgres,mysourcedb.Public.MyTable,PROD)"
+    ]
+    assert outlets == [
+        "urn:li:dataset:(urn:li:dataPlatform:snowflake,my_db.public.mytable,PROD)"
+    ]
+
+
+def test_lowercase_urns_processor_is_excluded():
+    # The pipeline-level processor folds EVERY dataset URN in the stream, with no
+    # per-platform or per-aspect exemption, which would fold the upstream inlets
+    # above. The destination fold happens in SnowflakeIdentifierBuilder instead,
+    # so excluding it loses nothing.
+    source = _make_source(convert_urns_to_lowercase=True)
+
+    assert AutoLowercaseUrnsProcessor in source.get_excluded_workunit_processors()
 
 
 def test_lineage_for_connector_handles_gzip_compressed_config():

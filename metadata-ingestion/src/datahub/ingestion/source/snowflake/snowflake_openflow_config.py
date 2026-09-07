@@ -43,6 +43,13 @@ class SnowflakeOpenflowSourceConfig(
     ``source_platform_instance`` / ``source_env`` the recipe covering the
     upstream system. A mismatch produces well-formed lineage pointing at
     datasets that do not exist, which nothing downstream reports as an error.
+
+    ``convert_urns_to_lowercase`` is deliberately one-sided: it folds the
+    destination Snowflake identifiers only. Upstream identifiers are emitted
+    exactly as the connector configuration spells them, because
+    ``postgres`` / ``mysql`` / ``mssql`` all preserve case by default and a
+    folded upstream URN would join to nothing. See
+    ``SnowflakeOpenflowSource.get_excluded_workunit_processors``.
     """
 
     connection: SnowflakeConnectionConfig = Field(
@@ -103,7 +110,10 @@ class SnowflakeOpenflowSourceConfig(
         description="Whether to lowercase the destination Snowflake dataset URNs. Must "
         "match the `snowflake` recipe pointed at the same account, or the URNs will "
         "not line up. Inherited from LowerCaseDatasetUrnConfigMixin with default "
-        "overridden to True for compatibility with Snowflake identifiers.",
+        "overridden to True for compatibility with Snowflake identifiers. Applies to "
+        "the destination side only: upstream (Postgres/MySQL/SQL Server) identifiers "
+        "are always emitted verbatim, matching those sources' case-preserving "
+        "default.",
     )
 
     include_openflow_lineage: bool = Field(

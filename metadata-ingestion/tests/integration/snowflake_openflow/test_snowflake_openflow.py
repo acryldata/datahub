@@ -13,8 +13,10 @@ per-connector stage ``GET`` -- goes through ``SnowflakeConnection.query()``, so
 one dispatch table over the cursor covers all of them.
 """
 
+import copy
 import json
 import pathlib
+from functools import partial
 from typing import Any, Dict, List, Optional, cast
 from unittest import mock
 
@@ -176,12 +178,17 @@ CONNECTOR_CONFIG_JSON: Dict[str, Any] = {
 }
 
 
-def default_query_results(query: str) -> RowCountList:
+def default_query_results(
+    query: str, connector_config: Optional[Dict[str, Any]] = None
+) -> RowCountList:
     """Dispatch every statement the source issues, keyed on the query text.
 
     ``SnowflakeConnection._execute_query_with_retry`` reads ``.rowcount`` off
     whatever ``execute()`` returns, so results are wrapped in ``RowCountList``.
     """
+    connector_config = (
+        CONNECTOR_CONFIG_JSON if connector_config is None else connector_config
+    )
     if query == SnowflakeOpenflowQuery.show_deployments():
         return RowCountList(DEPLOYMENT_SHOW_ROWS)
     if query == SnowflakeOpenflowQuery.show_runtimes():
@@ -202,7 +209,7 @@ def default_query_results(query: str) -> RowCountList:
         assert STAGE_URI in query, f"GET against an unexpected stage: {query!r}"
         local_dir = query.rsplit("'file://", 1)[1].rstrip("'")
         (pathlib.Path(local_dir) / CONFIG_FILENAME).write_bytes(
-            json.dumps(CONNECTOR_CONFIG_JSON).encode()
+            json.dumps(connector_config).encode()
         )
         return RowCountList(
             [{"file": CONFIG_FILENAME, "size": 1, "status": "DOWNLOADED"}]
@@ -221,11 +228,11 @@ def _source_config(stateful: bool, lowercase_urns: bool = True) -> Dict[str, Any
         "include_openflow_lineage": True,
     }
     if lowercase_urns:
-        # Set explicitly, exactly as the fixture recipes do. This source overrides
-        # the mixin default to True, but AutoLowercaseUrnsProcessor gates on the
-        # key being PRESENT IN THE RECIPE rather than on the parsed value, so
-        # omitting it leaves the processor off and warns. See
-        # test_omitting_convert_urns_to_lowercase_warns below.
+        # Set explicitly, exactly as the fixture recipes do. The source excludes
+        # AutoLowercaseUrnsProcessor (which gates on the key being PRESENT IN THE
+        # RECIPE, not on the parsed value), so setting it must be equivalent to
+        # omitting it -- pinned by
+        # test_convert_urns_to_lowercase_key_presence_is_irrelevant below.
         config["convert_urns_to_lowercase"] = True
     if stateful:
         config["stateful_ingestion"] = {
@@ -255,13 +262,17 @@ def _pipeline_config(
     )
 
 
-def _run_pipeline(config: PipelineConfig) -> Pipeline:
+def _run_pipeline(
+    config: PipelineConfig, connector_config: Optional[Dict[str, Any]] = None
+) -> Pipeline:
     with mock.patch("snowflake.connector.connect") as mock_connect:
         sf_connection = mock.MagicMock()
         sf_cursor = mock.MagicMock()
         mock_connect.return_value = sf_connection
         sf_connection.cursor.return_value = sf_cursor
-        sf_cursor.execute.side_effect = default_query_results
+        sf_cursor.execute.side_effect = partial(
+            default_query_results, connector_config=connector_config
+        )
 
         pipeline = Pipeline(config=config)
         pipeline.run()
@@ -380,18 +391,60 @@ def test_stateful_ingestion_emits_the_same_workunits(tmp_path, mock_datahub_grap
     assert pipeline.sink.get_report().total_records_written == len(stateful_records)
 
 
-def test_omitting_convert_urns_to_lowercase_warns(tmp_path):
-    """Leaving the key out of the recipe disables lowercasing, and says so.
+def test_convert_urns_to_lowercase_key_presence_is_irrelevant(tmp_path):
+    """Setting the key and omitting it must produce byte-identical records.
 
-    ``AutoLowercaseUrnsProcessor.should_enable`` deliberately reads the raw
-    recipe rather than the parsed config, to keep dataset identity stable for
-    deployments that predate the flag. This source overrides the mixin default
-    to True, so a recipe that omits the key gets the opposite of the documented
-    default -- pinned here because it lives in the pipeline's processor chain,
-    which no unit test constructs.
+    ``AutoLowercaseUrnsProcessor.should_enable`` reads the raw recipe rather than
+    the parsed config, so for a source that overrides the mixin default to True
+    the key's mere presence used to flip behaviour. This source excludes that
+    processor, so the only thing ``convert_urns_to_lowercase`` still drives is
+    the in-source fold in ``SnowflakeIdentifierBuilder`` -- which reads the
+    parsed value and therefore cannot see the difference.
     """
-    output_file = tmp_path / "no_lowercase.json"
-    pipeline = _run_pipeline(_pipeline_config(output_file, lowercase_urns=False))
+    with_key = tmp_path / "with_key.json"
+    without_key = tmp_path / "without_key.json"
 
+    pipeline = _run_pipeline(_pipeline_config(with_key))
+    _run_pipeline(_pipeline_config(without_key, lowercase_urns=False))
+
+    # systemMetadata carries a per-run runId and timestamp, so only the aspects
+    # themselves are comparable across two runs.
+    def _aspects(path: pathlib.Path) -> List[Dict[str, Any]]:
+        return [
+            {key: value for key, value in record.items() if key != "systemMetadata"}
+            for record in _records(path)
+        ]
+
+    assert _aspects(with_key) == _aspects(without_key)
+    # The framework's "leaving it disabled" warning belongs to the processor we
+    # exclude; it must not reach an operator who never had that behaviour.
     titles = [entry.title for entry in pipeline.source.get_report().warnings]
-    assert "URN lowercasing not applied" in titles
+    assert "URN lowercasing not applied" not in titles
+
+
+def test_upstream_urns_keep_their_case(tmp_path):
+    """A mixed-case upstream table must reach DataHub with its case intact.
+
+    Postgres, MySQL and SQL Server all default ``convert_urns_to_lowercase`` to
+    False, so their sources write ``"Public"."MyTable"`` verbatim. Folding this
+    connector's inlet would point the edge at a dataset that does not exist, and
+    nothing downstream reports that. The rest of the fixture is all-lowercase, so
+    only a mixed-case identifier can detect a regression here; the destination in
+    the same assertion proves the fold still applies to the Snowflake side.
+    """
+    output_file = tmp_path / "mixed_case.json"
+    mixed_case_config = copy.deepcopy(CONNECTOR_CONFIG_JSON)
+    mixed_case_config["configuration"][1]["properties"][
+        "Included Comma Separated Source Table Names"
+    ] = _wrap('"Public"."MyTable"')
+
+    _run_pipeline(_pipeline_config(output_file), connector_config=mixed_case_config)
+
+    assert _aspect(_records(output_file), JOB_URN, "dataJobInputOutput") == {
+        "inputDatasets": [
+            "urn:li:dataset:(urn:li:dataPlatform:postgres,mysourcedb.Public.MyTable,PROD)"
+        ],
+        "outputDatasets": [
+            "urn:li:dataset:(urn:li:dataPlatform:snowflake,my_db.public.mytable,PROD)"
+        ],
+    }

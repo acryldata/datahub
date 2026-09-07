@@ -46,6 +46,13 @@ side of the edge: `source_platform_instance` and `source_env` must match the rec
 system a connector reads from (e.g. your `postgres` recipe). Both default to unset /
 this source's `env`, which is correct only when that recipe uses no platform instance.
 
+Upstream table and schema names are emitted exactly as the connector's configuration spells them.
+`convert_urns_to_lowercase` applies to the destination Snowflake side only, because `postgres`,
+`mysql` and `mssql` all preserve identifier case by default — folding the upstream name would point
+the edge at a dataset none of those recipes ever wrote. If you do run one of those recipes with
+`convert_urns_to_lowercase: true`, its datasets are lowercased and this connector's upstream URNs
+will not match them.
+
 **A connector is catalogued but has no lineage.** Either its destination schema strategy is not
 `SOURCE_SCHEMA`, or it selects tables by pattern rather than by name. Both are counted in the
 ingestion report.

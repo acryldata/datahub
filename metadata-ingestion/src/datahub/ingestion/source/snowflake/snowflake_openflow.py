@@ -562,6 +562,27 @@ class SnowflakeOpenflowSource(StatefulIngestionSourceBase, TestableSource):
         config = SnowflakeOpenflowSourceConfig.model_validate(config_dict)
         return cls(config, ctx)
 
+    def get_excluded_workunit_processors(self):
+        # Deferred import: datahub.ingestion.workunit_processors imports back into
+        # datahub.ingestion.api.source, which every source module is loaded from.
+        from datahub.ingestion.workunit_processors.auto_lowercase_urns import (
+            AutoLowercaseUrnsProcessor,
+        )
+
+        # This source emits dataset URNs for two different platforms, and only one
+        # of them may be folded. The destination Snowflake URNs are already folded
+        # in-source by SnowflakeIdentifierBuilder.snowflake_identifier() from the
+        # parsed convert_urns_to_lowercase, so the pipeline-level pass adds nothing
+        # for them. What it does add is damage: it folds every dataset URN in the
+        # stream, including the postgres/mysql/mssql upstream inlets that
+        # _lineage_for_connector builds verbatim to match what those platforms'
+        # own sources wrote. Those sources default convert_urns_to_lowercase to
+        # False (LowerCaseDatasetUrnConfigMixin), so a folded inlet joins to
+        # nothing for any case-preserving upstream. lowercase_dataset_urns()
+        # offers no per-platform or per-aspect exemption, so the only way to keep
+        # the inlets verbatim is to keep the processor off this source entirely.
+        return [AutoLowercaseUrnsProcessor]
+
     def get_report(self) -> SnowflakeOpenflowReport:
         return self.report
 

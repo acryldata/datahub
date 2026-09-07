@@ -17,6 +17,9 @@ source:
     # nothing.
     snowflake_platform_instance: null
     snowflake_env: PROD
+    # Folds the destination Snowflake identifiers only. Upstream identifiers are
+    # always emitted verbatim -- postgres/mysql/mssql preserve case by default.
+    convert_urns_to_lowercase: true
 
     # Coordinates of the upstream datasets lineage points at -- the systems
     # Openflow connectors read from. These MUST match the recipe that ingests
