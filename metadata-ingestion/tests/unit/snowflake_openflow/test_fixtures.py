@@ -49,11 +49,23 @@ def test_fixture_recipe_validates_as_pipeline(filename):
 
 
 @pytest.mark.parametrize("filename", FIXTURES)
-def test_fixture_sink_mode_is_sync(filename):
-    # Verify that each fixture uses SYNC mode for the datahub-rest sink
-    # to ensure assertions observe a settled state (not async-batch race condition).
+def test_fixture_sink_does_not_use_sync_mode(filename):
+    # SYNC is banned here, and this assertion is the guard against it coming back.
+    #
+    # On GMS v1.5.0.6 the datahub-rest sink in SYNC mode writes records but does
+    # not count them: total_records_written stays 0 and the pipeline reports
+    # "produced 0 events". Measured with a plain file source yielding one aspect --
+    # SYNC reported 0 where ASYNC and ASYNC_BATCH both reported 3 -- and the write
+    # itself was confirmed by reading systemMetadata.lastObserved back from GMS,
+    # which updated 1.8s after a run the sink had reported as empty.
+    #
+    # That matters because the milestone verifier and the capability check both read
+    # that count, so SYNC makes a healthy run look like it emitted nothing. SYNC was
+    # originally set here on the theory that it would remove an async-batch race in
+    # the M3 assertion; it did not fix M3 (the real defect was the assertion's
+    # direction) and it broke the accounting instead.
     recipe = yaml.safe_load((FIXTURE_DIR / filename).read_text())
-    assert recipe["sink"]["config"]["mode"] == "SYNC"
+    assert recipe["sink"]["config"].get("mode") != "SYNC"
 
 
 def _resolve_template_vars(recipe: dict[str, Any]) -> dict[str, Any]:
