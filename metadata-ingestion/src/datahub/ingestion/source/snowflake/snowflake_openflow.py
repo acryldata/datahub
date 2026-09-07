@@ -8,11 +8,25 @@ from datahub.configuration.common import AllowDenyPattern
 from datahub.emitter.mce_builder import make_dataset_urn_with_platform_instance
 from datahub.emitter.mcp_builder import ContainerKey, gen_containers
 from datahub.ingestion.api.common import PipelineContext
+from datahub.ingestion.api.decorators import (
+    SupportStatus,
+    capability,
+    config_class,
+    platform_name,
+    support_status,
+)
+from datahub.ingestion.api.source import (
+    CapabilityReport,
+    SourceCapability,
+    TestableSource,
+    TestConnectionReport,
+)
 from datahub.ingestion.api.workunit import MetadataWorkUnit
 from datahub.ingestion.source.common.subtypes import (
     DataFlowSubTypes,
     DataJobSubTypes,
     GenericContainerSubTypes,
+    SourceCapabilityModifier,
 )
 from datahub.ingestion.source.snowflake.snowflake_connection import SnowflakeConnection
 from datahub.ingestion.source.snowflake.snowflake_openflow_config import (
@@ -42,6 +56,11 @@ from datahub.sdk.datajob import DataJob
 logger = logging.getLogger(__name__)
 
 PLATFORM = "openflow"
+
+SNOWFLAKE_SOURCE_HINT = (
+    "Not applicable: Openflow moves data and holds no catalog of its own. Use the "
+    "`snowflake` source for the destination tables."
+)
 
 # --- Config-derived lineage constants ---------------------------------------
 
@@ -229,7 +248,56 @@ def build_connector_job(
 # --- Source -----------------------------------------------------------------
 
 
-class SnowflakeOpenflowSource(StatefulIngestionSourceBase):
+@platform_name("Snowflake Openflow", id="snowflake-openflow")
+@config_class(SnowflakeOpenflowSourceConfig)
+@support_status(SupportStatus.ALPHA)
+@capability(SourceCapability.PLATFORM_INSTANCE, "Enabled by default")
+@capability(
+    SourceCapability.CONTAINERS,
+    "Enabled by default",
+    subtype_modifier=[
+        SourceCapabilityModifier.OPENFLOW_DEPLOYMENT,
+        SourceCapabilityModifier.OPENFLOW_RUNTIME,
+    ],
+)
+@capability(
+    SourceCapability.LINEAGE_COARSE,
+    "Derived from each connector's own configuration; disable with "
+    "`include_openflow_lineage: false`",
+)
+@capability(SourceCapability.OWNERSHIP, "Extracted from each object's OWNER")
+@capability(
+    SourceCapability.DELETION_DETECTION,
+    "Enabled by default via stateful ingestion, using DELETED_ON from the "
+    "ACCOUNT_USAGE views",
+    supported=True,
+)
+@capability(SourceCapability.TEST_CONNECTION, "Enabled by default")
+@capability(SourceCapability.SCHEMA_METADATA, SNOWFLAKE_SOURCE_HINT, supported=False)
+@capability(
+    SourceCapability.LINEAGE_FINE,
+    "Not supported: NiFi processors operate on FlowFiles rather than typed SQL, so "
+    "there is no statement to parse for column mapping.",
+    supported=False,
+)
+@capability(SourceCapability.DATA_PROFILING, SNOWFLAKE_SOURCE_HINT, supported=False)
+@capability(
+    SourceCapability.USAGE_STATS,
+    "Not supported: OPENFLOW_USAGE_HISTORY reports credit consumption, not dataset "
+    "usage. Connector run history is available separately via `include_run_history`.",
+    supported=False,
+)
+@capability(
+    SourceCapability.TAGS,
+    "Not supported: the Openflow object views expose no tag column.",
+    supported=False,
+)
+@capability(
+    SourceCapability.DOMAINS,
+    "Not supported: domains are assigned in DataHub rather than sourced from Openflow.",
+    supported=False,
+)
+class SnowflakeOpenflowSource(StatefulIngestionSourceBase, TestableSource):
     def __init__(
         self, config: SnowflakeOpenflowSourceConfig, ctx: PipelineContext
     ) -> None:
@@ -257,6 +325,36 @@ class SnowflakeOpenflowSource(StatefulIngestionSourceBase):
     def close(self) -> None:
         self.connection.close()
         super().close()
+
+    @staticmethod
+    def test_connection(config_dict: Dict[str, Any]) -> TestConnectionReport:
+        config = SnowflakeOpenflowSourceConfig.model_validate(config_dict)
+        report = TestConnectionReport()
+        try:
+            connection = config.connection.get_connection()
+        except Exception as exc:
+            report.basic_connectivity = CapabilityReport(
+                capable=False, failure_reason=str(exc)
+            )
+            return report
+        try:
+            report.basic_connectivity = CapabilityReport(capable=True)
+            # A successful connection says nothing about Openflow visibility,
+            # which is granted per object. Probe it separately so a role missing
+            # MONITOR is reported here rather than as an empty ingestion.
+            rows = list(connection.query(SnowflakeOpenflowQuery.show_deployments()))
+            report.capability_report = {
+                SourceCapability.CONTAINERS: CapabilityReport(
+                    capable=bool(rows),
+                    failure_reason=None
+                    if rows
+                    else "No Openflow deployments are visible to this role. Grant "
+                    "MONITOR on the deployments and runtimes to ingest.",
+                )
+            }
+        finally:
+            connection.close()
+        return report
 
     def _deployment_key(self, deployment: OpenflowDeployment) -> OpenflowDeploymentKey:
         return OpenflowDeploymentKey(
