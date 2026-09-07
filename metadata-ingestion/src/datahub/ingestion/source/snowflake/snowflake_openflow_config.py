@@ -14,6 +14,9 @@ from datahub.ingestion.source.snowflake.snowflake_config import (
 from datahub.ingestion.source.snowflake.snowflake_connection import (
     SnowflakeConnectionConfig,
 )
+from datahub.ingestion.source.state.stale_entity_removal_handler import (
+    StatefulStaleMetadataRemovalConfig,
+)
 from datahub.ingestion.source.state.stateful_ingestion_base import (
     StatefulIngestionConfigBase,
 )
@@ -27,6 +30,16 @@ class SnowflakeOpenflowSourceConfig(
     connection: SnowflakeConnectionConfig = Field(
         description="Snowflake connection details. Reused unchanged from the snowflake "
         "family, so key-pair and OAuth authentication behave identically.",
+    )
+
+    # StatefulIngestionConfigBase leaves this unparameterized, so without this
+    # override it types as the plain StatefulIngestionConfig, which has no
+    # remove_stale_metadata / fail_safe_threshold fields. The stale entity
+    # removal handler reads both; without this override, stale removal is
+    # silently a no-op and mypy does not catch it (the framework's call site
+    # carries a `# type: ignore[arg-type]`).
+    stateful_ingestion: Optional[StatefulStaleMetadataRemovalConfig] = Field(
+        default=None, description="Stateful ingestion config."
     )
 
     deployment_pattern: AllowDenyPattern = Field(
