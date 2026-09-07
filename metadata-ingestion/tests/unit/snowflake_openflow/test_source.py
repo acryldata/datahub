@@ -8,6 +8,7 @@ from datahub.ingestion.source.snowflake.snowflake_openflow_config import (
     SnowflakeOpenflowSourceConfig,
 )
 from datahub.ingestion.source.snowflake.snowflake_openflow_query import (
+    CONNECTOR_HISTORY,
     DEPLOYMENT_HISTORY,
     RUNTIME_HISTORY,
     SnowflakeOpenflowQuery,
@@ -71,17 +72,24 @@ def _fake_query_rows(
 def test_paged_history_stops_on_null_created_on_boundary():
     # A full page whose last row has a NULL CREATED_ON must not become the
     # literal cursor string "None" -- that would produce a next query of
-    # `WHERE CREATED_ON > 'None'`. Asserting len(calls) == 1 proves no such
-    # second call was ever attempted.
+    # `WHERE CREATED_ON > 'None'`. The fake is bounded to a few repeats of
+    # the NULL-boundary page before it goes empty: a lone Guard-1 regression
+    # would still be caught by Guard 2 at the second call (wrong warning,
+    # fast failure), but with *both* guards gone nothing else would stop the
+    # loop, so the bound is what turns that case into an immediate
+    # call-count assertion failure instead of an unbounded loop.
     source = _make_source()
     page_size = SnowflakeOpenflowQuery.PAGE_SIZE
     full_page = [_row(f"2024-01-01T00:00:{i:02d}") for i in range(page_size - 1)] + [
         _row(None)
     ]
     calls: List[str] = []
+    max_null_boundary_pages = 3  # generous margin above the 1 call the guard allows
 
     def fake_query_rows(query: str) -> List[Dict[str, Any]]:
         calls.append(query)
+        if len(calls) > max_null_boundary_pages:
+            return []
         return full_page
 
     source._query_rows = fake_query_rows  # type: ignore[method-assign]
@@ -96,15 +104,21 @@ def test_paged_history_stops_on_null_created_on_boundary():
 
 def test_paged_history_stops_on_non_advancing_cursor():
     # A full page where every row shares one CREATED_ON can never advance the
-    # cursor. Regressing this guard turns this test into an infinite loop, so
-    # the test terminating at all is itself part of what it verifies.
+    # cursor. The fake is deliberately bounded to a few repeats of the tied
+    # page before it goes empty, so that regressing the cursor-equality
+    # guard fails this test on the call-count assertion below -- fast and
+    # self-explaining -- rather than looping unboundedly against an
+    # unconditional fake.
     source = _make_source()
     page_size = SnowflakeOpenflowQuery.PAGE_SIZE
     tied_page = [_row("2024-01-01T00:00:00") for _ in range(page_size)]
     calls: List[str] = []
+    max_tied_pages = 3  # generous margin above the 2 calls the guard allows
 
     def fake_query_rows(query: str) -> List[Dict[str, Any]]:
         calls.append(query)
+        if len(calls) > max_tied_pages:
+            return []
         return tied_page
 
     source._query_rows = fake_query_rows  # type: ignore[method-assign]
@@ -112,8 +126,10 @@ def test_paged_history_stops_on_non_advancing_cursor():
 
     # Page 1: cursor None -> "…:00" advances the cursor once. Page 2: the
     # cursor recomputes to the same "…:00" value, and the guard stops there.
-    assert rows == tied_page + tied_page
+    # If that guard were removed, the fake would keep being called past
+    # max_tied_pages, and this assertion is what would catch it.
     assert len(calls) == 2
+    assert rows == tied_page + tied_page
     titles = _warning_titles(source.report)
     assert "Pagination stalled on identical timestamps" in titles
     # Two full pages were consumed before the guard fired, so the separate
@@ -243,7 +259,16 @@ def test_orphaned_runtime_is_skipped_with_warning_and_no_exception():
             return deployment_show
         if query == SnowflakeOpenflowQuery.show_runtimes():
             return runtime_show
-        if DEPLOYMENT_HISTORY in query or RUNTIME_HISTORY in query:
+        # get_workunits_internal also fetches connectors (Task 9); this test
+        # only cares about the runtime/deployment pairing, so connectors are
+        # deliberately empty rather than asserted on here.
+        if query == SnowflakeOpenflowQuery.show_connectors():
+            return []
+        if (
+            DEPLOYMENT_HISTORY in query
+            or RUNTIME_HISTORY in query
+            or CONNECTOR_HISTORY in query
+        ):
             return []
         raise AssertionError(f"unexpected query: {query!r}")
 
