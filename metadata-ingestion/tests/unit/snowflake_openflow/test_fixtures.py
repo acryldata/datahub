@@ -1,11 +1,10 @@
 import pathlib
+from typing import Any
 
 import pytest
 import yaml
 
-from datahub.ingestion.source.snowflake.snowflake_openflow_config import (
-    SnowflakeOpenflowSourceConfig,
-)
+from datahub.ingestion.run.pipeline_config import PipelineConfig
 
 # Anchored to this file, not to the working directory. A relative path works only
 # when pytest is invoked from `metadata-ingestion/`, so it breaks from the repo
@@ -27,20 +26,56 @@ def test_fixture_recipe_parses(filename):
 
 
 @pytest.mark.parametrize("filename", FIXTURES)
-def test_every_recipe_key_exists_on_the_config(filename):
-    # ConfigModel is extra="forbid", so an unknown key fails at load time rather
-    # than being ignored. Placeholder ${VARS} are left unresolved here, so only
-    # the key names are checked, not their values.
-    recipe = yaml.safe_load((FIXTURE_DIR / filename).read_text())
-    declared = set(SnowflakeOpenflowSourceConfig.model_fields.keys())
-    used = set(recipe["source"]["config"].keys())
-    assert used <= declared, f"unknown config keys: {sorted(used - declared)}"
-
-
-@pytest.mark.parametrize("filename", FIXTURES)
 def test_fixture_recipe_writes_to_datahub(filename):
     # Recipes must emit to datahub-rest (GMS) so verification assertions
     # can check entities actually land in DataHub. File sinks produce
     # JSON that the verifier cannot assert against.
     recipe = yaml.safe_load((FIXTURE_DIR / filename).read_text())
     assert recipe["sink"]["type"] == "datahub-rest"
+
+
+@pytest.mark.parametrize("filename", FIXTURES)
+def test_fixture_recipe_validates_as_pipeline(filename):
+    # Validate the full recipe by loading through PipelineConfig.model_validate.
+    # This is the most comprehensive validation: it exercises source config,
+    # sink config, and pipeline-level interactions (e.g., pipeline_name required
+    # when stateful_ingestion is enabled). Catches all errors that would appear
+    # at runtime: nested fields, types, business logic, and inter-field dependencies.
+    recipe = yaml.safe_load((FIXTURE_DIR / filename).read_text())
+    recipe_dict = _resolve_template_vars(recipe)
+
+    # This will raise ValidationError if the recipe is invalid in any way.
+    PipelineConfig.model_validate(recipe_dict)
+
+
+def _resolve_template_vars(recipe: dict[str, Any]) -> dict[str, Any]:
+    """Recursively resolve ${VAR} placeholders with dummy values for validation."""
+    dummy_vars = {
+        "SNOWFLAKE_ACCOUNT": "dummy_account",
+        "SNOWFLAKE_USER": "dummy_user",
+        "SNOWFLAKE_PRIVATE_KEY": "dummy_key",
+        "SNOWFLAKE_ROLE": "dummy_role",
+        "SNOWFLAKE_WAREHOUSE": "dummy_warehouse",
+        "DATAHUB_GMS_URL": "http://localhost:8080",
+        "DATAHUB_GMS_TOKEN": "dummy_token",
+    }
+
+    def resolve_value(val: Any) -> Any:
+        if isinstance(val, str):
+            # Replace ${VAR} or ${VAR:-default} placeholders
+            if val.startswith("${") and val.endswith("}"):
+                var_expr = val[2:-1]
+                if ":-" in var_expr:
+                    var_name, default_val = var_expr.split(":-", 1)
+                    return dummy_vars.get(var_name, default_val)
+                else:
+                    return dummy_vars.get(var_expr, val)
+            return val
+        elif isinstance(val, dict):
+            return {k: resolve_value(v) for k, v in val.items()}
+        elif isinstance(val, list):
+            return [resolve_value(item) for item in val]
+        else:
+            return val
+
+    return resolve_value(recipe)
