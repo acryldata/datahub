@@ -1,7 +1,24 @@
+from typing import Any, Dict, Iterable, List
+
+from datahub.ingestion.api.workunit import MetadataWorkUnit
 from datahub.ingestion.source.snowflake.snowflake_openflow import (
     OpenflowDeploymentKey,
     OpenflowRuntimeKey,
+    SnowflakeOpenflowSource,
 )
+from datahub.ingestion.source.snowflake.snowflake_openflow_config import (
+    SnowflakeOpenflowSourceConfig,
+)
+from datahub.ingestion.source.snowflake.snowflake_openflow_query import (
+    CONNECTOR_HISTORY,
+    DEPLOYMENT_HISTORY,
+    RUNTIME_HISTORY,
+    SnowflakeOpenflowQuery,
+)
+from datahub.ingestion.source.snowflake.snowflake_openflow_report import (
+    SnowflakeOpenflowReport,
+)
+from datahub.metadata.schema_classes import ContainerClass
 
 PLATFORM = "openflow"
 DEPLOYMENT_KEY = "hq8crgi3"
@@ -52,3 +69,121 @@ def test_platform_instance_changes_the_urn():
         platform=PLATFORM, env="PROD", instance="acct1", deployment=DEPLOYMENT_KEY
     )
     assert plain.as_urn() != scoped.as_urn()
+
+
+# --- Connector nesting ------------------------------------------------------
+
+DEPLOYMENT_NAME = "dep-a"
+DATAFLOW_URN_PREFIX = "urn:li:dataFlow:"
+CONTAINER_URN_PREFIX = "urn:li:container:"
+RUNTIME_NAME = "MyRuntime"
+MINIMAL_CONNECTION = {
+    "connection": {
+        "account_id": "abc12345",
+        "username": "user",
+        "password": "pass",
+    }
+}
+
+
+def _make_source(**config_overrides: Any) -> SnowflakeOpenflowSource:
+    # Same seam as test_source.py / test_ownership.py: bypass __init__ so no
+    # Snowflake connection is opened, and drive extraction through _query_rows.
+    config = SnowflakeOpenflowSourceConfig.model_validate(
+        {**MINIMAL_CONNECTION, **config_overrides}
+    )
+    source = object.__new__(SnowflakeOpenflowSource)
+    source.config = config
+    source.platform = PLATFORM
+    source.report = SnowflakeOpenflowReport()
+    return source
+
+
+def _fake_query_rows(
+    deployment_show: List[Dict[str, Any]],
+    runtime_show: List[Dict[str, Any]],
+    connector_show: List[Dict[str, Any]],
+) -> Any:
+    def fake(query: str) -> List[Dict[str, Any]]:
+        if query == SnowflakeOpenflowQuery.show_deployments():
+            return deployment_show
+        if query == SnowflakeOpenflowQuery.show_runtimes():
+            return runtime_show
+        if query == SnowflakeOpenflowQuery.show_connectors():
+            return connector_show
+        if (
+            DEPLOYMENT_HISTORY in query
+            or RUNTIME_HISTORY in query
+            or CONNECTOR_HISTORY in query
+        ):
+            return []
+        raise AssertionError(f"unexpected query: {query!r}")
+
+    return fake
+
+
+def _source_with_one_connector(connector_runtime_name: str) -> SnowflakeOpenflowSource:
+    source = _make_source()
+    source._query_rows = _fake_query_rows(  # type: ignore[method-assign]
+        [{"key": DEPLOYMENT_KEY, "name": DEPLOYMENT_NAME}],
+        [{"key": RUNTIME_KEY, "name": RUNTIME_NAME, "deployment": DEPLOYMENT_NAME}],
+        [{"name": "pg_cdc", "runtime": connector_runtime_name}],
+    )
+    return source
+
+
+def _container_aspects(
+    workunits: Iterable[MetadataWorkUnit], urn_prefix: str
+) -> List[str]:
+    return [
+        aspect.container
+        for workunit in workunits
+        if workunit.get_urn().startswith(urn_prefix)
+        for aspect in [workunit.get_aspect_of_type(ContainerClass)]
+        if aspect is not None
+    ]
+
+
+def test_connector_flow_is_nested_under_its_runtime_container():
+    # Without a container the dataFlow has no parent, so AutoBrowsePathV2Processor
+    # emits no browse path for it and the connector never appears under its
+    # runtime in the browse tree.
+    workunits = list(_source_with_one_connector(RUNTIME_NAME).get_workunits_internal())
+
+    expected_urn = OpenflowRuntimeKey(
+        platform=PLATFORM,
+        env="PROD",
+        deployment=DEPLOYMENT_KEY,
+        runtime=RUNTIME_KEY,
+    ).as_urn()
+    assert _container_aspects(workunits, DATAFLOW_URN_PREFIX) == [expected_urn]
+
+
+def test_connector_flow_container_is_the_runtime_container_actually_emitted():
+    # The parent the flow points at must be the very container the run emitted --
+    # not a separately rebuilt key that could drift from it.
+    workunits = list(_source_with_one_connector(RUNTIME_NAME).get_workunits_internal())
+
+    emitted_container_urns = {
+        workunit.get_urn()
+        for workunit in workunits
+        if workunit.get_urn().startswith(CONTAINER_URN_PREFIX)
+    }
+    flow_parents = _container_aspects(workunits, DATAFLOW_URN_PREFIX)
+
+    assert len(flow_parents) == 1
+    assert flow_parents[0] in emitted_container_urns
+
+
+def test_connector_flow_has_no_container_when_its_runtime_is_not_visible():
+    # SHOW OPENFLOW CONNECTORS is account-wide while runtimes are privilege- and
+    # pattern-filtered, so a connector can name a runtime this run never saw. It
+    # is still emitted, just un-nested -- dropping it would lose the connector.
+    workunits = list(
+        _source_with_one_connector("a-runtime-we-cannot-see").get_workunits_internal()
+    )
+
+    assert _container_aspects(workunits, DATAFLOW_URN_PREFIX) == []
+    assert any(
+        workunit.get_urn().startswith(DATAFLOW_URN_PREFIX) for workunit in workunits
+    )

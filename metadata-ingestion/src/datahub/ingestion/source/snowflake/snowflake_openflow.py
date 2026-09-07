@@ -59,6 +59,7 @@ from datahub.ingestion.source.state.stateful_ingestion_base import (
 from datahub.metadata.schema_classes import OwnerClass, OwnershipTypeClass
 from datahub.sdk.dataflow import DataFlow
 from datahub.sdk.datajob import DataJob
+from datahub.utilities.sentinels import unset
 
 logger = logging.getLogger(__name__)
 
@@ -277,6 +278,7 @@ def build_connector_flow(
     connector: OpenflowConnector,
     platform_instance: Optional[str],
     env: str,
+    parent_container: Optional[OpenflowRuntimeKey] = None,
 ) -> DataFlow:
     # Keyed on the COMPOSITE <runtime_name>/<connector_name> (connector.key), not on
     # CONNECTOR_ID and not on the bare name. Three measured facts force this:
@@ -296,6 +298,11 @@ def build_connector_flow(
         subtype=DataFlowSubTypes.OPENFLOW_CONNECTOR,
         custom_properties=_connector_properties(connector),
         owners=_owner_classes(connector.owner),
+        # `unset`, not None: the SDK treats None as "this entity has no parent"
+        # and writes an EMPTY browsePathsV2, which then suppresses the one
+        # auto_browse_path_v2 would otherwise derive. `unset` leaves both
+        # aspects off the flow entirely.
+        parent_container=parent_container if parent_container is not None else unset,
     )
 
 
@@ -765,6 +772,13 @@ class SnowflakeOpenflowSource(StatefulIngestionSourceBase, TestableSource):
             if deployment.owner:
                 self.report.num_owners_emitted += 1
 
+        # Populated as runtime containers are emitted, then read by the connector
+        # loop below, so a connector's DataFlow can only ever point at a container
+        # this run actually emitted. Keyed on the runtime NAME because that is what
+        # a connector row carries (SHOW's `runtime` / the view's RUNTIME_NAME) --
+        # the opaque RUNTIME_KEY that keys the container is not on connector rows.
+        runtime_keys_by_name: Dict[str, OpenflowRuntimeKey] = {}
+
         for runtime in runtimes:
             parent_deployment = by_deployment_name.get(runtime.deployment_name)
             if parent_deployment is None:
@@ -777,8 +791,11 @@ class SnowflakeOpenflowSource(StatefulIngestionSourceBase, TestableSource):
                 )
                 continue
             self.report.num_runtimes += 1
+            runtime_key = self._runtime_key(runtime, parent_deployment)
+            if runtime.name:
+                runtime_keys_by_name[runtime.name] = runtime_key
             yield from gen_containers(
-                container_key=self._runtime_key(runtime, parent_deployment),
+                container_key=runtime_key,
                 name=runtime.display_name or runtime.name or runtime.key,
                 sub_types=[GenericContainerSubTypes.OPENFLOW_RUNTIME],
                 parent_container_key=self._deployment_key(parent_deployment),
@@ -791,10 +808,15 @@ class SnowflakeOpenflowSource(StatefulIngestionSourceBase, TestableSource):
 
         for connector in self._fetch_connectors():
             self.report.num_connectors += 1
+            # A miss leaves the flow un-nested rather than dropped: SHOW OPENFLOW
+            # CONNECTORS is account-wide, while runtimes are both privilege-filtered
+            # and runtime_pattern-filtered, so a connector can legitimately name a
+            # runtime this run never emitted.
             flow = build_connector_flow(
                 connector,
                 platform_instance=self.config.platform_instance,
                 env=self.config.env,
+                parent_container=runtime_keys_by_name.get(connector.runtime_name),
             )
             yield from flow.as_workunits()
             if connector.owner:
