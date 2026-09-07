@@ -52,5 +52,11 @@ this source's `env`, which is correct only when that recipe uses no platform ins
 `SOURCE_SCHEMA`, or it selects tables by pattern rather than by name. Both are counted in the
 ingestion report.
 
+**A connector is catalogued but does not appear under its runtime.** `SHOW OPENFLOW CONNECTORS` is
+account-wide while runtimes are privilege-filtered, so a connector can name a runtime this run never
+saw. The connector is still ingested, just not nested. Every such connector is counted in
+`num_connectors_without_runtime_parent`; the ones whose runtime was excluded by `runtime_pattern` are
+counted silently, and the rest also raise a warning — grant `MONITOR` on the runtime.
+
 **`GRANT MONITOR ON OPENFLOW CONNECTOR` fails.** Expected — `MONITOR` is not a valid privilege on
 that object type. Grant on the parent runtime instead.

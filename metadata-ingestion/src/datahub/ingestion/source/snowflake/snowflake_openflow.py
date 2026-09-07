@@ -4,8 +4,27 @@ import json
 import logging
 import pathlib
 import tempfile
-from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+)
 from urllib.parse import urlparse
+
+from snowflake.connector import errors as snowflake_errors
+from tenacity import (
+    Retrying,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
+from tenacity.before_sleep import before_sleep_log
 
 from datahub.configuration.common import AllowDenyPattern
 from datahub.emitter.mce_builder import (
@@ -87,6 +106,41 @@ PROP_INCLUDED_TABLE_PATTERN = "Included Source Table Pattern"
 PROP_DESTINATION_DATABASE = "Snowflake Destination Database"
 PROP_SCHEMA_STRATEGY = "Destination Schema Strategy"
 SCHEMA_STRATEGY_SOURCE_SCHEMA = "SOURCE_SCHEMA"
+
+# --- Stage GET retry --------------------------------------------------------
+
+# The per-connector config read is the one query in this source that is not a
+# single bulk statement: it runs once per connector and, unlike the three bulk
+# queries, it downloads a file over the network. SnowflakeConnection.query()
+# will not retry it -- its retry gates on "ACCOUNT_USAGE" appearing in the
+# query text, which a GET never does, and that gate is deliberately narrow
+# because it is shared with sources that also issue writes. So the retry lives
+# here, where the caller knows its own statement is a read.
+_STAGE_GET_MAX_ATTEMPTS = 3
+# Seconds. Produces waits of ~1s then ~2s. Read at call time rather than baked
+# into a module-level Retrying, so a unit test can set it to 0 and exercise the
+# loop without sleeping.
+_STAGE_GET_BACKOFF_MULTIPLIER = 1.0
+
+# Only transient, connection-class failures are retried. A ProgrammingError
+# (no READ on the version stage, no config.json at that URI) fails identically
+# on every attempt, so retrying it only triples the time to the same warning --
+# and a gate wide enough to catch it would also swallow real problems.
+# Enumerated one by one because snowflake-connector's error hierarchy is flat:
+# every class below derives straight from `Error`, alongside the deterministic
+# ones, so there is no transient base class to catch instead.
+_RETRYABLE_STAGE_GET_ERRORS: Tuple[Type[BaseException], ...] = (
+    OSError,  # socket level: ConnectionError, TimeoutError, DNS failures
+    snowflake_errors.OperationalError,
+    snowflake_errors.InterfaceError,
+    snowflake_errors.RequestTimeoutError,
+    snowflake_errors.RequestExceedMaxRetryError,
+    snowflake_errors.BadGatewayError,
+    snowflake_errors.GatewayTimeoutError,
+    snowflake_errors.InternalServerError,
+    snowflake_errors.ServiceUnavailableError,
+    snowflake_errors.OtherHTTPRetryableError,
+)
 
 # CONNECTOR_DEFINITION -> DataHub platform for the upstream side.
 CONNECTOR_DEFINITION_PLATFORM = {
@@ -476,47 +530,20 @@ class SnowflakeOpenflowSource(StatefulIngestionSourceBase, TestableSource):
         if not connector.version_location_uri:
             return None
         try:
-            with tempfile.TemporaryDirectory(
-                prefix="openflow-connector-config-"
-            ) as local_dir:
-                # GET, not `SELECT $1 FROM stage`: SELECT parses the file under
-                # Snowflake's default CSV file format, so $1 is only the text up
-                # to the first comma. Confirmed against a live connector's
-                # config.json (2921 bytes): $1 silently returned 24 bytes. An
-                # inline FILE_FORMAT=>(TYPE=JSON) argument is rejected as
-                # non-constant, and a named file format is DDL a read-only
-                # metadata role should not need. GET has no such assumption --
-                # it downloads the file whole.
-                #
-                # GET's result rows (filename/size/status) are discarded; they're
-                # an audit trail, not the content. The file is read back from
-                # `local_dir` below. Everything GET wrote there -- the config
-                # included -- is removed the moment this `with` block exits,
-                # success or failure, because it is a `tempfile.TemporaryDirectory`
-                # rather than a path this method chooses and cleans up itself.
-                # Nothing sensitive is at risk regardless: the config carries
-                # SECRET_REFERENCE placeholders rather than literal secret
-                # values (confirmed against a live connector's file), never
-                # resolved or logged anywhere in this method.
-                self._query_rows(
-                    SnowflakeOpenflowQuery.get_stage_file_to_local(
-                        connector.version_location_uri, CONFIG_FILENAME, local_dir
-                    )
-                )
-                downloaded = list(pathlib.Path(local_dir).iterdir())
-                if not downloaded:
-                    raise RuntimeError(
-                        "GET reported no error but produced no local file"
-                    )
-                content = downloaded[0].read_bytes()
-                # Whether a staged file arrives gzip-compressed depends on how
-                # it was staged (Snowflake's AUTO_COMPRESS behaviour), not on
-                # anything this connector controls. Detected via the gzip magic
-                # bytes rather than trusting a ".gz" filename suffix, since the
-                # suffix is a naming convention GET applies, not a guarantee.
-                if content[:2] == b"\x1f\x8b":
-                    content = gzip.decompress(content)
-                return json.loads(content)
+            # One bounded retry per connector, around the download only. A
+            # single transient blip would otherwise drop this connector's
+            # lineage for the whole run: the failure is caught below, counted,
+            # and never revisited.
+            retryer = Retrying(
+                retry=retry_if_exception_type(_RETRYABLE_STAGE_GET_ERRORS),
+                stop=stop_after_attempt(_STAGE_GET_MAX_ATTEMPTS),
+                wait=wait_exponential(multiplier=_STAGE_GET_BACKOFF_MULTIPLIER, max=4),
+                before_sleep=before_sleep_log(logger, logging.WARNING),
+                reraise=True,
+            )
+            return retryer(
+                self._download_connector_config, connector.version_location_uri
+            )
         except Exception as exc:
             self.report.num_config_reads_failed += 1
             self.report.warning(
@@ -528,6 +555,50 @@ class SnowflakeOpenflowSource(StatefulIngestionSourceBase, TestableSource):
                 exc=exc,
             )
             return None
+
+    def _download_connector_config(self, version_location_uri: str) -> Dict[str, Any]:
+        # One attempt. Each retry gets its OWN temporary directory, so a
+        # partial file left behind by a failed GET can never be picked up as
+        # the config by the attempt that follows it.
+        with tempfile.TemporaryDirectory(
+            prefix="openflow-connector-config-"
+        ) as local_dir:
+            # GET, not `SELECT $1 FROM stage`: SELECT parses the file under
+            # Snowflake's default CSV file format, so $1 is only the text up
+            # to the first comma. Confirmed against a live connector's
+            # config.json (2921 bytes): $1 silently returned 24 bytes. An
+            # inline FILE_FORMAT=>(TYPE=JSON) argument is rejected as
+            # non-constant, and a named file format is DDL a read-only
+            # metadata role should not need. GET has no such assumption --
+            # it downloads the file whole.
+            #
+            # GET's result rows (filename/size/status) are discarded; they're
+            # an audit trail, not the content. The file is read back from
+            # `local_dir` below. Everything GET wrote there -- the config
+            # included -- is removed the moment this `with` block exits,
+            # success or failure, because it is a `tempfile.TemporaryDirectory`
+            # rather than a path this method chooses and cleans up itself.
+            # Nothing sensitive is at risk regardless: the config carries
+            # SECRET_REFERENCE placeholders rather than literal secret
+            # values (confirmed against a live connector's file), never
+            # resolved or logged anywhere in this method.
+            self._query_rows(
+                SnowflakeOpenflowQuery.get_stage_file_to_local(
+                    version_location_uri, CONFIG_FILENAME, local_dir
+                )
+            )
+            downloaded = list(pathlib.Path(local_dir).iterdir())
+            if not downloaded:
+                raise RuntimeError("GET reported no error but produced no local file")
+            content = downloaded[0].read_bytes()
+            # Whether a staged file arrives gzip-compressed depends on how
+            # it was staged (Snowflake's AUTO_COMPRESS behaviour), not on
+            # anything this connector controls. Detected via the gzip magic
+            # bytes rather than trusting a ".gz" filename suffix, since the
+            # suffix is a naming convention GET applies, not a guarantee.
+            if content[:2] == b"\x1f\x8b":
+                content = gzip.decompress(content)
+            return json.loads(content)
 
     def _lineage_for_connector(
         self, connector: OpenflowConnector
@@ -814,11 +885,28 @@ class SnowflakeOpenflowSource(StatefulIngestionSourceBase, TestableSource):
             # CONNECTORS is account-wide, while runtimes are both privilege-filtered
             # and runtime_pattern-filtered, so a connector can legitimately name a
             # runtime this run never emitted.
+            #
+            # Matched EXACTLY, case included, and deliberately so. Both surfaces
+            # report the identifier as Snowflake stored it rather than re-casing
+            # it: a runtime created under a quoted, mixed-case name comes back in
+            # that same mixed case from SHOW OPENFLOW RUNTIMES (`name`), SHOW
+            # OPENFLOW CONNECTORS (`runtime`) and OPENFLOW_CONNECTOR_HISTORY
+            # (`RUNTIME_NAME`) alike -- measured on a live account, where a fold
+            # by either surface would have shown up on exactly such a name. The
+            # only lowercasing observed anywhere is in the derived RUNTIME_KEY
+            # slug, which this lookup does not use. So a case-insensitive fold
+            # added "just in case" would buy nothing and risk quietly nesting a
+            # connector under the wrong one of two runtimes whose names differ
+            # only in case (which quoted identifiers permit) -- worse than a
+            # miss, now that the miss is counted.
+            parent_runtime_key = runtime_keys_by_name.get(connector.runtime_name)
+            if parent_runtime_key is None:
+                self._report_connector_without_runtime_parent(connector)
             flow = build_connector_flow(
                 connector,
                 platform_instance=self.config.platform_instance,
                 env=self.config.env,
-                parent_container=runtime_keys_by_name.get(connector.runtime_name),
+                parent_container=parent_runtime_key,
             )
             yield from flow.as_workunits()
             if connector.owner:
@@ -833,6 +921,29 @@ class SnowflakeOpenflowSource(StatefulIngestionSourceBase, TestableSource):
             yield from job.as_workunits()
             if connector.owner:
                 self.report.num_owners_emitted += 1
+
+    def _report_connector_without_runtime_parent(
+        self, connector: OpenflowConnector
+    ) -> None:
+        self.report.num_connectors_without_runtime_parent += 1
+        if not self.config.runtime_pattern.allowed(connector.runtime_name):
+            # The operator asked for this runtime to be skipped, so its
+            # connectors arriving un-nested is the requested outcome. Warning
+            # on it every run is how a warning stops being read.
+            #
+            # The pattern is re-evaluated here rather than checking membership
+            # of report.filtered_runtimes: that is a LossyList, which keeps only
+            # the first handful of names, so an account filtering more runtimes
+            # than the list holds would start warning about deliberately
+            # filtered ones.
+            return
+        self.report.warning(
+            title="Connector with no visible parent runtime",
+            message="No runtime container was emitted for this connector's "
+            "runtime, so the connector is not nested under it. The runtime is "
+            "likely not visible to this role -- grant MONITOR on it.",
+            context=f"{connector.key}: runtime={connector.runtime_name!r}",
+        )
 
     @staticmethod
     def _deployment_properties(deployment: OpenflowDeployment) -> Dict[str, str]:

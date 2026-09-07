@@ -33,6 +33,11 @@ class SnowflakeOpenflowReport(StaleEntityRemovalSourceReport):
     # lineage only.
     num_connectors_without_enumerable_tables: int = 0
     num_config_reads_failed: int = 0
+    # Connectors whose runtime container was not emitted this run, so their
+    # DataFlow is un-nested. Counted even when the cause is a deliberate
+    # runtime_pattern filter (which warns nothing), so the total is visible
+    # rather than only its anomalous half.
+    num_connectors_without_runtime_parent: int = 0
 
     filtered_deployments: LossyList[str] = dataclasses.field(default_factory=LossyList)
     filtered_runtimes: LossyList[str] = dataclasses.field(default_factory=LossyList)

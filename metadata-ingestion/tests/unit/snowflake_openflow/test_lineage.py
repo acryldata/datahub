@@ -4,7 +4,9 @@ import pathlib
 from typing import Any, Callable, Dict, List, Optional
 
 import pytest
+from snowflake.connector.errors import OperationalError, ProgrammingError
 
+from datahub.ingestion.source.snowflake import snowflake_openflow
 from datahub.ingestion.source.snowflake.snowflake_openflow import (
     CONFIG_FILENAME,
     SCHEMA_STRATEGY_SOURCE_SCHEMA,
@@ -611,3 +613,92 @@ def test_lineage_inlet_env_follows_openflow_env_when_source_env_unset():
     assert inlets == [
         "urn:li:dataset:(urn:li:dataPlatform:postgres,appdb.public.testtable,DEV)"
     ]
+
+
+# --- Stage GET retry --------------------------------------------------------
+# The per-connector GET runs through SnowflakeConnection.query(), whose only
+# retry path gates on "ACCOUNT_USAGE" appearing in the query text. A GET never
+# matches, so without a retry of its own a single transient blip drops that
+# connector's lineage for the whole run.
+
+
+class _FlakyGet:
+    # Raises `error` for the first `failures` calls, then downloads normally.
+    def __init__(self, failures: int, error: BaseException) -> None:
+        self.failures = failures
+        self.error = error
+        self.calls = 0
+        self._download = _fake_get(json.dumps(CONFIG_JSON).encode())
+
+    def __call__(self, query: str) -> List[Dict[str, Any]]:
+        self.calls += 1
+        if self.calls <= self.failures:
+            raise self.error
+        return self._download(query)
+
+
+EXPECTED_OUTLETS = [
+    "urn:li:dataset:(urn:li:dataPlatform:snowflake,openflow_dev.public.testtable,PROD)"
+]
+
+
+@pytest.fixture
+def no_retry_backoff(monkeypatch: pytest.MonkeyPatch) -> None:
+    # The real backoff waits ~1s then ~2s, which is right for a network blip and
+    # wrong for a unit test. Only the wait is neutralised; which exceptions
+    # retry, and how many attempts there are, stay exactly as shipped.
+    monkeypatch.setattr(snowflake_openflow, "_STAGE_GET_BACKOFF_MULTIPLIER", 0)
+
+
+def test_stage_get_retries_a_transient_connection_error(
+    no_retry_backoff: None,
+) -> None:
+    source = _make_source()
+    flaky = _FlakyGet(
+        failures=2, error=OperationalError(msg="connection reset by peer")
+    )
+    source._query_rows = flaky  # type: ignore[assignment]
+
+    _, outlets = source._lineage_for_connector(_connector())
+
+    assert outlets == EXPECTED_OUTLETS
+    assert flaky.calls == 3
+    assert source.report.num_config_reads_failed == 0
+    assert "Could not read connector configuration" not in _warning_titles(
+        source.report
+    )
+
+
+def test_stage_get_gives_up_after_a_bounded_number_of_attempts(
+    no_retry_backoff: None,
+) -> None:
+    # Bounded: a stage that is genuinely unreachable must not retry forever, and
+    # the failure must be counted exactly once -- not once per attempt.
+    source = _make_source()
+    flaky = _FlakyGet(failures=99, error=OperationalError(msg="connection reset"))
+    source._query_rows = flaky  # type: ignore[assignment]
+
+    inlets, outlets = source._lineage_for_connector(_connector())
+
+    assert (inlets, outlets) == ([], [])
+    assert flaky.calls == 3
+    assert source.report.num_config_reads_failed == 1
+    assert "Could not read connector configuration" in _warning_titles(source.report)
+
+
+def test_stage_get_does_not_retry_a_deterministic_error() -> None:
+    # A missing READ grant, or no config.json on the stage, fails identically on
+    # every attempt. Retrying it only triples the time to the same warning, and
+    # a retry gate wide enough to catch it would also mask real problems.
+    source = _make_source()
+    flaky = _FlakyGet(
+        failures=99,
+        error=ProgrammingError(msg="File not found or not authorized", errno=2003),
+    )
+    source._query_rows = flaky  # type: ignore[assignment]
+
+    inlets, outlets = source._lineage_for_connector(_connector())
+
+    assert (inlets, outlets) == ([], [])
+    assert flaky.calls == 1
+    assert source.report.num_config_reads_failed == 1

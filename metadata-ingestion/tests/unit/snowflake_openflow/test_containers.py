@@ -1,4 +1,4 @@
-from typing import Any, Dict, Iterable, List
+from typing import Any, Dict, Iterable, List, Optional
 
 from datahub.ingestion.api.workunit import MetadataWorkUnit
 from datahub.ingestion.source.snowflake.snowflake_openflow import (
@@ -187,3 +187,51 @@ def test_connector_flow_has_no_container_when_its_runtime_is_not_visible():
     assert any(
         workunit.get_urn().startswith(DATAFLOW_URN_PREFIX) for workunit in workunits
     )
+
+
+# --- Orphaned connectors ----------------------------------------------------
+
+ORPHAN_WARNING_TITLE = "Connector with no visible parent runtime"
+
+
+def _warning_titles(report: SnowflakeOpenflowReport) -> List[Optional[str]]:
+    return [entry.title for entry in report.warnings]
+
+
+def test_connector_orphaned_by_an_unseen_runtime_is_counted_and_warned():
+    # A connector naming a runtime this run never saw at all is an anomaly: the
+    # runtime is invisible to the role, or the two surfaces disagree on its
+    # name. Without a counter and a warning the flow is silently un-nested and
+    # an operator cannot tell that from an intentional filter.
+    source = _source_with_one_connector("a-runtime-we-cannot-see")
+
+    list(source.get_workunits_internal())
+
+    assert source.report.num_connectors_without_runtime_parent == 1
+    assert ORPHAN_WARNING_TITLE in _warning_titles(source.report)
+
+
+def test_connector_orphaned_by_the_runtime_pattern_is_counted_but_not_warned():
+    # The operator asked not to ingest this runtime, so its connectors being
+    # un-nested is the requested outcome, not an anomaly -- warning on every run
+    # would train operators to ignore the warning. The counter still moves, so
+    # the total is visible either way.
+    source = _make_source(runtime_pattern={"deny": [RUNTIME_NAME]})
+    source._query_rows = _fake_query_rows(  # type: ignore[method-assign]
+        [{"key": DEPLOYMENT_KEY, "name": DEPLOYMENT_NAME}],
+        [{"key": RUNTIME_KEY, "name": RUNTIME_NAME, "deployment": DEPLOYMENT_NAME}],
+        [{"name": "pg_cdc", "runtime": RUNTIME_NAME}],
+    )
+
+    list(source.get_workunits_internal())
+
+    assert source.report.num_connectors_without_runtime_parent == 1
+    assert ORPHAN_WARNING_TITLE not in _warning_titles(source.report)
+
+
+def test_nested_connector_is_not_counted_as_orphaned():
+    source = _source_with_one_connector(RUNTIME_NAME)
+
+    list(source.get_workunits_internal())
+
+    assert source.report.num_connectors_without_runtime_parent == 0
