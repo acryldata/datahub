@@ -23,6 +23,14 @@ def test_empty_inventory_is_reported_as_a_possible_privilege_problem():
 
 
 def test_filtered_objects_are_recorded():
+    # Each object type keeps its own list, so a run can say which layer the
+    # patterns actually filtered rather than only that something was dropped.
     report = SnowflakeOpenflowReport()
     report.report_dropped_deployment("skipped-deployment")
+    report.report_dropped_runtime("skipped-runtime")
+    report.report_dropped_connector("skipped-connector")
+
     assert "skipped-deployment" in report.filtered_deployments
+    assert "skipped-runtime" in report.filtered_runtimes
+    assert "skipped-connector" in report.filtered_connectors
+    assert "skipped-connector" not in report.filtered_runtimes

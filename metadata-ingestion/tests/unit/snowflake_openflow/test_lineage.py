@@ -459,6 +459,88 @@ def test_lineage_for_connector_reports_missing_download_as_config_read_failure()
     assert "Could not read connector configuration" in _warning_titles(source.report)
 
 
+def test_lineage_for_connector_warns_on_unparseable_source_table_name():
+    # R13: partial lineage loss must not be silent. A connector that yields nine
+    # of its ten tables is indistinguishable from one that genuinely has nine, so
+    # removing this warning has to fail a test. Asserted by title -- a truthiness
+    # check on report.warnings would also pass on an unrelated warning.
+    source = _make_source()
+    connector = _connector()
+    config = {
+        "configuration": [
+            {
+                "name": "Replication table schema",
+                "properties": {
+                    "Included Comma Separated Source Table Names": _wrap(
+                        '"public"."mytable",noschema'
+                    )
+                },
+            },
+            {
+                "name": "Destination details",
+                "properties": {
+                    "Snowflake Destination Database": _wrap("MY_DB"),
+                    "Destination Schema Strategy": _wrap("SOURCE_SCHEMA"),
+                },
+            },
+        ]
+    }
+    source._query_rows = _fake_get(json.dumps(config).encode())  # type: ignore[assignment]
+
+    _, outlets = source._lineage_for_connector(connector)
+
+    assert "Unparseable source table name" in _warning_titles(source.report)
+    assert source.report.num_lineage_edges_skipped == 1
+    # Only the unqualified entry is lost -- the qualified one still emits.
+    assert outlets == [
+        "urn:li:dataset:(urn:li:dataPlatform:snowflake,my_db.public.mytable,PROD)"
+    ]
+
+
+def test_lineage_for_connector_warns_on_unrecognised_source_url_property():
+    # R20: an unknown Source-section URL key means no upstream dataset can be
+    # derived, while the downstream half still emits. Without the warning the
+    # run looks complete and half the lineage is quietly missing.
+    source = _make_source()
+    connector = _connector()
+    config = {
+        "configuration": [
+            {
+                "name": "Source",
+                "properties": {
+                    "Some Future Url Property": _wrap("jdbc:postgresql://host/mydb")
+                },
+            },
+            {
+                "name": "Replication table schema",
+                "properties": {
+                    "Included Comma Separated Source Table Names": _wrap(
+                        '"public"."mytable"'
+                    )
+                },
+            },
+            {
+                "name": "Destination details",
+                "properties": {
+                    "Snowflake Destination Database": _wrap("MY_DB"),
+                    "Destination Schema Strategy": _wrap("SOURCE_SCHEMA"),
+                },
+            },
+        ]
+    }
+    source._query_rows = _fake_get(json.dumps(config).encode())  # type: ignore[assignment]
+
+    inlets, outlets = source._lineage_for_connector(connector)
+
+    assert "Source connection URL property not recognised" in _warning_titles(
+        source.report
+    )
+    assert inlets == []
+    assert outlets == [
+        "urn:li:dataset:(urn:li:dataPlatform:snowflake,my_db.public.mytable,PROD)"
+    ]
+
+
 def test_lineage_for_connector_skips_unrecognised_schema_strategy():
     source = _make_source()
     connector = _connector()

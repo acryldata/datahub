@@ -27,6 +27,24 @@ class SnowflakeOpenflowSourceConfig(
     DatasetSourceConfigMixin,
     LowerCaseDatasetUrnConfigMixin,
 ):
+    """Recipe configuration for the Snowflake Openflow source.
+
+    Connection details are reused unchanged from the ``snowflake`` family. The
+    three allow/deny patterns filter the deployment, runtime and connector
+    objects that become Containers, DataFlows and DataJobs.
+
+    The remaining fields exist because lineage here is derived from each
+    connector's configuration rather than from observed queries: the URNs on
+    both ends of an edge are constructed, not looked up, so they only line up
+    with the recipes that actually own those tables if this config repeats
+    those recipes' coordinates. ``snowflake_platform_instance`` /
+    ``snowflake_env`` / ``convert_urns_to_lowercase`` must match the
+    ``snowflake`` recipe covering the destination account, and
+    ``source_platform_instance`` / ``source_env`` the recipe covering the
+    upstream system. A mismatch produces well-formed lineage pointing at
+    datasets that do not exist, which nothing downstream reports as an error.
+    """
+
     connection: SnowflakeConnectionConfig = Field(
         description="Snowflake connection details. Reused unchanged from the snowflake "
         "family, so key-pair and OAuth authentication behave identically.",

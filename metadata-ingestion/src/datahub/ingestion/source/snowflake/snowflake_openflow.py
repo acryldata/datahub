@@ -431,6 +431,25 @@ def build_connector_job(
     supported=False,
 )
 class SnowflakeOpenflowSource(StatefulIngestionSourceBase, TestableSource):
+    """Ingests Snowflake Openflow deployments, runtimes and connectors.
+
+    Openflow objects are enumerated with ``SHOW OPENFLOW ...`` and mapped as:
+    a deployment becomes a Container, a runtime a Container nested under it, and
+    each connector a DataFlow holding a single DataJob. Ownership comes from the
+    Snowflake object OWNER, which is a role, so it maps to a corpGroup.
+
+    Lineage is derived from **configuration**, not from observed runs. Each
+    connector's ``config.json`` is fetched from its version stage and parsed for
+    the source connection URL, the replicated table list and the destination
+    database plus schema strategy. That yields table-level edges from the
+    upstream platform's datasets to the Snowflake tables the connector writes.
+    Because the edges are config-derived, anything the configuration does not
+    state -- a table *pattern* instead of an explicit list, an unimplemented
+    destination schema strategy, an unrecognised connection-URL property -- is
+    reported as a warning and counted rather than guessed, so partial lineage
+    is never silent.
+    """
+
     def __init__(
         self, config: SnowflakeOpenflowSourceConfig, ctx: PipelineContext
     ) -> None:

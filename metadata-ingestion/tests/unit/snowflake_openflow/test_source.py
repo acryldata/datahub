@@ -1,6 +1,12 @@
 from typing import Any, Callable, Dict, List, Optional
 
+import pytest
+
 from datahub.configuration.common import AllowDenyPattern
+from datahub.ingestion.api.common import PipelineContext
+from datahub.ingestion.source.snowflake.snowflake_connection import (
+    SnowflakeConnectionConfig,
+)
 from datahub.ingestion.source.snowflake.snowflake_openflow import (
     SnowflakeOpenflowSource,
 )
@@ -280,3 +286,75 @@ def test_orphaned_runtime_is_skipped_with_warning_and_no_exception():
     assert source.report.num_deployments == 1
     assert source.report.num_runtimes == 0
     assert "Runtime with no visible parent deployment" in _warning_titles(source.report)
+
+
+# --- Lifecycle: the three methods the framework itself calls -----------------
+
+
+class _FakeConnection:
+    def __init__(self) -> None:
+        self.closed = False
+
+    def close(self) -> None:
+        self.closed = True
+
+
+@pytest.fixture
+def fake_snowflake_connection(monkeypatch: pytest.MonkeyPatch) -> _FakeConnection:
+    # __init__ opens a real Snowflake connection. These three tests must drive
+    # the real __init__ (that is the point of testing create/close), so the
+    # connection -- and only the connection -- is stubbed.
+    connection = _FakeConnection()
+    monkeypatch.setattr(
+        SnowflakeConnectionConfig, "get_connection", lambda self: connection
+    )
+    return connection
+
+
+def test_create_validates_the_recipe_into_the_config_class(
+    fake_snowflake_connection: _FakeConnection,
+) -> None:
+    # create() is the factory the source registry calls with the raw recipe
+    # dict. It must parse that dict through the config class -- handing the dict
+    # straight to __init__ would leave every default and validator unapplied.
+    ctx = PipelineContext(run_id="test-run")
+
+    source = SnowflakeOpenflowSource.create(
+        {**MINIMAL_CONNECTION, "deployment_pattern": {"allow": ["^prod-.*"]}}, ctx
+    )
+
+    assert isinstance(source, SnowflakeOpenflowSource)
+    assert isinstance(source.config, SnowflakeOpenflowSourceConfig)
+    assert source.ctx is ctx
+    assert source.config.deployment_pattern.allowed("prod-deployment")
+    assert not source.config.deployment_pattern.allowed("dev-deployment")
+    # A validator-supplied default, proving the dict went through validation.
+    assert source.config.snowflake_env == source.config.env
+
+
+def test_get_report_returns_the_live_report(
+    fake_snowflake_connection: _FakeConnection,
+) -> None:
+    source = SnowflakeOpenflowSource.create(
+        dict(MINIMAL_CONNECTION), PipelineContext(run_id="test-run")
+    )
+
+    source.report.num_connectors += 1
+
+    # Identity, not equality: the framework reads counters through this after
+    # ingestion, so returning a copy would report zeroes.
+    assert source.get_report() is source.report
+    assert source.get_report().num_connectors == 1
+
+
+def test_close_closes_the_snowflake_connection(
+    fake_snowflake_connection: _FakeConnection,
+) -> None:
+    source = SnowflakeOpenflowSource.create(
+        dict(MINIMAL_CONNECTION), PipelineContext(run_id="test-run")
+    )
+    assert not fake_snowflake_connection.closed
+
+    source.close()
+
+    assert fake_snowflake_connection.closed
