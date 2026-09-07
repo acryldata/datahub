@@ -16,8 +16,10 @@ def test_empty_inventory_is_reported_as_a_possible_privilege_problem():
     report = SnowflakeOpenflowReport()
     report.report_empty_inventory("runtimes")
     assert len(report.warnings) == 1
-    message = str(report.warnings)
-    assert "MONITOR" in message
+    warning_str = str(report.warnings)
+    assert "MONITOR" in warning_str
+    # Verify the object type is passed via context, not interpolated in the message
+    assert "runtimes" in report.warnings[0].context
 
 
 def test_filtered_objects_are_recorded():

@@ -5,9 +5,13 @@ from datahub.ingestion.source.state.stale_entity_removal_handler import (
 )
 from datahub.utilities.lossy_collections import LossyList
 
+# Constant, with no interpolation: `title` and `message` are the aggregation keys
+# for structured-log grouping, so a dynamic value in either creates a separate
+# bucket per object type. code_style.md classes that as a BLOCKER. The object
+# type goes in `context` instead.
 EMPTY_INVENTORY_MESSAGE = (
-    "No Openflow {object_type} were returned. This can mean the account has none, "
-    "but it can equally mean the ingestion role lacks MONITOR on them: "
+    "No Openflow objects of this type were returned. This can mean the account has "
+    "none, but it can equally mean the ingestion role lacks MONITOR on them: "
     "SHOW OPENFLOW ... is privilege-filtered per object and returns zero rows "
     "without an error. Verify with SHOW GRANTS TO ROLE <role> before concluding "
     "the account is empty."
@@ -44,5 +48,6 @@ class SnowflakeOpenflowReport(StaleEntityRemovalSourceReport):
     def report_empty_inventory(self, object_type: str) -> None:
         self.warning(
             title="No Openflow objects found",
-            message=EMPTY_INVENTORY_MESSAGE.format(object_type=object_type),
+            message=EMPTY_INVENTORY_MESSAGE,
+            context=object_type,
         )
