@@ -35,3 +35,12 @@ def test_every_recipe_key_exists_on_the_config(filename):
     declared = set(SnowflakeOpenflowSourceConfig.model_fields.keys())
     used = set(recipe["source"]["config"].keys())
     assert used <= declared, f"unknown config keys: {sorted(used - declared)}"
+
+
+@pytest.mark.parametrize("filename", FIXTURES)
+def test_fixture_recipe_writes_to_datahub(filename):
+    # Recipes must emit to datahub-rest (GMS) so verification assertions
+    # can check entities actually land in DataHub. File sinks produce
+    # JSON that the verifier cannot assert against.
+    recipe = yaml.safe_load((FIXTURE_DIR / filename).read_text())
+    assert recipe["sink"]["type"] == "datahub-rest"

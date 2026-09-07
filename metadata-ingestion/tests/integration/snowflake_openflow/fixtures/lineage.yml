@@ -6,6 +6,7 @@ source:
       account_id: ${SNOWFLAKE_ACCOUNT}
       username: ${SNOWFLAKE_USER}
       private_key: ${SNOWFLAKE_PRIVATE_KEY}
+      authentication_type: KEY_PAIR_AUTHENTICATOR
       role: ${SNOWFLAKE_ROLE}
       warehouse: ${SNOWFLAKE_WAREHOUSE}
     env: PROD
@@ -13,6 +14,7 @@ source:
     include_openflow_lineage: true
     include_run_history: false
 sink:
-  type: file
+  type: datahub-rest
   config:
-    filename: .verify/M3-lineage/ingestion-output.json
+    server: ${DATAHUB_GMS_URL:-http://localhost:8080}
+    token: ${DATAHUB_GMS_TOKEN}
