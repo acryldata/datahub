@@ -4465,7 +4465,7 @@
         },
         {
           "capability": "USAGE_STATS",
-          "description": "Not supported: OPENFLOW_USAGE_HISTORY reports credit consumption, not dataset usage. Connector run history is available separately via `include_run_history`.",
+          "description": "Not supported: OPENFLOW_USAGE_HISTORY reports credit consumption, not dataset usage.",
           "subtype_modifier": null,
           "supported": false
         },
