@@ -1,16 +1,21 @@
 import logging
-from typing import Any, Callable, Dict, Iterable, List, Optional
+from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence
 
 from datahub.configuration.common import AllowDenyPattern
 from datahub.emitter.mcp_builder import ContainerKey, gen_containers
 from datahub.ingestion.api.common import PipelineContext
 from datahub.ingestion.api.workunit import MetadataWorkUnit
-from datahub.ingestion.source.common.subtypes import GenericContainerSubTypes
+from datahub.ingestion.source.common.subtypes import (
+    DataFlowSubTypes,
+    DataJobSubTypes,
+    GenericContainerSubTypes,
+)
 from datahub.ingestion.source.snowflake.snowflake_connection import SnowflakeConnection
 from datahub.ingestion.source.snowflake.snowflake_openflow_config import (
     SnowflakeOpenflowSourceConfig,
 )
 from datahub.ingestion.source.snowflake.snowflake_openflow_models import (
+    OpenflowConnector,
     OpenflowDeployment,
     OpenflowRuntime,
     merge_show_and_history,
@@ -24,6 +29,8 @@ from datahub.ingestion.source.snowflake.snowflake_openflow_report import (
 from datahub.ingestion.source.state.stateful_ingestion_base import (
     StatefulIngestionSourceBase,
 )
+from datahub.sdk.dataflow import DataFlow
+from datahub.sdk.datajob import DataJob
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +46,66 @@ class OpenflowDeploymentKey(ContainerKey):
 
 class OpenflowRuntimeKey(OpenflowDeploymentKey):
     runtime: str
+
+
+# --- Connector DataFlow / DataJob -------------------------------------------
+
+
+def _connector_properties(connector: OpenflowConnector) -> Dict[str, str]:
+    properties: Dict[str, str] = {}
+    if connector.connector_id:
+        properties["connector_id"] = connector.connector_id
+    if connector.connector_definition:
+        properties["connector_definition"] = connector.connector_definition
+    if connector.default_version:
+        properties["default_version"] = connector.default_version
+    if connector.status:
+        properties["status"] = connector.status
+    if connector.runtime_name:
+        properties["runtime"] = connector.runtime_name
+    return properties
+
+
+def build_connector_flow(
+    connector: OpenflowConnector,
+    platform_instance: Optional[str],
+    env: str,
+) -> DataFlow:
+    # Keyed on the COMPOSITE <runtime_name>/<connector_name> (connector.key), not on
+    # CONNECTOR_ID and not on the bare name. Three measured facts force this:
+    #   - SHOW OPENFLOW CONNECTORS returns no id column, so CONNECTOR_ID is not
+    #     available for every connector and cannot be the identity.
+    #   - The ACCOUNT_USAGE views lag ~20 min, so an id-keyed URN would change
+    #     identity once the view caught up, producing two entities for one connector.
+    #   - Snowsight allows several connectors to share a display name, so the bare
+    #     name collides across runtimes.
+    # CONNECTOR_ID is carried in custom properties instead.
+    return DataFlow(
+        name=connector.key,
+        platform=PLATFORM,
+        platform_instance=platform_instance,
+        env=env,
+        display_name=connector.display_name or connector.name,
+        subtype=DataFlowSubTypes.OPENFLOW_CONNECTOR,
+        custom_properties=_connector_properties(connector),
+    )
+
+
+def build_connector_job(
+    connector: OpenflowConnector,
+    flow: DataFlow,
+    inlets: Sequence[str],
+    outlets: Sequence[str],
+) -> DataJob:
+    return DataJob(
+        name=connector.key,
+        flow=flow,
+        display_name=connector.display_name or connector.name,
+        subtype=DataJobSubTypes.OPENFLOW_CONNECTOR_SYNC,
+        custom_properties=_connector_properties(connector),
+        inlets=list(inlets),
+        outlets=list(outlets),
+    )
 
 
 # --- Source -----------------------------------------------------------------
@@ -202,6 +269,34 @@ class SnowflakeOpenflowSource(StatefulIngestionSourceBase):
             )
         ]
 
+    def _fetch_connectors(self) -> List[OpenflowConnector]:
+        show = [
+            OpenflowConnector.from_row(row)
+            for row in self._query_rows(SnowflakeOpenflowQuery.show_connectors())
+        ]
+        history = [
+            OpenflowConnector.from_row(row)
+            for row in self._paged_history(SnowflakeOpenflowQuery.connector_history)
+        ]
+        merged = merge_show_and_history(
+            [row for row in show if row], [row for row in history if row]
+        )
+        live = [row for row in merged if row.deleted_on is None]
+        if not live:
+            # Gen 1 connectors are not SQL objects at all, so this surface sees
+            # only Gen 2. An account running Gen 1 exclusively looks empty here
+            # and the count of omitted Gen 1 connectors is not observable.
+            self.report.report_empty_inventory("connectors")
+        return [
+            row
+            for row in live
+            if self._allowed(
+                self.config.connector_pattern,
+                row.name or row.key,
+                self.report.report_dropped_connector,
+            )
+        ]
+
     @staticmethod
     def _allowed(
         pattern: AllowDenyPattern, name: str, on_dropped: Callable[[str], None]
@@ -246,6 +341,19 @@ class SnowflakeOpenflowSource(StatefulIngestionSourceBase):
                 parent_container_key=self._deployment_key(parent_deployment),
                 extra_properties=self._runtime_properties(runtime),
             )
+
+        for connector in self._fetch_connectors():
+            self.report.num_connectors += 1
+            flow = build_connector_flow(
+                connector,
+                platform_instance=self.config.platform_instance,
+                env=self.config.env,
+            )
+            yield from flow.as_workunits()
+            # Lineage is attached in Task 10; the job is emitted here regardless
+            # so run history and connector metadata have a stable anchor.
+            job = build_connector_job(connector, flow, inlets=[], outlets=[])
+            yield from job.as_workunits()
 
     @staticmethod
     def _deployment_properties(deployment: OpenflowDeployment) -> Dict[str, str]:
