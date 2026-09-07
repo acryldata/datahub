@@ -51,7 +51,10 @@ def test_stage_helpers_quote_the_uri_verbatim():
     # errno 99112 "version live is not found".
     uri = "snow://openflow_connector/OPENFLOW_DEV.OPENFLOW_OBJECTS.pg/versions/3/"
     assert SnowflakeOpenflowQuery.list_stage(uri) == f"LIST '{uri}'"
-    assert uri in SnowflakeOpenflowQuery.get_stage_file(uri, "config.json")
+    query = SnowflakeOpenflowQuery.get_stage_file_to_local(uri, "config.json", "/tmp/x")
+    assert uri in query
+    assert query.startswith("GET ")
+    assert "'file:///tmp/x'" in query
 
 
 def test_page_size_attribute_is_accessible():

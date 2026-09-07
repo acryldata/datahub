@@ -1,6 +1,9 @@
 import dataclasses
+import gzip
 import json
 import logging
+import pathlib
+import tempfile
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 from urllib.parse import urlparse
 
@@ -402,32 +405,54 @@ class SnowflakeOpenflowSource(StatefulIngestionSourceBase, TestableSource):
         if not connector.version_location_uri:
             return None
         try:
-            # The URI is used exactly as the row reports it; substituting a
-            # version segment fails with errno 99112.
-            rows = self._query_rows(
-                SnowflakeOpenflowQuery.get_stage_file(
-                    connector.version_location_uri, CONFIG_FILENAME
+            with tempfile.TemporaryDirectory(
+                prefix="openflow-connector-config-"
+            ) as local_dir:
+                # GET, not `SELECT $1 FROM stage`: SELECT parses the file under
+                # Snowflake's default CSV file format, so $1 is only the text up
+                # to the first comma. Confirmed against a live connector's
+                # config.json (2921 bytes): $1 silently returned 24 bytes. An
+                # inline FILE_FORMAT=>(TYPE=JSON) argument is rejected as
+                # non-constant, and a named file format is DDL a read-only
+                # metadata role should not need. GET has no such assumption --
+                # it downloads the file whole.
+                #
+                # GET's result rows (filename/size/status) are discarded; they're
+                # an audit trail, not the content. The file is read back from
+                # `local_dir` below. Everything GET wrote there -- the config
+                # included -- is removed the moment this `with` block exits,
+                # success or failure, because it is a `tempfile.TemporaryDirectory`
+                # rather than a path this method chooses and cleans up itself.
+                # Nothing sensitive is at risk regardless: the config carries
+                # SECRET_REFERENCE placeholders rather than literal secret
+                # values (confirmed against a live connector's file), never
+                # resolved or logged anywhere in this method.
+                self._query_rows(
+                    SnowflakeOpenflowQuery.get_stage_file_to_local(
+                        connector.version_location_uri, CONFIG_FILENAME, local_dir
+                    )
                 )
-            )
-            if not rows:
-                return None
-            # `SELECT $1 FROM '<uri>config.json'` is assumed to return the whole
-            # file as a single row and column -- unverified against a live
-            # account, since credentials are unavailable in this environment.
-            # The row access and the JSON parse both stay inside this try: a
-            # row shaped differently than expected (e.g. an empty row) or
-            # invalid JSON must degrade this one connector's lineage to a
-            # warning, exactly like a stage READ failure, rather than crash
-            # the whole run.
-            content = next(iter(rows[0].values()))
-            return json.loads(content)
+                downloaded = list(pathlib.Path(local_dir).iterdir())
+                if not downloaded:
+                    raise RuntimeError(
+                        "GET reported no error but produced no local file"
+                    )
+                content = downloaded[0].read_bytes()
+                # Whether a staged file arrives gzip-compressed depends on how
+                # it was staged (Snowflake's AUTO_COMPRESS behaviour), not on
+                # anything this connector controls. Detected via the gzip magic
+                # bytes rather than trusting a ".gz" filename suffix, since the
+                # suffix is a naming convention GET applies, not a guarantee.
+                if content[:2] == b"\x1f\x8b":
+                    content = gzip.decompress(content)
+                return json.loads(content)
         except Exception as exc:
             self.report.num_config_reads_failed += 1
             self.report.warning(
                 title="Could not read connector configuration",
                 message="Lineage for this connector is skipped. This can mean the "
-                "role lacks READ on the connector's version stage, or the stage "
-                "file was not the expected single-row JSON document.",
+                "role lacks READ on the connector's version stage, the download "
+                "failed, or the file was not valid JSON.",
                 context=connector.key,
                 exc=exc,
             )

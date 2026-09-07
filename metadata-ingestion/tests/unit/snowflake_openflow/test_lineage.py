@@ -1,9 +1,12 @@
+import gzip
 import json
-from typing import Any, Dict, List, Optional
+import pathlib
+from typing import Any, Callable, Dict, List, Optional
 
 import pytest
 
 from datahub.ingestion.source.snowflake.snowflake_openflow import (
+    CONFIG_FILENAME,
     SCHEMA_STRATEGY_SOURCE_SCHEMA,
     SnowflakeOpenflowSource,
     destination_identifier,
@@ -188,6 +191,10 @@ def test_table_name_list_parsing(raw, expected):
 # --- _lineage_for_connector / _read_connector_config: the orchestration ----
 # --- layer that turns parsed config into report calls and URNs. Driven ----
 # --- through the same _query_rows seam test_source.py uses -- no network. --
+# --- _read_connector_config issues GET, whose real side effect is writing a
+# --- file into the local directory named in the query's 'file://<dir>'
+# --- argument -- so the fake below reproduces exactly that side effect
+# --- rather than returning file content from _query_rows itself.
 
 MINIMAL_CONNECTION = {
     "connection": {
@@ -221,9 +228,18 @@ def _connector(
     )
 
 
-def _config_row(config_json: Dict[str, Any]) -> Dict[str, Any]:
-    # SELECT $1 FROM '<uri>config.json' -- one row, one unnamed column.
-    return {"$1": json.dumps(config_json)}
+def _fake_get(content: Optional[bytes]) -> Callable[[str], List[Dict[str, Any]]]:
+    # Real GET writes a file into the local_dir named in the query string
+    # (`... 'file://<local_dir>'`) and returns audit-trail rows, not content.
+    # content=None simulates GET reporting success while placing no file --
+    # not observed against a live account, but the code must not crash on it.
+    def fake(query: str) -> List[Dict[str, Any]]:
+        local_dir = query.rsplit("'file://", 1)[1].rstrip("'")
+        if content is not None:
+            (pathlib.Path(local_dir) / CONFIG_FILENAME).write_bytes(content)
+        return [{"file": CONFIG_FILENAME, "status": "DOWNLOADED"}]
+
+    return fake
 
 
 def _warning_titles(report: SnowflakeOpenflowReport) -> List[Optional[str]]:
@@ -233,7 +249,7 @@ def _warning_titles(report: SnowflakeOpenflowReport) -> List[Optional[str]]:
 def test_lineage_for_connector_happy_path_returns_inlets_and_outlets():
     source = _make_source()
     connector = _connector()
-    source._query_rows = lambda query: [_config_row(CONFIG_JSON)]  # type: ignore[method-assign]
+    source._query_rows = _fake_get(json.dumps(CONFIG_JSON).encode())  # type: ignore[assignment]
 
     inlets, outlets = source._lineage_for_connector(connector)
 
@@ -245,6 +261,27 @@ def test_lineage_for_connector_happy_path_returns_inlets_and_outlets():
     ]
     assert source.report.num_lineage_edges == 1
     assert source.report.num_lineage_edges_skipped == 0
+
+
+def test_lineage_for_connector_handles_gzip_compressed_config():
+    # Whether a staged file arrives gzip-compressed depends on Snowflake's
+    # AUTO_COMPRESS staging behaviour, not on anything this connector
+    # controls. Detected via the gzip magic bytes, not a ".gz" filename
+    # suffix, since GET's own suffix convention is not a guarantee.
+    source = _make_source()
+    connector = _connector()
+    compressed = gzip.compress(json.dumps(CONFIG_JSON).encode())
+    source._query_rows = _fake_get(compressed)  # type: ignore[assignment]
+
+    inlets, outlets = source._lineage_for_connector(connector)
+
+    assert outlets == [
+        "urn:li:dataset:(urn:li:dataPlatform:snowflake,openflow_dev.public.testtable,PROD)"
+    ]
+    assert inlets == [
+        "urn:li:dataset:(urn:li:dataPlatform:postgres,appdb.public.testtable,PROD)"
+    ]
+    assert source.report.num_config_reads_failed == 0
 
 
 def test_lineage_for_connector_reports_config_read_failure():
@@ -266,12 +303,18 @@ def test_lineage_for_connector_reports_config_read_failure():
 
 
 def test_lineage_for_connector_reports_malformed_json_as_config_read_failure():
-    # json.loads must stay inside the same try/except as the stage read --
-    # otherwise invalid content crashes the whole ingestion run instead of
-    # degrading to a per-connector warning.
+    # The exact shape hit in production: the earlier SELECT $1 FROM stage
+    # approach parsed the file under Snowflake's default CSV file format, so
+    # $1 was only the text up to the first comma -- 24 of 2921 real bytes,
+    # ending mid-field as `{"configFormatVersion":1`. GET fixes the read
+    # itself, but json.loads must still stay inside the same try/except as
+    # the download: invalid content must degrade to a per-connector warning,
+    # not crash the whole ingestion run the way an uncaught JSONDecodeError
+    # inside get_workunits_internal's generator would.
     source = _make_source()
     connector = _connector()
-    source._query_rows = lambda query: [{"$1": "not valid json"}]  # type: ignore[method-assign]
+    truncated = b'{"configFormatVersion":1'
+    source._query_rows = _fake_get(truncated)  # type: ignore[assignment]
 
     inlets, outlets = source._lineage_for_connector(connector)
 
@@ -281,14 +324,15 @@ def test_lineage_for_connector_reports_malformed_json_as_config_read_failure():
     assert "Could not read connector configuration" in _warning_titles(source.report)
 
 
-def test_lineage_for_connector_reports_empty_row_as_config_read_failure():
-    # A row with zero columns raises StopIteration out of next(iter(...)).
-    # Nothing has confirmed the stage query returns exactly one row/column
-    # against a live account -- this must degrade to the same warning as any
-    # other malformed read, not crash the generator that drives ingestion.
+def test_lineage_for_connector_reports_missing_download_as_config_read_failure():
+    # GET reporting success while placing no file in local_dir is not a shape
+    # confirmed against a live account, but nothing rules it out either
+    # (a permission edge case, a stage inconsistency). It must degrade to the
+    # same warning as any other failed read, not raise out of the generator
+    # that drives ingestion.
     source = _make_source()
     connector = _connector()
-    source._query_rows = lambda query: [{}]  # type: ignore[method-assign]
+    source._query_rows = _fake_get(None)  # type: ignore[assignment]
 
     inlets, outlets = source._lineage_for_connector(connector)
 
@@ -318,7 +362,7 @@ def test_lineage_for_connector_skips_unrecognised_schema_strategy():
             },
         ]
     }
-    source._query_rows = lambda query: [_config_row(config)]  # type: ignore[method-assign]
+    source._query_rows = _fake_get(json.dumps(config).encode())  # type: ignore[assignment]
 
     inlets, outlets = source._lineage_for_connector(connector)
 
@@ -346,7 +390,7 @@ def test_lineage_for_connector_counts_pattern_configured_connector():
             },
         ]
     }
-    source._query_rows = lambda query: [_config_row(config)]  # type: ignore[method-assign]
+    source._query_rows = _fake_get(json.dumps(config).encode())  # type: ignore[assignment]
 
     inlets, outlets = source._lineage_for_connector(connector)
 

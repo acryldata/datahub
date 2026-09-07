@@ -60,7 +60,18 @@ class SnowflakeOpenflowQuery:
         return f"LIST '{version_location_uri}'"
 
     @staticmethod
-    def get_stage_file(version_location_uri: str, filename: str) -> str:
+    def get_stage_file_to_local(
+        version_location_uri: str, filename: str, local_dir: str
+    ) -> str:
+        # GET, not `SELECT $1 FROM '<uri>'`: the SELECT form parses the file
+        # under Snowflake's default CSV file format, so $1 is only the text up
+        # to the first comma -- confirmed against a live connector's
+        # config.json, where it silently returned 24 of 2921 bytes. An inline
+        # `FILE_FORMAT=>(TYPE=JSON)` is rejected as a non-constant table
+        # function argument, and a named file format is DDL a read-only
+        # metadata role should not need. GET downloads the file whole with no
+        # such assumption.
+        #
         # The URI is used verbatim as reported by the connector row. Substituting
         # a guessed version segment fails with errno 99112.
-        return f"SELECT $1 FROM '{version_location_uri}{filename}'"
+        return f"GET '{version_location_uri}{filename}' 'file://{local_dir}'"
