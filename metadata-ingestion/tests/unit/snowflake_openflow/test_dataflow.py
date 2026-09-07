@@ -10,7 +10,7 @@ from datahub.ingestion.source.snowflake.snowflake_openflow_models import (
 CONNECTOR = OpenflowConnector(
     connector_id="1",
     name="pg_cdc",
-    runtime_name="IngestionTest",
+    runtime_name="MyRuntime",
     connector_definition="OPENFLOW_POSTGRES_CDC",
     default_version="3",
 )
@@ -18,7 +18,7 @@ CONNECTOR = OpenflowConnector(
 
 def test_flow_urn_uses_the_composite_runtime_and_connector_name():
     flow = build_connector_flow(CONNECTOR, platform_instance=None, env="PROD")
-    assert str(flow.urn) == "urn:li:dataFlow:(openflow,IngestionTest/pg_cdc,PROD)"
+    assert str(flow.urn) == "urn:li:dataFlow:(openflow,MyRuntime/pg_cdc,PROD)"
 
 
 def test_flow_urn_is_stable_when_the_view_has_not_caught_up():
@@ -27,11 +27,11 @@ def test_flow_urn_is_stable_when_the_view_has_not_caught_up():
     # two URNs either side of the lag.
     # connector_id omitted entirely — that is what a lagging view actually looks
     # like. Passing a stand-in value here would test nothing.
-    without_id = OpenflowConnector(name="pg_cdc", runtime_name="IngestionTest")
+    without_id = OpenflowConnector(name="pg_cdc", runtime_name="MyRuntime")
     assert without_id.connector_id is None
     assert (
         str(build_connector_flow(without_id, platform_instance=None, env="PROD").urn)
-        == "urn:li:dataFlow:(openflow,IngestionTest/pg_cdc,PROD)"
+        == "urn:li:dataFlow:(openflow,MyRuntime/pg_cdc,PROD)"
     )
 
 
@@ -57,8 +57,8 @@ def test_job_is_nested_in_its_flow():
     flow = build_connector_flow(CONNECTOR, platform_instance=None, env="PROD")
     job = build_connector_job(CONNECTOR, flow, inlets=[], outlets=[])
     assert str(job.urn) == (
-        "urn:li:dataJob:(urn:li:dataFlow:(openflow,IngestionTest/pg_cdc,PROD),"
-        "IngestionTest/pg_cdc)"
+        "urn:li:dataJob:(urn:li:dataFlow:(openflow,MyRuntime/pg_cdc,PROD),"
+        "MyRuntime/pg_cdc)"
     )
     assert job.subtype == DataJobSubTypes.OPENFLOW_CONNECTOR_SYNC
 
@@ -74,11 +74,11 @@ def test_job_is_emitted_even_with_no_lineage():
 def test_display_name_prefers_the_human_label():
     connector = OpenflowConnector(
         name="pg_cdc",
-        runtime_name="IngestionTest",
+        runtime_name="MyRuntime",
         connector_id="1",
         display_name="Postgres CDC",
     )
     flow = build_connector_flow(connector, platform_instance=None, env="PROD")
     # The URN stays keyed on the composite runtime/name; only the label changes.
-    assert str(flow.urn) == "urn:li:dataFlow:(openflow,IngestionTest/pg_cdc,PROD)"
+    assert str(flow.urn) == "urn:li:dataFlow:(openflow,MyRuntime/pg_cdc,PROD)"
     assert flow.display_name == "Postgres CDC"

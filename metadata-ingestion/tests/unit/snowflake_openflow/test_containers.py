@@ -21,22 +21,22 @@ from datahub.ingestion.source.snowflake.snowflake_openflow_report import (
 from datahub.metadata.schema_classes import ContainerClass
 
 PLATFORM = "openflow"
-DEPLOYMENT_KEY = "hq8crgi3"
-RUNTIME_KEY = "ingestiontest-100"
+DEPLOYMENT_KEY = "abc12345"
+RUNTIME_KEY = "myruntime-1"
 
 
 def test_deployment_container_urn_is_stable():
     key = OpenflowDeploymentKey(
         platform=PLATFORM, env="PROD", deployment=DEPLOYMENT_KEY
     )
-    assert key.as_urn() == "urn:li:container:3b68cd54ac7416561c6ec600e0d08fdc"
+    assert key.as_urn() == "urn:li:container:9786181216cff25b930990059c0c10d4"
 
 
 def test_runtime_container_urn_is_stable():
     key = OpenflowRuntimeKey(
         platform=PLATFORM, env="PROD", deployment=DEPLOYMENT_KEY, runtime=RUNTIME_KEY
     )
-    assert key.as_urn() == "urn:li:container:1a7caca9dd5bccc6ca77c016a2375f3a"
+    assert key.as_urn() == "urn:li:container:76708ac37ec74e94ae446ad979f9bec1"
 
 
 def test_env_does_not_affect_the_container_guid():
@@ -56,12 +56,13 @@ def test_runtime_key_resolves_its_parent_deployment():
     )
     parent = runtime.parent_key()
     assert parent is not None
-    assert parent.as_urn() == "urn:li:container:3b68cd54ac7416561c6ec600e0d08fdc"
+    assert parent.as_urn() == "urn:li:container:9786181216cff25b930990059c0c10d4"
 
 
 def test_platform_instance_changes_the_urn():
-    # Two Snowflake accounts both have a deployment keyed hq8crgi3; without a
-    # platform_instance their containers would merge.
+    # A deployment key is only unique within one Snowflake account, so two
+    # accounts can each expose a deployment under the same key. Without a
+    # platform_instance in the key their containers would merge into one.
     plain = OpenflowDeploymentKey(
         platform=PLATFORM, env="PROD", deployment=DEPLOYMENT_KEY
     )

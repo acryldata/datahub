@@ -48,7 +48,7 @@ CONFIG_JSON = {
         {
             "name": "Source",
             "properties": {
-                "JDBC URL": _wrap("jdbc:postgresql://host:5432/appdb"),
+                "JDBC URL": _wrap("jdbc:postgresql://host:5432/mysourcedb"),
                 "Postgres Username": _wrap("repl"),
             },
         },
@@ -56,14 +56,14 @@ CONFIG_JSON = {
             "name": "Replication table schema",
             "properties": {
                 "Included Comma Separated Source Table Names": _wrap(
-                    '"public"."testtable"'
+                    '"public"."mytable"'
                 )
             },
         },
         {
             "name": "Destination details",
             "properties": {
-                "Snowflake Destination Database": _wrap("OPENFLOW_DEV"),
+                "Snowflake Destination Database": _wrap("MY_DB"),
                 "Destination Schema Strategy": _wrap("SOURCE_SCHEMA"),
                 "Object Identifier Resolution": _wrap("CASE_INSENSITIVE"),
             },
@@ -74,10 +74,10 @@ CONFIG_JSON = {
 
 def test_parses_source_tables_and_destination():
     lineage = parse_connector_config(CONFIG_JSON)
-    assert lineage.source_tables == [("public", "testtable")]
-    assert lineage.destination_database == "OPENFLOW_DEV"
+    assert lineage.source_tables == [("public", "mytable")]
+    assert lineage.destination_database == "MY_DB"
     assert lineage.schema_strategy == SCHEMA_STRATEGY_SOURCE_SCHEMA
-    assert lineage.source_database == "appdb"
+    assert lineage.source_database == "mysourcedb"
 
 
 def test_walks_every_configuration_section_not_just_the_first():
@@ -85,18 +85,18 @@ def test_walks_every_configuration_section_not_just_the_first():
     # found no destination at all.
     shuffled = {"configuration": list(reversed(CONFIG_JSON["configuration"]))}
     lineage = parse_connector_config(shuffled)
-    assert lineage.destination_database == "OPENFLOW_DEV"
-    assert lineage.source_tables == [("public", "testtable")]
+    assert lineage.destination_database == "MY_DB"
+    assert lineage.source_tables == [("public", "mytable")]
 
 
 def test_source_schema_strategy_maps_schema_through():
     identifier = destination_identifier(
-        destination_database="OPENFLOW_DEV",
+        destination_database="MY_DB",
         source_schema="public",
-        source_table="testtable",
+        source_table="mytable",
         schema_strategy=SCHEMA_STRATEGY_SOURCE_SCHEMA,
     )
-    assert identifier == "OPENFLOW_DEV.public.testtable"
+    assert identifier == "MY_DB.public.mytable"
 
 
 def test_unrecognised_schema_strategy_returns_none_rather_than_guessing():
@@ -104,9 +104,9 @@ def test_unrecognised_schema_strategy_returns_none_rather_than_guessing():
     # well-formed URN pointing at a table that does not exist.
     assert (
         destination_identifier(
-            destination_database="OPENFLOW_DEV",
+            destination_database="MY_DB",
             source_schema="public",
-            source_table="testtable",
+            source_table="mytable",
             schema_strategy="SOME_FUTURE_STRATEGY",
         )
         is None
@@ -123,7 +123,7 @@ def test_pattern_configured_connector_yields_no_enumerable_tables():
             {
                 "name": "Destination details",
                 "properties": {
-                    "Snowflake Destination Database": _wrap("OPENFLOW_DEV"),
+                    "Snowflake Destination Database": _wrap("MY_DB"),
                     "Destination Schema Strategy": _wrap("SOURCE_SCHEMA"),
                 },
             },
@@ -144,14 +144,14 @@ def test_source_url_uses_the_observed_property_name():
                 "name": "Source",
                 "properties": {
                     "Source Database Connection URL": _wrap(
-                        "jdbc:postgresql://host:5432/appdb"
+                        "jdbc:postgresql://host:5432/mysourcedb"
                     ),
                     "Source Database User": _wrap("repl"),
                 },
             }
         ]
     }
-    assert parse_connector_config(config).source_database == "appdb"
+    assert parse_connector_config(config).source_database == "mysourcedb"
 
 
 def test_unrecognised_source_url_key_is_reported_not_silently_ignored():
@@ -191,9 +191,9 @@ def test_unqualified_table_name_is_reported_not_silently_dropped():
 @pytest.mark.parametrize(
     "raw,expected",
     [
-        ('"public"."testtable"', [("public", "testtable")]),
+        ('"public"."mytable"', [("public", "mytable")]),
         ('"public"."a","public"."b"', [("public", "a"), ("public", "b")]),
-        ("public.testtable", [("public", "testtable")]),
+        ("public.mytable", [("public", "mytable")]),
         ("", []),
     ],
 )
@@ -217,10 +217,8 @@ def test_table_name_list_parsing(raw, expected):
 
 
 def test_property_value_reads_the_wrapped_string():
-    properties = {"Snowflake Destination Database": _wrap("OPENFLOW_DEV")}
-    assert (
-        property_value(properties, "Snowflake Destination Database") == "OPENFLOW_DEV"
-    )
+    properties = {"Snowflake Destination Database": _wrap("MY_DB")}
+    assert property_value(properties, "Snowflake Destination Database") == "MY_DB"
 
 
 def test_property_value_unset_property_reads_as_none():
@@ -252,10 +250,8 @@ def test_property_value_missing_key_reads_as_none():
 def test_property_value_tolerates_a_bare_string_for_forward_compatibility():
     # Defensive: every observed property is wrapped, but a future config
     # format version could flatten one to a bare string.
-    properties = {"Snowflake Destination Database": "OPENFLOW_DEV"}
-    assert (
-        property_value(properties, "Snowflake Destination Database") == "OPENFLOW_DEV"
-    )
+    properties = {"Snowflake Destination Database": "MY_DB"}
+    assert property_value(properties, "Snowflake Destination Database") == "MY_DB"
 
 
 def test_parses_the_real_observed_wrapped_config_shape():
@@ -283,7 +279,7 @@ def test_parses_the_real_observed_wrapped_config_shape():
                 "name": "Replication table schema",
                 "properties": {
                     "Included Comma Separated Source Table Names": _wrap(
-                        '"public"."testtable"'
+                        '"public"."mytable"'
                     ),
                     "Included Source Table Pattern": _wrap(None),
                 },
@@ -291,7 +287,7 @@ def test_parses_the_real_observed_wrapped_config_shape():
             {
                 "name": "Destination details",
                 "properties": {
-                    "Snowflake Destination Database": _wrap("OPENFLOW_DEV"),
+                    "Snowflake Destination Database": _wrap("MY_DB"),
                     "Destination Schema Strategy": _wrap("SOURCE_SCHEMA"),
                     "Destination Schema Suffix": _wrap(None),
                     "Table Storage Format": _wrap("STANDARD"),
@@ -303,8 +299,8 @@ def test_parses_the_real_observed_wrapped_config_shape():
     lineage = parse_connector_config(config)
 
     assert lineage.source_database == "postgres"
-    assert lineage.source_tables == [("public", "testtable")]
-    assert lineage.destination_database == "OPENFLOW_DEV"
+    assert lineage.source_tables == [("public", "mytable")]
+    assert lineage.destination_database == "MY_DB"
     assert lineage.schema_strategy == "SOURCE_SCHEMA"
     assert lineage.table_pattern is None
 
@@ -342,7 +338,7 @@ def _connector(
 ) -> OpenflowConnector:
     return OpenflowConnector(
         name="pg_cdc",
-        runtime_name="IngestionTest",
+        runtime_name="MyRuntime",
         connector_id="1",
         connector_definition="OPENFLOW_POSTGRES_CDC",
         version_location_uri=version_location_uri,
@@ -375,10 +371,10 @@ def test_lineage_for_connector_happy_path_returns_inlets_and_outlets():
     inlets, outlets = source._lineage_for_connector(connector)
 
     assert outlets == [
-        "urn:li:dataset:(urn:li:dataPlatform:snowflake,openflow_dev.public.testtable,PROD)"
+        "urn:li:dataset:(urn:li:dataPlatform:snowflake,my_db.public.mytable,PROD)"
     ]
     assert inlets == [
-        "urn:li:dataset:(urn:li:dataPlatform:postgres,appdb.public.testtable,PROD)"
+        "urn:li:dataset:(urn:li:dataPlatform:postgres,mysourcedb.public.mytable,PROD)"
     ]
     assert source.report.num_lineage_edges == 1
     assert source.report.num_lineage_edges_skipped == 0
@@ -397,10 +393,10 @@ def test_lineage_for_connector_handles_gzip_compressed_config():
     inlets, outlets = source._lineage_for_connector(connector)
 
     assert outlets == [
-        "urn:li:dataset:(urn:li:dataPlatform:snowflake,openflow_dev.public.testtable,PROD)"
+        "urn:li:dataset:(urn:li:dataPlatform:snowflake,my_db.public.mytable,PROD)"
     ]
     assert inlets == [
-        "urn:li:dataset:(urn:li:dataPlatform:postgres,appdb.public.testtable,PROD)"
+        "urn:li:dataset:(urn:li:dataPlatform:postgres,mysourcedb.public.mytable,PROD)"
     ]
     assert source.report.num_config_reads_failed == 0
 
@@ -472,14 +468,14 @@ def test_lineage_for_connector_skips_unrecognised_schema_strategy():
                 "name": "Replication table schema",
                 "properties": {
                     "Included Comma Separated Source Table Names": _wrap(
-                        '"public"."testtable"'
+                        '"public"."mytable"'
                     )
                 },
             },
             {
                 "name": "Destination details",
                 "properties": {
-                    "Snowflake Destination Database": _wrap("OPENFLOW_DEV"),
+                    "Snowflake Destination Database": _wrap("MY_DB"),
                     "Destination Schema Strategy": _wrap("PREFIX"),
                 },
             },
@@ -507,7 +503,7 @@ def test_lineage_for_connector_counts_pattern_configured_connector():
             {
                 "name": "Destination details",
                 "properties": {
-                    "Snowflake Destination Database": _wrap("OPENFLOW_DEV"),
+                    "Snowflake Destination Database": _wrap("MY_DB"),
                     "Destination Schema Strategy": _wrap("SOURCE_SCHEMA"),
                 },
             },
@@ -578,12 +574,12 @@ def test_lineage_inlet_uses_configured_source_platform_instance():
     inlets, outlets = source._lineage_for_connector(connector)
 
     assert inlets == [
-        "urn:li:dataset:(urn:li:dataPlatform:postgres,pg_prod.appdb.public.testtable,DEV)"
+        "urn:li:dataset:(urn:li:dataPlatform:postgres,pg_prod.mysourcedb.public.mytable,DEV)"
     ]
     # The upstream coordinates must not leak into the destination side, which
     # keeps following snowflake_platform_instance / snowflake_env.
     assert outlets == [
-        "urn:li:dataset:(urn:li:dataPlatform:snowflake,openflow_dev.public.testtable,PROD)"
+        "urn:li:dataset:(urn:li:dataPlatform:snowflake,my_db.public.mytable,PROD)"
     ]
 
 
@@ -599,7 +595,7 @@ def test_lineage_inlet_urn_unchanged_when_source_coordinates_unset():
     inlets, _ = source._lineage_for_connector(connector)
 
     assert inlets == [
-        "urn:li:dataset:(urn:li:dataPlatform:postgres,appdb.public.testtable,PROD)"
+        "urn:li:dataset:(urn:li:dataPlatform:postgres,mysourcedb.public.mytable,PROD)"
     ]
 
 
@@ -611,7 +607,7 @@ def test_lineage_inlet_env_follows_openflow_env_when_source_env_unset():
     inlets, _ = source._lineage_for_connector(connector)
 
     assert inlets == [
-        "urn:li:dataset:(urn:li:dataPlatform:postgres,appdb.public.testtable,DEV)"
+        "urn:li:dataset:(urn:li:dataPlatform:postgres,mysourcedb.public.mytable,DEV)"
     ]
 
 
@@ -638,7 +634,7 @@ class _FlakyGet:
 
 
 EXPECTED_OUTLETS = [
-    "urn:li:dataset:(urn:li:dataPlatform:snowflake,openflow_dev.public.testtable,PROD)"
+    "urn:li:dataset:(urn:li:dataPlatform:snowflake,my_db.public.mytable,PROD)"
 ]
 
 
