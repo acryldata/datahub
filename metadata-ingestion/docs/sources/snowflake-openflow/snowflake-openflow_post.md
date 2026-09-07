@@ -53,6 +53,14 @@ the edge at a dataset none of those recipes ever wrote. If you do run one of tho
 `convert_urns_to_lowercase: true`, its datasets are lowercased and this connector's upstream URNs
 will not match them.
 
+One deliberate difference from the `snowflake` source, worth knowing if you set both: this source
+folds the destination identifier itself rather than letting the pipeline-level pass do it, because
+that pass rewrites every dataset URN in the stream and would take the upstream ones with it. The
+pipeline pass also folds the `platform_instance` prefix, whereas this source folds only the
+identifier after it. So an **uppercase** `snowflake_platform_instance` here will not match the same
+instance written by a `snowflake` recipe that has `convert_urns_to_lowercase: true` spelled out.
+Use a lowercase platform instance on both sides and the question does not arise.
+
 **A connector is catalogued but has no lineage.** Either its destination schema strategy is not
 `SOURCE_SCHEMA`, or it selects tables by pattern rather than by name. Both are counted in the
 ingestion report.
