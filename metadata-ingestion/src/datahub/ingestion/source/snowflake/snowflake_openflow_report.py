@@ -1,0 +1,48 @@
+import dataclasses
+
+from datahub.ingestion.source.state.stale_entity_removal_handler import (
+    StaleEntityRemovalSourceReport,
+)
+from datahub.utilities.lossy_collections import LossyList
+
+EMPTY_INVENTORY_MESSAGE = (
+    "No Openflow {object_type} were returned. This can mean the account has none, "
+    "but it can equally mean the ingestion role lacks MONITOR on them: "
+    "SHOW OPENFLOW ... is privilege-filtered per object and returns zero rows "
+    "without an error. Verify with SHOW GRANTS TO ROLE <role> before concluding "
+    "the account is empty."
+)
+
+
+@dataclasses.dataclass
+class SnowflakeOpenflowReport(StaleEntityRemovalSourceReport):
+    num_deployments: int = 0
+    num_runtimes: int = 0
+    num_connectors: int = 0
+
+    num_lineage_edges: int = 0
+    num_lineage_edges_skipped: int = 0
+    # Connectors configured with a table PATTERN rather than explicit names.
+    # Their tables cannot be enumerated from config, so they get connector-level
+    # lineage only.
+    num_connectors_without_enumerable_tables: int = 0
+    num_config_reads_failed: int = 0
+
+    filtered_deployments: LossyList[str] = dataclasses.field(default_factory=LossyList)
+    filtered_runtimes: LossyList[str] = dataclasses.field(default_factory=LossyList)
+    filtered_connectors: LossyList[str] = dataclasses.field(default_factory=LossyList)
+
+    def report_dropped_deployment(self, name: str) -> None:
+        self.filtered_deployments.append(name)
+
+    def report_dropped_runtime(self, name: str) -> None:
+        self.filtered_runtimes.append(name)
+
+    def report_dropped_connector(self, name: str) -> None:
+        self.filtered_connectors.append(name)
+
+    def report_empty_inventory(self, object_type: str) -> None:
+        self.warning(
+            title="No Openflow objects found",
+            message=EMPTY_INVENTORY_MESSAGE.format(object_type=object_type),
+        )
