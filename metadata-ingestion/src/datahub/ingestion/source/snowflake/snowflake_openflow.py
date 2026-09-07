@@ -1,7 +1,11 @@
+import dataclasses
+import json
 import logging
-from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence
+from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
+from urllib.parse import urlparse
 
 from datahub.configuration.common import AllowDenyPattern
+from datahub.emitter.mce_builder import make_dataset_urn_with_platform_instance
 from datahub.emitter.mcp_builder import ContainerKey, gen_containers
 from datahub.ingestion.api.common import PipelineContext
 from datahub.ingestion.api.workunit import MetadataWorkUnit
@@ -26,6 +30,9 @@ from datahub.ingestion.source.snowflake.snowflake_openflow_query import (
 from datahub.ingestion.source.snowflake.snowflake_openflow_report import (
     SnowflakeOpenflowReport,
 )
+from datahub.ingestion.source.snowflake.snowflake_utils import (
+    SnowflakeIdentifierBuilder,
+)
 from datahub.ingestion.source.state.stateful_ingestion_base import (
     StatefulIngestionSourceBase,
 )
@@ -35,6 +42,32 @@ from datahub.sdk.datajob import DataJob
 logger = logging.getLogger(__name__)
 
 PLATFORM = "openflow"
+
+# --- Config-derived lineage constants ---------------------------------------
+
+CONFIG_FILENAME = "config.json"
+SECTION_SOURCE = "Source"
+SECTION_REPLICATION = "Replication table schema"
+SECTION_DESTINATION = "Destination details"
+# The observed property name is "Source Database Connection URL" (probe Result 37,
+# section [0] "Source"), NOT "JDBC URL". Both are tried because different connector
+# definitions may name it differently -- OPENFLOW_POSTGRES_CDC is the only one
+# observed. A miss here is silent: source_database stays None, so no upstream inlet
+# is ever built and lineage emits destinations only, with nothing reporting why.
+PROP_SOURCE_URL_CANDIDATES = ("Source Database Connection URL", "JDBC URL")
+PROP_INCLUDED_TABLE_NAMES = "Included Comma Separated Source Table Names"
+PROP_INCLUDED_TABLE_PATTERN = "Included Source Table Pattern"
+PROP_DESTINATION_DATABASE = "Snowflake Destination Database"
+PROP_SCHEMA_STRATEGY = "Destination Schema Strategy"
+SCHEMA_STRATEGY_SOURCE_SCHEMA = "SOURCE_SCHEMA"
+
+# CONNECTOR_DEFINITION -> DataHub platform for the upstream side.
+CONNECTOR_DEFINITION_PLATFORM = {
+    "OPENFLOW_POSTGRES_CDC": "postgres",
+    "OPENFLOW_MYSQL_CDC": "mysql",
+    "OPENFLOW_SQLSERVER_CDC": "mssql",
+    "OPENFLOW_KAFKA": "kafka",
+}
 
 
 # --- Container keys -------------------------------------------------------
@@ -46,6 +79,91 @@ class OpenflowDeploymentKey(ContainerKey):
 
 class OpenflowRuntimeKey(OpenflowDeploymentKey):
     runtime: str
+
+
+# --- Config-derived lineage ---------------------------------------------
+
+
+@dataclasses.dataclass
+class OpenflowLineage:
+    source_database: Optional[str] = None
+    source_tables: List[Tuple[str, str]] = dataclasses.field(default_factory=list)
+    table_pattern: Optional[str] = None
+    destination_database: Optional[str] = None
+    schema_strategy: Optional[str] = None
+    unparseable_tables: List[str] = dataclasses.field(default_factory=list)
+    # Populated when the Source section carried none of the candidate URL keys, so the
+    # caller can report which keys it DID see rather than silently emitting no upstream.
+    unrecognised_source_url_keys: List[str] = dataclasses.field(default_factory=list)
+
+
+def _parse_table_names(raw: str) -> Tuple[List[Tuple[str, str]], List[str]]:
+    # Returns (parsed, unparseable). The second element exists so the caller can
+    # report dropped entries: an entry with no schema qualifier silently vanishing
+    # from lineage is indistinguishable from a connector that legitimately has no
+    # source tables, and losing one table out of ten is exactly the kind of
+    # partial-lineage failure nothing else in the pipeline would surface.
+    tables: List[Tuple[str, str]] = []
+    unparseable: List[str] = []
+    for entry in raw.split(","):
+        cleaned = entry.strip().replace('"', "")
+        if not cleaned:
+            continue
+        if "." not in cleaned:
+            unparseable.append(cleaned)
+            continue
+        schema, _, table = cleaned.rpartition(".")
+        tables.append((schema, table))
+    return tables, unparseable
+
+
+def parse_connector_config(config_json: Dict[str, Any]) -> OpenflowLineage:
+    # Iterate EVERY section. Descending into configuration[0] only finds the
+    # destination on connectors that happen to list it first.
+    lineage = OpenflowLineage()
+    for section in config_json.get("configuration") or []:
+        name = section.get("name")
+        properties = section.get("properties") or {}
+        if name == SECTION_SOURCE:
+            source_url = next(
+                (
+                    properties[key]
+                    for key in PROP_SOURCE_URL_CANDIDATES
+                    if properties.get(key)
+                ),
+                None,
+            )
+            if source_url:
+                # jdbc:postgresql://host:5432/appdb -> appdb
+                path = urlparse(source_url[len("jdbc:") :]).path
+                lineage.source_database = path.lstrip("/") or None
+            else:
+                lineage.unrecognised_source_url_keys = sorted(properties)
+        elif name == SECTION_REPLICATION:
+            names = properties.get(PROP_INCLUDED_TABLE_NAMES)
+            if names:
+                lineage.source_tables, lineage.unparseable_tables = _parse_table_names(
+                    names
+                )
+            lineage.table_pattern = properties.get(PROP_INCLUDED_TABLE_PATTERN)
+        elif name == SECTION_DESTINATION:
+            lineage.destination_database = properties.get(PROP_DESTINATION_DATABASE)
+            lineage.schema_strategy = properties.get(PROP_SCHEMA_STRATEGY)
+    return lineage
+
+
+def destination_identifier(
+    destination_database: str,
+    source_schema: str,
+    source_table: str,
+    schema_strategy: Optional[str],
+) -> Optional[str]:
+    # Only SOURCE_SCHEMA is implemented. Prefix/Suffix/Pattern strategies exist;
+    # guessing one produces a well-formed URN naming a table that is not there,
+    # which no layer reports as an error.
+    if schema_strategy != SCHEMA_STRATEGY_SOURCE_SCHEMA:
+        return None
+    return f"{destination_database}.{source_schema}.{source_table}"
 
 
 # --- Connector DataFlow / DataJob -------------------------------------------
@@ -161,6 +279,111 @@ class SnowflakeOpenflowSource(StatefulIngestionSourceBase):
 
     def _query_rows(self, query: str) -> List[Dict[str, Any]]:
         return [dict(row) for row in self.connection.query(query)]
+
+    def _read_connector_config(
+        self, connector: OpenflowConnector
+    ) -> Optional[Dict[str, Any]]:
+        if not connector.version_location_uri:
+            return None
+        try:
+            # The URI is used exactly as the row reports it; substituting a
+            # version segment fails with errno 99112.
+            rows = self._query_rows(
+                SnowflakeOpenflowQuery.get_stage_file(
+                    connector.version_location_uri, CONFIG_FILENAME
+                )
+            )
+        except Exception as exc:
+            self.report.num_config_reads_failed += 1
+            self.report.warning(
+                title="Could not read connector configuration",
+                message="Lineage for this connector is skipped. The role needs READ "
+                "on the connector's version stage.",
+                context=connector.connector_id,
+                exc=exc,
+            )
+            return None
+        if not rows:
+            return None
+        return json.loads(next(iter(rows[0].values())))
+
+    def _lineage_for_connector(
+        self, connector: OpenflowConnector
+    ) -> Tuple[List[str], List[str]]:
+        config_json = self._read_connector_config(connector)
+        if config_json is None:
+            return [], []
+        lineage = parse_connector_config(config_json)
+        if lineage.unparseable_tables:
+            # Reuse num_lineage_edges_skipped rather than adding a counter: the
+            # operator-visible fact is the same, an edge we could not build.
+            self.report.num_lineage_edges_skipped += len(lineage.unparseable_tables)
+            self.report.warning(
+                title="Unparseable source table name",
+                message="These entries carried no schema qualifier, so no upstream "
+                "table could be derived and their lineage is omitted.",
+                context=f"{connector.key}: {lineage.unparseable_tables}",
+            )
+        if lineage.unrecognised_source_url_keys:
+            self.report.warning(
+                title="Source connection URL property not recognised",
+                message="The connector's Source section carried none of the known "
+                "connection-URL property names, so no upstream dataset could be "
+                "derived. Downstream lineage is still emitted.",
+                context=f"{connector.key}: {lineage.unrecognised_source_url_keys}",
+            )
+        if not lineage.destination_database:
+            return [], []
+        if lineage.table_pattern and not lineage.source_tables:
+            self.report.num_connectors_without_enumerable_tables += 1
+            return [], []
+
+        identifiers = SnowflakeIdentifierBuilder(
+            identifier_config=self.config.get_snowflake_identifier_config(),
+            structured_reporter=self.report,
+        )
+        upstream_platform = CONNECTOR_DEFINITION_PLATFORM.get(
+            connector.connector_definition or ""
+        )
+        inlets: List[str] = []
+        outlets: List[str] = []
+        for source_schema, source_table in lineage.source_tables:
+            destination = destination_identifier(
+                lineage.destination_database,
+                source_schema,
+                source_table,
+                lineage.schema_strategy,
+            )
+            if destination is None:
+                self.report.num_lineage_edges_skipped += 1
+                self.report.warning(
+                    title="Unrecognised destination schema strategy",
+                    message="This Destination Schema Strategy is not implemented, so "
+                    "the destination table cannot be derived. Lineage is skipped "
+                    "rather than guessed.",
+                    context=f"{connector.key}: strategy={lineage.schema_strategy!r}",
+                )
+                continue
+            outlets.append(
+                identifiers.gen_dataset_urn(
+                    identifiers.get_dataset_identifier(
+                        table_name=source_table,
+                        schema_name=source_schema,
+                        db_name=lineage.destination_database,
+                    )
+                )
+            )
+            if upstream_platform and lineage.source_database:
+                inlets.append(
+                    make_dataset_urn_with_platform_instance(
+                        platform=upstream_platform,
+                        name=f"{lineage.source_database}.{source_schema}.{source_table}",
+                        platform_instance=None,
+                        env=self.config.env,
+                    )
+                )
+            self.report.num_lineage_edges += 1
+        return inlets, outlets
 
     def _paged_history(
         self, builder: Callable[[Optional[str]], str]
@@ -350,9 +573,13 @@ class SnowflakeOpenflowSource(StatefulIngestionSourceBase):
                 env=self.config.env,
             )
             yield from flow.as_workunits()
-            # Lineage is attached in Task 10; the job is emitted here regardless
-            # so run history and connector metadata have a stable anchor.
-            job = build_connector_job(connector, flow, inlets=[], outlets=[])
+            inlets: List[str] = []
+            outlets: List[str] = []
+            if self.config.include_openflow_lineage:
+                inlets, outlets = self._lineage_for_connector(connector)
+            # The job is emitted regardless of whether lineage was found, so run
+            # history and connector metadata have a stable anchor.
+            job = build_connector_job(connector, flow, inlets=inlets, outlets=outlets)
             yield from job.as_workunits()
 
     @staticmethod
