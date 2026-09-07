@@ -7,7 +7,16 @@ from datahub.ingestion.source.snowflake.snowflake_openflow_config import (
     SnowflakeOpenflowSourceConfig,
 )
 
-FIXTURE_DIR = pathlib.Path("tests/integration/snowflake_openflow/fixtures")
+# Anchored to this file, not to the working directory. A relative path works only
+# when pytest is invoked from `metadata-ingestion/`, so it breaks from the repo
+# root and in IDE runners. `Path(__file__).parent` is the repo's convention --
+# see tests/unit/glue/test_glue_source.py.
+FIXTURE_DIR = (
+    pathlib.Path(__file__).parent.parent.parent
+    / "integration"
+    / "snowflake_openflow"
+    / "fixtures"
+)
 FIXTURES = ["inventory.yml", "lineage.yml", "capabilities.yml"]
 
 
