@@ -1,0 +1,25 @@
+# Fixture recipe: Openflow inventory (M1).
+#
+# Replayed offline via datahub/ingestion/recording, which patches
+# snowflake.connector.connect. Recording requires an Openflow-provisioned
+# account; until then this recipe is the declared contract, not a runnable test.
+source:
+  type: snowflake-openflow
+  config:
+    connection:
+      account_id: ${SNOWFLAKE_ACCOUNT}
+      username: ${SNOWFLAKE_USER}
+      private_key: ${SNOWFLAKE_PRIVATE_KEY}
+      role: ${SNOWFLAKE_ROLE}
+      warehouse: ${SNOWFLAKE_WAREHOUSE}
+    # Openflow's own entities
+    env: PROD
+    # Coordinates of the FOREIGN Snowflake datasets lineage points at. These must
+    # match the warehouse ingestion or lineage joins to nothing.
+    snowflake_env: PROD
+    include_openflow_lineage: true
+    include_run_history: false
+sink:
+  type: file
+  config:
+    filename: .verify/M1-basic-extraction/ingestion-output.json
