@@ -11,6 +11,7 @@ from datahub.ingestion.source.snowflake.snowflake_openflow import (
     SnowflakeOpenflowSource,
     destination_identifier,
     parse_connector_config,
+    property_value,
 )
 from datahub.ingestion.source.snowflake.snowflake_openflow_config import (
     SnowflakeOpenflowSourceConfig,
@@ -28,27 +29,41 @@ from datahub.ingestion.source.snowflake.snowflake_openflow_report import (
     SnowflakeOpenflowReport,
 )
 
+
+def _wrap(value: Optional[str], value_type: str = "STRING_LITERAL") -> Dict[str, Any]:
+    # Mirrors Openflow's real property wrapper: {"valueType": ..., "value": ...}.
+    # An unset property (value=None) omits the "value" key entirely, matching
+    # how a real connector represents e.g. an unused Destination Schema Suffix
+    # -- not `{"value": null}` and not `{"value": ""}`.
+    wrapped: Dict[str, Any] = {"valueType": value_type}
+    if value is not None:
+        wrapped["value"] = value
+    return wrapped
+
+
 CONFIG_JSON = {
     "configuration": [
         {
             "name": "Source",
             "properties": {
-                "JDBC URL": "jdbc:postgresql://host:5432/appdb",
-                "Postgres Username": "repl",
+                "JDBC URL": _wrap("jdbc:postgresql://host:5432/appdb"),
+                "Postgres Username": _wrap("repl"),
             },
         },
         {
             "name": "Replication table schema",
             "properties": {
-                "Included Comma Separated Source Table Names": '"public"."testtable"'
+                "Included Comma Separated Source Table Names": _wrap(
+                    '"public"."testtable"'
+                )
             },
         },
         {
             "name": "Destination details",
             "properties": {
-                "Snowflake Destination Database": "OPENFLOW_DEV",
-                "Destination Schema Strategy": "SOURCE_SCHEMA",
-                "Object Identifier Resolution": "CASE_INSENSITIVE",
+                "Snowflake Destination Database": _wrap("OPENFLOW_DEV"),
+                "Destination Schema Strategy": _wrap("SOURCE_SCHEMA"),
+                "Object Identifier Resolution": _wrap("CASE_INSENSITIVE"),
             },
         },
     ]
@@ -101,13 +116,13 @@ def test_pattern_configured_connector_yields_no_enumerable_tables():
         "configuration": [
             {
                 "name": "Replication table schema",
-                "properties": {"Included Source Table Pattern": "public\\..*"},
+                "properties": {"Included Source Table Pattern": _wrap("public\\..*")},
             },
             {
                 "name": "Destination details",
                 "properties": {
-                    "Snowflake Destination Database": "OPENFLOW_DEV",
-                    "Destination Schema Strategy": "SOURCE_SCHEMA",
+                    "Snowflake Destination Database": _wrap("OPENFLOW_DEV"),
+                    "Destination Schema Strategy": _wrap("SOURCE_SCHEMA"),
                 },
             },
         ]
@@ -126,8 +141,10 @@ def test_source_url_uses_the_observed_property_name():
             {
                 "name": "Source",
                 "properties": {
-                    "Source Database Connection URL": "jdbc:postgresql://host:5432/appdb",
-                    "Source Database User": "repl",
+                    "Source Database Connection URL": _wrap(
+                        "jdbc:postgresql://host:5432/appdb"
+                    ),
+                    "Source Database User": _wrap("repl"),
                 },
             }
         ]
@@ -140,7 +157,7 @@ def test_unrecognised_source_url_key_is_reported_not_silently_ignored():
         "configuration": [
             {
                 "name": "Source",
-                "properties": {"Some Future Url Property": "jdbc:x://h/db"},
+                "properties": {"Some Future Url Property": _wrap("jdbc:x://h/db")},
             }
         ]
     }
@@ -157,7 +174,9 @@ def test_unqualified_table_name_is_reported_not_silently_dropped():
             {
                 "name": "Replication table schema",
                 "properties": {
-                    "Included Comma Separated Source Table Names": '"public"."a",noschema'
+                    "Included Comma Separated Source Table Names": _wrap(
+                        '"public"."a",noschema'
+                    )
                 },
             }
         ]
@@ -181,11 +200,111 @@ def test_table_name_list_parsing(raw, expected):
         "configuration": [
             {
                 "name": "Replication table schema",
-                "properties": {"Included Comma Separated Source Table Names": raw},
+                "properties": {
+                    "Included Comma Separated Source Table Names": _wrap(raw)
+                },
             }
         ]
     }
     assert parse_connector_config(config).source_tables == expected
+
+
+# --- property_value: the wrapper accessor. A live TypeError (unhashable ------
+# --- type: 'slice') is what surfaced that every property is wrapped as -------
+# --- {"valueType": ..., "value": ...} rather than a bare string. -------------
+
+
+def test_property_value_reads_the_wrapped_string():
+    properties = {"Snowflake Destination Database": _wrap("OPENFLOW_DEV")}
+    assert (
+        property_value(properties, "Snowflake Destination Database") == "OPENFLOW_DEV"
+    )
+
+
+def test_property_value_unset_property_reads_as_none():
+    # Openflow marks an unset property by omitting "value" entirely -- not
+    # null, not "" -- exactly how a real connector's unused Included Source
+    # Table Pattern and Destination Schema Suffix both look.
+    properties = {"Included Source Table Pattern": _wrap(None)}
+    assert property_value(properties, "Included Source Table Pattern") is None
+
+
+def test_property_value_ignores_non_literal_value_types():
+    # ASSET_REFERENCE and SECRET_REFERENCE properties carry assetIds /
+    # fullyQualifiedSecretName instead of "value". Reaching into one for a
+    # string would silently pick up whatever happened to be under a "value"
+    # key, or crash when there isn't one.
+    properties = {
+        "Source Database Driver": {
+            "valueType": "ASSET_REFERENCE",
+            "assetIds": ["postgresql-42.7.13-2.jar"],
+        }
+    }
+    assert property_value(properties, "Source Database Driver") is None
+
+
+def test_property_value_missing_key_reads_as_none():
+    assert property_value({}, "Anything") is None
+
+
+def test_property_value_tolerates_a_bare_string_for_forward_compatibility():
+    # Defensive: every observed property is wrapped, but a future config
+    # format version could flatten one to a bare string.
+    properties = {"Snowflake Destination Database": "OPENFLOW_DEV"}
+    assert (
+        property_value(properties, "Snowflake Destination Database") == "OPENFLOW_DEV"
+    )
+
+
+def test_parses_the_real_observed_wrapped_config_shape():
+    # The real config.json shape (Round 13 probe, corrected): every property is
+    # {"valueType": ..., "value": ...}, with "value" entirely absent when unset.
+    # CONFIG_JSON above, using bare strings, is a placeholder fixture that never
+    # actually occurs -- this is the real file, in its real shape, asserting
+    # the real answer.
+    config = {
+        "configuration": [
+            {
+                "name": "Source",
+                "properties": {
+                    "Source Database Connection URL": _wrap(
+                        "jdbc:postgresql://host:5432/postgres?sslmode=require"
+                    ),
+                    "Source Database Publication Name": _wrap("openflow_pub"),
+                    "Source Database Driver": {
+                        "valueType": "ASSET_REFERENCE",
+                        "assetIds": ["postgresql-42.7.13-2.jar"],
+                    },
+                },
+            },
+            {
+                "name": "Replication table schema",
+                "properties": {
+                    "Included Comma Separated Source Table Names": _wrap(
+                        '"public"."testtable"'
+                    ),
+                    "Included Source Table Pattern": _wrap(None),
+                },
+            },
+            {
+                "name": "Destination details",
+                "properties": {
+                    "Snowflake Destination Database": _wrap("OPENFLOW_DEV"),
+                    "Destination Schema Strategy": _wrap("SOURCE_SCHEMA"),
+                    "Destination Schema Suffix": _wrap(None),
+                    "Table Storage Format": _wrap("STANDARD"),
+                },
+            },
+        ]
+    }
+
+    lineage = parse_connector_config(config)
+
+    assert lineage.source_database == "postgres"
+    assert lineage.source_tables == [("public", "testtable")]
+    assert lineage.destination_database == "OPENFLOW_DEV"
+    assert lineage.schema_strategy == "SOURCE_SCHEMA"
+    assert lineage.table_pattern is None
 
 
 # --- _lineage_for_connector / _read_connector_config: the orchestration ----
@@ -350,14 +469,16 @@ def test_lineage_for_connector_skips_unrecognised_schema_strategy():
             {
                 "name": "Replication table schema",
                 "properties": {
-                    "Included Comma Separated Source Table Names": '"public"."testtable"'
+                    "Included Comma Separated Source Table Names": _wrap(
+                        '"public"."testtable"'
+                    )
                 },
             },
             {
                 "name": "Destination details",
                 "properties": {
-                    "Snowflake Destination Database": "OPENFLOW_DEV",
-                    "Destination Schema Strategy": "PREFIX",
+                    "Snowflake Destination Database": _wrap("OPENFLOW_DEV"),
+                    "Destination Schema Strategy": _wrap("PREFIX"),
                 },
             },
         ]
@@ -379,13 +500,13 @@ def test_lineage_for_connector_counts_pattern_configured_connector():
         "configuration": [
             {
                 "name": "Replication table schema",
-                "properties": {"Included Source Table Pattern": "public\\..*"},
+                "properties": {"Included Source Table Pattern": _wrap("public\\..*")},
             },
             {
                 "name": "Destination details",
                 "properties": {
-                    "Snowflake Destination Database": "OPENFLOW_DEV",
-                    "Destination Schema Strategy": "SOURCE_SCHEMA",
+                    "Snowflake Destination Database": _wrap("OPENFLOW_DEV"),
+                    "Destination Schema Strategy": _wrap("SOURCE_SCHEMA"),
                 },
             },
         ]

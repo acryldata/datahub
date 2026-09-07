@@ -119,6 +119,32 @@ class OpenflowLineage:
     unrecognised_source_url_keys: List[str] = dataclasses.field(default_factory=list)
 
 
+def property_value(properties: Dict[str, Any], key: str) -> Optional[str]:
+    # Every observed config property is wrapped as {"valueType": ..., "value": ...}.
+    # An unset property carries the valueType but NO "value" key at all (not `null`,
+    # not ""), and a non-literal valueType -- ASSET_REFERENCE, SECRET_REFERENCE --
+    # carries assetIds / fullyQualifiedSecretName instead of "value". A live crash
+    # (TypeError: unhashable type: 'slice', from treating the wrapper dict as the
+    # URL string itself) is what surfaced this: an earlier version of this parser
+    # was written against a probe artifact's flattened notes rather than the JSON,
+    # and the notes had silently unwrapped every property for readability.
+    #
+    # "value" is read whenever present, regardless of valueType, rather than gating
+    # on valueType == "STRING_LITERAL" -- more tolerant of types this connector
+    # has not seen, since a wrapper with no "value" key is never mistaken for one
+    # that has a value.
+    wrapped = properties.get(key)
+    if isinstance(wrapped, str):
+        # Defensive: every observed property is wrapped, but a future config
+        # format version could flatten one to a bare string.
+        return wrapped
+    if isinstance(wrapped, dict):
+        value = wrapped.get("value")
+        if isinstance(value, str):
+            return value
+    return None
+
+
 def _parse_table_names(raw: str) -> Tuple[List[Tuple[str, str]], List[str]]:
     # Returns (parsed, unparseable). The second element exists so the caller can
     # report dropped entries: an entry with no schema qualifier silently vanishing
@@ -147,14 +173,11 @@ def parse_connector_config(config_json: Dict[str, Any]) -> OpenflowLineage:
         name = section.get("name")
         properties = section.get("properties") or {}
         if name == SECTION_SOURCE:
-            source_url = next(
-                (
-                    properties[key]
-                    for key in PROP_SOURCE_URL_CANDIDATES
-                    if properties.get(key)
-                ),
-                None,
-            )
+            source_url: Optional[str] = None
+            for candidate_key in PROP_SOURCE_URL_CANDIDATES:
+                source_url = property_value(properties, candidate_key)
+                if source_url:
+                    break
             if source_url:
                 # jdbc:postgresql://host:5432/appdb -> appdb
                 path = urlparse(source_url[len("jdbc:") :]).path
@@ -162,15 +185,19 @@ def parse_connector_config(config_json: Dict[str, Any]) -> OpenflowLineage:
             else:
                 lineage.unrecognised_source_url_keys = sorted(properties)
         elif name == SECTION_REPLICATION:
-            names = properties.get(PROP_INCLUDED_TABLE_NAMES)
+            names = property_value(properties, PROP_INCLUDED_TABLE_NAMES)
             if names:
                 lineage.source_tables, lineage.unparseable_tables = _parse_table_names(
                     names
                 )
-            lineage.table_pattern = properties.get(PROP_INCLUDED_TABLE_PATTERN)
+            lineage.table_pattern = property_value(
+                properties, PROP_INCLUDED_TABLE_PATTERN
+            )
         elif name == SECTION_DESTINATION:
-            lineage.destination_database = properties.get(PROP_DESTINATION_DATABASE)
-            lineage.schema_strategy = properties.get(PROP_SCHEMA_STRATEGY)
+            lineage.destination_database = property_value(
+                properties, PROP_DESTINATION_DATABASE
+            )
+            lineage.schema_strategy = property_value(properties, PROP_SCHEMA_STRATEGY)
     return lineage
 
 
