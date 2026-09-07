@@ -1,7 +1,7 @@
 import gzip
 import json
 import pathlib
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import pytest
 from snowflake.connector.errors import OperationalError, ProgrammingError
@@ -9,11 +9,13 @@ from snowflake.connector.errors import OperationalError, ProgrammingError
 from datahub.ingestion.source.snowflake import snowflake_openflow
 from datahub.ingestion.source.snowflake.snowflake_openflow import (
     CONFIG_FILENAME,
+    CONNECTOR_DEFINITION_PLATFORM,
     SCHEMA_STRATEGY_SOURCE_SCHEMA,
     SnowflakeOpenflowSource,
     destination_identifier,
     parse_connector_config,
     property_value,
+    upstream_identifier,
 )
 from datahub.ingestion.source.snowflake.snowflake_openflow_config import (
     SnowflakeOpenflowSourceConfig,
@@ -691,6 +693,170 @@ def test_lineage_inlet_env_follows_openflow_env_when_source_env_unset():
     assert inlets == [
         "urn:li:dataset:(urn:li:dataPlatform:postgres,mysourcedb.public.mytable,DEV)"
     ]
+
+
+# --- Upstream dataset naming, per platform tier -----------------------------
+# A dataset URN whose name is at the wrong tier is still a well-formed URN, so
+# nothing raises -- the edge just points at a dataset that cannot exist. These
+# pin the shape DataHub's own sources use for each upstream platform.
+
+
+def _cdc_config(
+    source_url: Optional[str],
+    included_tables: str,
+    url_key: str = "Source Database Connection URL",
+) -> Dict[str, Any]:
+    source_properties: Dict[str, Any] = {}
+    if source_url is not None:
+        source_properties[url_key] = _wrap(source_url)
+    return {
+        "configuration": [
+            {"name": "Source", "properties": source_properties},
+            {
+                "name": "Replication table schema",
+                "properties": {
+                    "Included Comma Separated Source Table Names": _wrap(
+                        included_tables
+                    )
+                },
+            },
+            {
+                "name": "Destination details",
+                "properties": {
+                    "Snowflake Destination Database": _wrap("MY_DB"),
+                    "Destination Schema Strategy": _wrap("SOURCE_SCHEMA"),
+                },
+            },
+        ]
+    }
+
+
+def _inlets_for(
+    connector_definition: str,
+    config_json: Dict[str, Any],
+) -> Tuple[List[str], List[str], SnowflakeOpenflowReport]:
+    source = _make_source()
+    connector = OpenflowConnector(
+        name="cdc",
+        runtime_name="MyRuntime",
+        connector_id="1",
+        connector_definition=connector_definition,
+        version_location_uri="@stage/v1/",
+    )
+    source._query_rows = _fake_get(json.dumps(config_json).encode())  # type: ignore[assignment]
+    inlets, outlets = source._lineage_for_connector(connector)
+    return inlets, outlets, source.report
+
+
+def test_postgres_upstream_is_database_schema_table():
+    # PostgresSource.get_identifier (sql/postgres/source.py) composes
+    # f"{database}.{schema}.{entity}". This is also the shape covered by the
+    # committed golden file and by the live M3 milestone, so it must not move.
+    inlets, outlets, _ = _inlets_for(
+        "OPENFLOW_POSTGRES_CDC",
+        _cdc_config("jdbc:postgresql://host:5432/mysourcedb", '"public"."mytable"'),
+    )
+
+    assert inlets == [
+        "urn:li:dataset:(urn:li:dataPlatform:postgres,mysourcedb.public.mytable,PROD)"
+    ]
+    assert outlets == [
+        "urn:li:dataset:(urn:li:dataPlatform:snowflake,my_db.public.mytable,PROD)"
+    ]
+
+
+def test_mssql_upstream_is_database_schema_table():
+    # SQLServerSource.get_identifier (sql/mssql/source.py) composes
+    # f"{current_database}.{schema}.{entity}".
+    inlets, _, _ = _inlets_for(
+        "OPENFLOW_SQLSERVER_CDC",
+        _cdc_config("jdbc:sqlserver://host:1433/mysourcedb", '"dbo"."mytable"'),
+    )
+
+    assert inlets == [
+        "urn:li:dataset:(urn:li:dataPlatform:mssql,mysourcedb.dbo.mytable,PROD)"
+    ]
+
+
+def test_mysql_upstream_is_two_tier_database_table():
+    # MySQL is modelled by TwoTierSQLAlchemySource: get_allowed_schemas yields
+    # db_name as the "schema" and MySQLConfig.get_identifier returns
+    # f"{schema}.{table}", so the URN name has two parts. The three-tier formula
+    # this replaced emitted "mysourcedb.mysourcedb.mytable", which joins to
+    # nothing.
+    inlets, outlets, _ = _inlets_for(
+        "OPENFLOW_MYSQL_CDC",
+        _cdc_config("jdbc:mysql://host:3306/mysourcedb", '"mysourcedb"."mytable"'),
+    )
+
+    assert inlets == [
+        "urn:li:dataset:(urn:li:dataPlatform:mysql,mysourcedb.mytable,PROD)"
+    ]
+    assert outlets == [
+        "urn:li:dataset:(urn:li:dataPlatform:snowflake,my_db.mysourcedb.mytable,PROD)"
+    ]
+
+
+def test_mysql_upstream_uses_the_table_qualifier_not_the_jdbc_database():
+    # The per-table qualifier is the MySQL database, so lineage stays correct
+    # for a CDC connector replicating tables from more than one database -- and
+    # is still derivable when the JDBC URL names no database at all.
+    inlets, _, _ = _inlets_for(
+        "OPENFLOW_MYSQL_CDC",
+        _cdc_config("jdbc:mysql://host:3306/", '"otherdb"."mytable"'),
+    )
+
+    assert inlets == ["urn:li:dataset:(urn:li:dataPlatform:mysql,otherdb.mytable,PROD)"]
+
+
+def test_kafka_connector_definition_builds_no_upstream_and_warns():
+    # Kafka dataset names are the bare topic (source/kafka/kafka.py), which this
+    # connector cannot derive: the upstream side is reconstructed from a `jdbc:`
+    # Source URL and a schema-qualified table list, neither of which a Kafka
+    # connector carries. NOT verified against a live Kafka connector -- none
+    # exists in the test account -- so the contract asserted here is that the
+    # definition is reported as unsupported rather than guessed at.
+    inlets, outlets, report = _inlets_for(
+        "OPENFLOW_KAFKA",
+        _cdc_config("jdbc:postgresql://host:5432/mysourcedb", '"public"."mytable"'),
+    )
+
+    assert inlets == []
+    # Destination lineage still flows.
+    assert outlets == [
+        "urn:li:dataset:(urn:li:dataPlatform:snowflake,my_db.public.mytable,PROD)"
+    ]
+    assert "Unsupported connector definition for upstream lineage" in _warning_titles(
+        report
+    )
+
+
+def test_unknown_connector_definition_degrades_to_destination_only():
+    inlets, outlets, report = _inlets_for(
+        "OPENFLOW_SOME_FUTURE_SOURCE",
+        _cdc_config("jdbc:postgresql://host:5432/mysourcedb", '"public"."mytable"'),
+    )
+
+    assert inlets == []
+    assert outlets == [
+        "urn:li:dataset:(urn:li:dataPlatform:snowflake,my_db.public.mytable,PROD)"
+    ]
+    assert "Unsupported connector definition for upstream lineage" in _warning_titles(
+        report
+    )
+
+
+def test_three_tier_upstream_omits_the_inlet_when_no_database_was_parsed():
+    # A missing database would otherwise produce "None.public.mytable".
+    assert (
+        upstream_identifier(
+            CONNECTOR_DEFINITION_PLATFORM["OPENFLOW_POSTGRES_CDC"],
+            source_database=None,
+            source_schema="public",
+            source_table="mytable",
+        )
+        is None
+    )
 
 
 # --- Stage GET retry --------------------------------------------------------

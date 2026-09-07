@@ -1,4 +1,5 @@
 import dataclasses
+import enum
 import gzip
 import json
 import logging
@@ -25,6 +26,7 @@ from tenacity import (
     wait_exponential,
 )
 from tenacity.before_sleep import before_sleep_log
+from typing_extensions import assert_never
 
 from datahub.configuration.common import AllowDenyPattern
 from datahub.emitter.mce_builder import (
@@ -98,8 +100,9 @@ SECTION_DESTINATION = "Destination details"
 # The observed property name is "Source Database Connection URL" (probe Result 37,
 # section [0] "Source"), NOT "JDBC URL". Both are tried because different connector
 # definitions may name it differently -- OPENFLOW_POSTGRES_CDC is the only one
-# observed. A miss here is silent: source_database stays None, so no upstream inlet
-# is ever built and lineage emits destinations only, with nothing reporting why.
+# observed. On a miss source_database stays None, which costs the upstream inlet on
+# the three-tier platforms (see UpstreamNaming); the keys that WERE seen are reported
+# so the miss is visible rather than silent.
 PROP_SOURCE_URL_CANDIDATES = ("Source Database Connection URL", "JDBC URL")
 PROP_INCLUDED_TABLE_NAMES = "Included Comma Separated Source Table Names"
 PROP_INCLUDED_TABLE_PATTERN = "Included Source Table Pattern"
@@ -142,13 +145,101 @@ _RETRYABLE_STAGE_GET_ERRORS: Tuple[Type[BaseException], ...] = (
     snowflake_errors.OtherHTTPRetryableError,
 )
 
-# CONNECTOR_DEFINITION -> DataHub platform for the upstream side.
-CONNECTOR_DEFINITION_PLATFORM = {
-    "OPENFLOW_POSTGRES_CDC": "postgres",
-    "OPENFLOW_MYSQL_CDC": "mysql",
-    "OPENFLOW_SQLSERVER_CDC": "mssql",
-    "OPENFLOW_KAFKA": "kafka",
+
+class UpstreamNaming(enum.Enum):
+    """How DataHub composes a dataset name on the upstream platform.
+
+    A dataset URN whose *name* is at the wrong tier is still a well-formed URN,
+    so nothing in the emit path raises -- the edge simply points at a dataset
+    that cannot exist. The tier therefore has to be stated per platform, next
+    to the platform itself, rather than assumed by a single shared formula.
+    """
+
+    # {database}.{schema}.{table}. The platform has a real schema layer between
+    # database and table.
+    #   postgres: PostgresSource.get_identifier, sql/postgres/source.py
+    #             -> f"{self.config.database}.{schema}.{entity}"
+    #   mssql:    SQLServerSource.get_identifier, sql/mssql/source.py
+    #             -> f"{self.current_database}.{schema}.{entity}"
+    DATABASE_SCHEMA_TABLE = "database.schema.table"
+
+    # {database}.{table}. The platform has no schema layer at all, so the URN
+    # carries two parts.
+    #   mysql: modelled by TwoTierSQLAlchemySource (sql/two_tier_sql_source.py).
+    #          get_allowed_schemas yields db_name as the "schema", and
+    #          MySQLConfig.get_identifier (sql/mysql.py) returns
+    #          f"{schema}.{table}" -- i.e. f"{database}.{table}".
+    DATABASE_TABLE = "database.table"
+
+
+@dataclasses.dataclass(frozen=True)
+class UpstreamPlatform:
+    platform: str
+    naming: UpstreamNaming
+
+
+# CONNECTOR_DEFINITION -> the upstream side's DataHub platform AND the tier its
+# dataset names use. Both live in one entry on purpose: an earlier version
+# carried only the platform here and hard-coded a three-tier name formula ~540
+# lines away, which silently produced `mydb.mydb.mytable` for MySQL. Adding a
+# fifth definition now forces its author to state the shape.
+#
+# OPENFLOW_KAFKA is deliberately absent. Kafka dataset names are the bare topic
+# (KafkaSource, source/kafka/kafka.py: make_dataset_urn_with_platform_instance(
+# ..., name=topic, ...)), which this connector cannot derive: the upstream side
+# is reconstructed from a `jdbc:` Source URL and a schema-qualified table list,
+# neither of which a Kafka connector carries. An unmapped definition is
+# reported rather than guessed at -- see _lineage_for_connector.
+CONNECTOR_DEFINITION_PLATFORM: Dict[str, UpstreamPlatform] = {
+    "OPENFLOW_POSTGRES_CDC": UpstreamPlatform(
+        "postgres", UpstreamNaming.DATABASE_SCHEMA_TABLE
+    ),
+    "OPENFLOW_MYSQL_CDC": UpstreamPlatform("mysql", UpstreamNaming.DATABASE_TABLE),
+    "OPENFLOW_SQLSERVER_CDC": UpstreamPlatform(
+        "mssql", UpstreamNaming.DATABASE_SCHEMA_TABLE
+    ),
 }
+
+
+def upstream_identifier(
+    upstream: UpstreamPlatform,
+    source_database: Optional[str],
+    source_schema: str,
+    source_table: str,
+) -> Optional[str]:
+    """The upstream dataset's dotted name, at that platform's own tier.
+
+    Returns None when the config did not carry what the tier needs, so the
+    caller omits the inlet rather than emitting a URN with a missing part.
+    """
+    if upstream.naming is UpstreamNaming.DATABASE_SCHEMA_TABLE:
+        if not source_database:
+            return None
+        return f"{source_database}.{source_schema}.{source_table}"
+    if upstream.naming is UpstreamNaming.DATABASE_TABLE:
+        # MySQL has no schema layer, so the qualifier in the connector's
+        # "Included Comma Separated Source Table Names" entry (`db.table`) IS
+        # the database -- that is the value used here, NOT the database parsed
+        # out of the JDBC URL.
+        #
+        # Why the per-entry qualifier and not the URL's: the qualifier is the
+        # only value that is per-table, so it stays correct for a CDC connector
+        # replicating across more than one database, and it is still present
+        # when the JDBC URL names no database at all (`jdbc:mysql://host:3306/`).
+        # Where both are present and agree, the two readings coincide.
+        #
+        # Precedent: kafka_connect's Debezium handling resolves the same
+        # ambiguity the same way -- DebeziumSourceConnector.
+        # _get_database_name_for_platform (kafka_connect/source_connectors.py)
+        # returns None for "mysql", so get_dataset_name(None, "db.table")
+        # yields the two-part "db.table" while postgres/mssql get a database
+        # prefixed on.
+        #
+        # AMBIGUITY, stated plainly: this has not been confirmed against a live
+        # OPENFLOW_MYSQL_CDC connector -- none exists in the test account -- so
+        # it rests on MySQL's own namespace rules plus the precedent above.
+        return f"{source_schema}.{source_table}"
+    assert_never(upstream.naming)
 
 
 # --- Container keys -------------------------------------------------------
@@ -654,9 +745,20 @@ class SnowflakeOpenflowSource(StatefulIngestionSourceBase, TestableSource):
             identifier_config=self.config.get_snowflake_identifier_config(),
             structured_reporter=self.report,
         )
-        upstream_platform = CONNECTOR_DEFINITION_PLATFORM.get(
+        upstream = CONNECTOR_DEFINITION_PLATFORM.get(
             connector.connector_definition or ""
         )
+        if upstream is None and lineage.source_tables:
+            # Guessing a name for an unmapped definition is what produces a
+            # well-formed URN naming a dataset that cannot exist, which nothing
+            # downstream reports. Warn instead; destination lineage still flows.
+            self.report.warning(
+                title="Unsupported connector definition for upstream lineage",
+                message="No upstream platform and dataset-name shape are known for "
+                "this connector definition, so no upstream dataset could be derived. "
+                "Downstream lineage is still emitted.",
+                context=f"{connector.key}: {connector.connector_definition!r}",
+            )
         inlets: List[str] = []
         outlets: List[str] = []
         for source_schema, source_table in lineage.source_tables:
@@ -687,17 +789,28 @@ class SnowflakeOpenflowSource(StatefulIngestionSourceBase, TestableSource):
                     identifiers.snowflake_identifier(destination)
                 )
             )
-            if upstream_platform and lineage.source_database:
-                inlets.append(
-                    make_dataset_urn_with_platform_instance(
-                        platform=upstream_platform,
-                        name=f"{lineage.source_database}.{source_schema}.{source_table}",
-                        platform_instance=self.config.source_platform_instance,
-                        # default_source_env_to_env guarantees source_env is set;
-                        # the fallback keeps that guarantee visible to mypy.
-                        env=self.config.source_env or self.config.env,
-                    )
+            if upstream is not None:
+                # `upstream_identifier` is the single formula for the upstream's
+                # dotted name, and it is tier-aware: which of source_database /
+                # source_schema it consumes depends on the platform, so the name
+                # is never recomposed here.
+                upstream_name = upstream_identifier(
+                    upstream,
+                    lineage.source_database,
+                    source_schema,
+                    source_table,
                 )
+                if upstream_name is not None:
+                    inlets.append(
+                        make_dataset_urn_with_platform_instance(
+                            platform=upstream.platform,
+                            name=upstream_name,
+                            platform_instance=self.config.source_platform_instance,
+                            # default_source_env_to_env guarantees source_env is set;
+                            # the fallback keeps that guarantee visible to mypy.
+                            env=self.config.source_env or self.config.env,
+                        )
+                    )
             self.report.num_lineage_edges += 1
         return inlets, outlets
 
