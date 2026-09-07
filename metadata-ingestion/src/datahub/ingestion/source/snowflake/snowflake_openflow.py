@@ -238,7 +238,7 @@ def parse_connector_config(config_json: Dict[str, Any]) -> OpenflowLineage:
                 if source_url:
                     break
             if source_url:
-                # jdbc:postgresql://host:5432/appdb -> appdb
+                # jdbc:postgresql://host:5432/mydb -> mydb
                 path = urlparse(source_url[len("jdbc:") :]).path
                 lineage.source_database = path.lstrip("/") or None
             else:
