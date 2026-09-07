@@ -147,6 +147,34 @@ class SnowflakeOpenflowSourceConfig(
             )
         return self
 
+    @model_validator(mode="after")
+    def reject_uppercase_snowflake_platform_instance_when_folding(
+        self,
+    ) -> "SnowflakeOpenflowSourceConfig":
+        # Eager for the same reason as the two validators above. This source folds
+        # the destination identifier itself (SnowflakeIdentifierBuilder) instead of
+        # letting the pipeline-level pass do it, because that pass would also fold
+        # the upstream inlets this connector builds verbatim. The two differ in one
+        # respect: the pipeline pass folds the whole dataset name INCLUDING the
+        # platform_instance prefix, while snowflake_identifier() folds only the
+        # identifier after it. So an uppercase snowflake_platform_instance here
+        # silently stops matching the same instance written by a `snowflake` recipe
+        # that spells convert_urns_to_lowercase out - a well-formed URN pointing at
+        # nothing, which no layer reports. Refuse it at recipe-load time; lowercasing
+        # the value costs the operator nothing and removes the divergence.
+        if self.convert_urns_to_lowercase and self.snowflake_platform_instance:
+            if (
+                self.snowflake_platform_instance
+                != self.snowflake_platform_instance.lower()
+            ):
+                raise ValueError(
+                    "snowflake_platform_instance must be lowercase when "
+                    "convert_urns_to_lowercase is enabled, because the destination "
+                    "identifier is folded but the platform_instance prefix is not; "
+                    f"use {self.snowflake_platform_instance.lower()!r}"
+                )
+        return self
+
     def get_snowflake_identifier_config(self) -> SnowflakeIdentifierConfig:
         return SnowflakeIdentifierConfig(
             platform_instance=self.snowflake_platform_instance,

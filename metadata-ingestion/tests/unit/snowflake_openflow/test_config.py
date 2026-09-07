@@ -77,3 +77,42 @@ def test_invalid_source_env_is_rejected():
         SnowflakeOpenflowSourceConfig.model_validate(
             {**MINIMAL, "source_env": "NOT_AN_ENV"}
         )
+
+
+def test_uppercase_snowflake_platform_instance_is_rejected_when_folding():
+    # The destination identifier is folded in-source while the platform_instance
+    # prefix is not, so an uppercase instance would emit URNs that do not match the
+    # ones a `snowflake` recipe writes. Must fail at recipe-load time, not deep in
+    # lineage emission.
+    with pytest.raises(ValueError, match="must be lowercase"):
+        SnowflakeOpenflowSourceConfig.model_validate(
+            {
+                **MINIMAL,
+                "convert_urns_to_lowercase": True,
+                "snowflake_platform_instance": "Prod_Account",
+            }
+        )
+
+
+def test_lowercase_snowflake_platform_instance_is_accepted_when_folding():
+    config = SnowflakeOpenflowSourceConfig.model_validate(
+        {
+            **MINIMAL,
+            "convert_urns_to_lowercase": True,
+            "snowflake_platform_instance": "prod_account",
+        }
+    )
+    assert config.snowflake_platform_instance == "prod_account"
+
+
+def test_uppercase_snowflake_platform_instance_is_allowed_without_folding():
+    # Without folding there is no divergence to guard against, so the value is
+    # the operator's to choose.
+    config = SnowflakeOpenflowSourceConfig.model_validate(
+        {
+            **MINIMAL,
+            "convert_urns_to_lowercase": False,
+            "snowflake_platform_instance": "Prod_Account",
+        }
+    )
+    assert config.snowflake_platform_instance == "Prod_Account"

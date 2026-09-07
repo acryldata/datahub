@@ -105,7 +105,7 @@ def test_paged_history_stops_on_null_created_on_boundary():
     assert len(calls) == 1
     titles = _warning_titles(source.report)
     assert "Cannot paginate past a NULL CREATED_ON" in titles
-    assert "Openflow history required more than one page" not in titles
+    assert source.report.num_history_pages_beyond_first == 0
 
 
 def test_paged_history_stops_on_non_advancing_cursor():
@@ -138,9 +138,11 @@ def test_paged_history_stops_on_non_advancing_cursor():
     assert rows == tied_page + tied_page
     titles = _warning_titles(source.report)
     assert "Pagination stalled on identical timestamps" in titles
-    # Two full pages were consumed before the guard fired, so the separate
-    # tie-boundary warning also fires.
-    assert "Openflow history required more than one page" in titles
+    # Two full pages were consumed before the guard fired. Paging beyond the
+    # first is counted, not warned about: with the inclusive cursor it is the
+    # ordinary case for any account with churn, so a warning here would be noise
+    # that buries the stall guard above, which is the real signal.
+    assert source.report.num_history_pages_beyond_first == 1
 
 
 def test_paged_history_normal_termination_stays_quiet():
@@ -183,9 +185,9 @@ def test_paged_history_multi_page_collects_all_rows_and_advances_cursor():
 
     assert rows == page1 + page2 + page3
     assert cursors_seen == [None, page1[-1]["CREATED_ON"], page2[-1]["CREATED_ON"]]
-    titles = _warning_titles(source.report)
-    assert "Openflow history required more than one page" in titles
+    assert source.report.num_history_pages_beyond_first == 2
     # Neither guard fired: the cursor genuinely advanced on every page.
+    titles = _warning_titles(source.report)
     assert "Cannot paginate past a NULL CREATED_ON" not in titles
     assert "Pagination stalled on identical timestamps" not in titles
 

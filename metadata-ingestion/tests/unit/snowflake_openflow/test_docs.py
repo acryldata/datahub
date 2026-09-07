@@ -4,6 +4,10 @@ from typing import List, Set
 
 import yaml
 
+from datahub.ingestion.source.snowflake.snowflake_openflow_config import (
+    SnowflakeOpenflowSourceConfig,
+)
+
 DOC_DIR = pathlib.Path("docs/sources/snowflake-openflow")
 PRE = DOC_DIR / "snowflake-openflow_pre.md"
 POST = DOC_DIR / "snowflake-openflow_post.md"
@@ -79,10 +83,6 @@ def test_docs_disable_instruction_matches_the_parsed_default():
     # parsed default is on, so this pins the docs/config contract rather than the
     # pydantic default on its own -- the default alone is what the framework
     # guarantees, the agreement between the two is what we guarantee.
-    from datahub.ingestion.source.snowflake.snowflake_openflow_config import (
-        SnowflakeOpenflowSourceConfig,
-    )
-
     prose = POST.read_text() + RECIPE.read_text()
     assert "include_openflow_lineage" in prose, (
         "docs no longer mention the flag; drop this test or update the docs"

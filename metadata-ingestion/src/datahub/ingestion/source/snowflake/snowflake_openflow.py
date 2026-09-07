@@ -15,6 +15,7 @@ from typing import (
     Sequence,
     Tuple,
     Type,
+    Union,
 )
 from urllib.parse import urlparse
 
@@ -49,6 +50,7 @@ from datahub.ingestion.api.source import (
     TestConnectionReport,
 )
 from datahub.ingestion.api.workunit import MetadataWorkUnit
+from datahub.ingestion.api.workunit_processor import WorkunitProcessor
 from datahub.ingestion.source.common.subtypes import (
     DataFlowSubTypes,
     DataJobSubTypes,
@@ -76,6 +78,9 @@ from datahub.ingestion.source.snowflake.snowflake_utils import (
 )
 from datahub.ingestion.source.state.stateful_ingestion_base import (
     StatefulIngestionSourceBase,
+)
+from datahub.ingestion.workunit_processors.auto_lowercase_urns import (
+    AutoLowercaseUrnsProcessor,
 )
 from datahub.metadata.schema_classes import OwnerClass, OwnershipTypeClass
 from datahub.sdk.dataflow import DataFlow
@@ -562,13 +567,9 @@ class SnowflakeOpenflowSource(StatefulIngestionSourceBase, TestableSource):
         config = SnowflakeOpenflowSourceConfig.model_validate(config_dict)
         return cls(config, ctx)
 
-    def get_excluded_workunit_processors(self):
-        # Deferred import: datahub.ingestion.workunit_processors imports back into
-        # datahub.ingestion.api.source, which every source module is loaded from.
-        from datahub.ingestion.workunit_processors.auto_lowercase_urns import (
-            AutoLowercaseUrnsProcessor,
-        )
-
+    def get_excluded_workunit_processors(
+        self,
+    ) -> List[Union[str, Type[WorkunitProcessor]]]:
         # This source emits dataset URNs for two different platforms, and only one
         # of them may be folded. The destination Snowflake URNs are already folded
         # in-source by SnowflakeIdentifierBuilder.snowflake_identifier() from the
@@ -877,19 +878,17 @@ class SnowflakeOpenflowSource(StatefulIngestionSourceBase, TestableSource):
             cursor = next_cursor
 
         if pages > 1:
-            # Known limitation, surfaced only if pagination actually engages.
-            # `CREATED_ON >` loses rows whose timestamp is exactly the page
-            # boundary and did not fit on the page. At documented volumes (low
-            # hundreds of objects against PAGE_SIZE 1000) a single page always
-            # suffices, so this stays unreachable -- but if scale changes, the
-            # operator finds out here rather than from missing entities.
-            self.report.warning(
-                title="Openflow history required more than one page",
-                message="Rows sharing the exact CREATED_ON of a page boundary can be "
-                "skipped by the strict-greater-than cursor. Verify counts if entities "
-                "appear to be missing.",
-                context=f"pages={pages}",
-            )
+            # Informational, not a warning. These queries page over CUMULATIVE
+            # LIFECYCLE rows -- DELETED_ON is deliberately unfiltered, because the
+            # deleted rows are the deletion-detection signal -- so an account with
+            # even modest churn exceeds PAGE_SIZE within the view's retention
+            # window while holding only a handful of live objects. Multi-page is
+            # therefore the ordinary case, not a scale alarm. An earlier revision
+            # of this comment argued the opposite from the live-object count and
+            # called the branch unreachable; that reasoning weighed the wrong
+            # population. The boundary-row loss it warned about is closed by the
+            # inclusive cursor in snowflake_openflow_query.py.
+            self.report.num_history_pages_beyond_first += pages - 1
         return rows
 
     def _fetch_deployments(self) -> List[OpenflowDeployment]:

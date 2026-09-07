@@ -14,7 +14,11 @@ def _history_query(view: str, cursor: Optional[str]) -> str:
     # DELETED_ON is deliberately NOT filtered here. The deleted rows are the
     # input to deletion detection; filtering them in SQL would throw away the
     # only observable signal that an object is gone.
-    predicate = f"WHERE CREATED_ON > '{cursor}'" if cursor else ""
+    # `>=`, not `>`: a strict cursor drops every row sharing the exact CREATED_ON
+    # of a page boundary. The overlap row it re-fetches is free -- merge_show_and_history
+    # is keyed on row.key and collapses it -- whereas a dropped row is invisible,
+    # surfacing only as a deleted object that stays live in DataHub.
+    predicate = f"WHERE CREATED_ON >= '{cursor}'" if cursor else ""
     return f"""
 SELECT *
 FROM {view}
