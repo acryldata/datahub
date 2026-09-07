@@ -1,0 +1,257 @@
+from typing import Any, Callable, Dict, List, Optional
+
+from datahub.configuration.common import AllowDenyPattern
+from datahub.ingestion.source.snowflake.snowflake_openflow import (
+    SnowflakeOpenflowSource,
+)
+from datahub.ingestion.source.snowflake.snowflake_openflow_config import (
+    SnowflakeOpenflowSourceConfig,
+)
+from datahub.ingestion.source.snowflake.snowflake_openflow_query import (
+    DEPLOYMENT_HISTORY,
+    RUNTIME_HISTORY,
+    SnowflakeOpenflowQuery,
+)
+from datahub.ingestion.source.snowflake.snowflake_openflow_report import (
+    SnowflakeOpenflowReport,
+)
+
+MINIMAL_CONNECTION = {
+    "connection": {
+        "account_id": "abc12345",
+        "username": "user",
+        "password": "pass",
+    }
+}
+
+
+def _make_source(**config_overrides: Any) -> SnowflakeOpenflowSource:
+    # Bypasses __init__ (which opens a real Snowflake connection via
+    # config.connection.get_connection()) and PipelineContext entirely. These
+    # tests drive the pure extraction/pagination logic through the same
+    # _query_rows seam the source itself calls -- no network, no pipeline.
+    config = SnowflakeOpenflowSourceConfig.model_validate(
+        {**MINIMAL_CONNECTION, **config_overrides}
+    )
+    source = object.__new__(SnowflakeOpenflowSource)
+    source.config = config
+    source.platform = "openflow"
+    source.report = SnowflakeOpenflowReport()
+    return source
+
+
+def _warning_titles(report: SnowflakeOpenflowReport) -> List[Optional[str]]:
+    return [entry.title for entry in report.warnings]
+
+
+def _row(created_on: Optional[str]) -> Dict[str, Any]:
+    return {"CREATED_ON": created_on}
+
+
+def _fake_query_rows(
+    show_query: str,
+    history_marker: str,
+    show_rows: List[Dict[str, Any]],
+    history_rows: List[Dict[str, Any]],
+) -> Callable[[str], List[Dict[str, Any]]]:
+    def fake(query: str) -> List[Dict[str, Any]]:
+        if query == show_query:
+            return show_rows
+        if history_marker in query:
+            return history_rows
+        raise AssertionError(f"unexpected query: {query!r}")
+
+    return fake
+
+
+# --- _paged_history: the two guards demonstrated as real defects before this
+# --- brief was written, plus the two paths that must stay quiet/complete.
+
+
+def test_paged_history_stops_on_null_created_on_boundary():
+    # A full page whose last row has a NULL CREATED_ON must not become the
+    # literal cursor string "None" -- that would produce a next query of
+    # `WHERE CREATED_ON > 'None'`. Asserting len(calls) == 1 proves no such
+    # second call was ever attempted.
+    source = _make_source()
+    page_size = SnowflakeOpenflowQuery.PAGE_SIZE
+    full_page = [_row(f"2024-01-01T00:00:{i:02d}") for i in range(page_size - 1)] + [
+        _row(None)
+    ]
+    calls: List[str] = []
+
+    def fake_query_rows(query: str) -> List[Dict[str, Any]]:
+        calls.append(query)
+        return full_page
+
+    source._query_rows = fake_query_rows  # type: ignore[method-assign]
+    rows = source._paged_history(lambda cursor: f"query cursor={cursor}")
+
+    assert rows == full_page
+    assert len(calls) == 1
+    titles = _warning_titles(source.report)
+    assert "Cannot paginate past a NULL CREATED_ON" in titles
+    assert "Openflow history required more than one page" not in titles
+
+
+def test_paged_history_stops_on_non_advancing_cursor():
+    # A full page where every row shares one CREATED_ON can never advance the
+    # cursor. Regressing this guard turns this test into an infinite loop, so
+    # the test terminating at all is itself part of what it verifies.
+    source = _make_source()
+    page_size = SnowflakeOpenflowQuery.PAGE_SIZE
+    tied_page = [_row("2024-01-01T00:00:00") for _ in range(page_size)]
+    calls: List[str] = []
+
+    def fake_query_rows(query: str) -> List[Dict[str, Any]]:
+        calls.append(query)
+        return tied_page
+
+    source._query_rows = fake_query_rows  # type: ignore[method-assign]
+    rows = source._paged_history(lambda cursor: f"query cursor={cursor}")
+
+    # Page 1: cursor None -> "…:00" advances the cursor once. Page 2: the
+    # cursor recomputes to the same "…:00" value, and the guard stops there.
+    assert rows == tied_page + tied_page
+    assert len(calls) == 2
+    titles = _warning_titles(source.report)
+    assert "Pagination stalled on identical timestamps" in titles
+    # Two full pages were consumed before the guard fired, so the separate
+    # tie-boundary warning also fires.
+    assert "Openflow history required more than one page" in titles
+
+
+def test_paged_history_normal_termination_stays_quiet():
+    # The common case -- a page short of PAGE_SIZE -- must produce no warning
+    # at all. This is what proves the guards above do not fire spuriously.
+    source = _make_source()
+    short_page = [_row("2024-01-01T00:00:00") for _ in range(3)]
+    calls: List[str] = []
+
+    def fake_query_rows(query: str) -> List[Dict[str, Any]]:
+        calls.append(query)
+        return short_page
+
+    source._query_rows = fake_query_rows  # type: ignore[method-assign]
+    rows = source._paged_history(lambda cursor: f"query cursor={cursor}")
+
+    assert rows == short_page
+    assert len(calls) == 1
+    assert len(source.report.warnings) == 0
+
+
+def test_paged_history_multi_page_collects_all_rows_and_advances_cursor():
+    source = _make_source()
+    page_size = SnowflakeOpenflowQuery.PAGE_SIZE
+    page1 = [_row(f"2024-01-01T00:00:{i:02d}") for i in range(page_size)]
+    page2 = [_row(f"2024-01-02T00:00:{i:02d}") for i in range(page_size)]
+    page3 = [_row("2024-01-03T00:00:00")]  # short page: ends pagination
+    remaining_pages = [page1, page2, page3]
+    cursors_seen: List[Optional[str]] = []
+
+    def fake_query_rows(query: str) -> List[Dict[str, Any]]:
+        return remaining_pages.pop(0)
+
+    def builder(cursor: Optional[str]) -> str:
+        cursors_seen.append(cursor)
+        return f"query cursor={cursor}"
+
+    source._query_rows = fake_query_rows  # type: ignore[method-assign]
+    rows = source._paged_history(builder)
+
+    assert rows == page1 + page2 + page3
+    assert cursors_seen == [None, page1[-1]["CREATED_ON"], page2[-1]["CREATED_ON"]]
+    titles = _warning_titles(source.report)
+    assert "Openflow history required more than one page" in titles
+    # Neither guard fired: the cursor genuinely advanced on every page.
+    assert "Cannot paginate past a NULL CREATED_ON" not in titles
+    assert "Pagination stalled on identical timestamps" not in titles
+
+
+# --- _fetch_deployments / _fetch_runtimes: empty inventory and filtering ----
+
+
+def test_fetch_deployments_reports_empty_inventory_when_nothing_visible():
+    source = _make_source()
+    source._query_rows = _fake_query_rows(  # type: ignore[assignment]
+        SnowflakeOpenflowQuery.show_deployments(), DEPLOYMENT_HISTORY, [], []
+    )
+    result = source._fetch_deployments()
+
+    assert result == []
+    assert "No Openflow objects found" in _warning_titles(source.report)
+
+
+def test_fetch_runtimes_reports_empty_inventory_when_nothing_visible():
+    source = _make_source()
+    source._query_rows = _fake_query_rows(  # type: ignore[assignment]
+        SnowflakeOpenflowQuery.show_runtimes(), RUNTIME_HISTORY, [], []
+    )
+    result = source._fetch_runtimes()
+
+    assert result == []
+    assert "No Openflow objects found" in _warning_titles(source.report)
+
+
+def test_fetch_deployments_filters_by_pattern_without_flagging_empty_inventory():
+    # The distinction the review specifically flagged: a legitimate
+    # AllowDenyPattern exclusion is not an empty account, and must not be
+    # reported as one.
+    source = _make_source(deployment_pattern=AllowDenyPattern(deny=["dep-b"]))
+    show_rows = [
+        {"key": "dep-a", "name": "dep-a"},
+        {"key": "dep-b", "name": "dep-b"},
+    ]
+    source._query_rows = _fake_query_rows(  # type: ignore[assignment]
+        SnowflakeOpenflowQuery.show_deployments(), DEPLOYMENT_HISTORY, show_rows, []
+    )
+    result = source._fetch_deployments()
+
+    assert [deployment.key for deployment in result] == ["dep-a"]
+    assert "dep-b" in source.report.filtered_deployments
+    assert "No Openflow objects found" not in _warning_titles(source.report)
+
+
+def test_fetch_runtimes_filters_by_pattern_without_flagging_empty_inventory():
+    source = _make_source(runtime_pattern=AllowDenyPattern(deny=["rt-b"]))
+    show_rows = [
+        {"key": "rt-a", "name": "rt-a", "deployment": "dep-a"},
+        {"key": "rt-b", "name": "rt-b", "deployment": "dep-a"},
+    ]
+    source._query_rows = _fake_query_rows(  # type: ignore[assignment]
+        SnowflakeOpenflowQuery.show_runtimes(), RUNTIME_HISTORY, show_rows, []
+    )
+    result = source._fetch_runtimes()
+
+    assert [runtime.key for runtime in result] == ["rt-a"]
+    assert "rt-b" in source.report.filtered_runtimes
+    assert "No Openflow objects found" not in _warning_titles(source.report)
+
+
+# --- get_workunits_internal: the orphaned-runtime branch -------------------
+
+
+def test_orphaned_runtime_is_skipped_with_warning_and_no_exception():
+    source = _make_source()
+    deployment_show = [{"key": "dep-a", "name": "dep-a"}]
+    runtime_show = [
+        {"key": "rt-orphan", "name": "rt-orphan", "deployment": "dep-unknown"}
+    ]
+
+    def fake_query_rows(query: str) -> List[Dict[str, Any]]:
+        if query == SnowflakeOpenflowQuery.show_deployments():
+            return deployment_show
+        if query == SnowflakeOpenflowQuery.show_runtimes():
+            return runtime_show
+        if DEPLOYMENT_HISTORY in query or RUNTIME_HISTORY in query:
+            return []
+        raise AssertionError(f"unexpected query: {query!r}")
+
+    source._query_rows = fake_query_rows  # type: ignore[method-assign]
+
+    workunits = list(source.get_workunits_internal())  # must not raise
+
+    assert workunits  # the visible deployment still emits containers
+    assert source.report.num_deployments == 1
+    assert source.report.num_runtimes == 0
+    assert "Runtime with no visible parent deployment" in _warning_titles(source.report)
