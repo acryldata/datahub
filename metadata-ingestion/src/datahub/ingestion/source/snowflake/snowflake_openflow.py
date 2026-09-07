@@ -180,6 +180,11 @@ def destination_identifier(
     # Only SOURCE_SCHEMA is implemented. Prefix/Suffix/Pattern strategies exist;
     # guessing one produces a well-formed URN naming a table that is not there,
     # which no layer reports as an error.
+    #
+    # This is the single formula for the destination's dotted identifier: the
+    # caller feeds the returned string straight into the URN (after case
+    # folding) rather than recomputing it, so a future Prefix/Suffix strategy
+    # only ever needs a change here.
     if schema_strategy != SCHEMA_STRATEGY_SOURCE_SCHEMA:
         return None
     return f"{destination_database}.{source_schema}.{source_table}"
@@ -391,19 +396,29 @@ class SnowflakeOpenflowSource(StatefulIngestionSourceBase, TestableSource):
                     connector.version_location_uri, CONFIG_FILENAME
                 )
             )
+            if not rows:
+                return None
+            # `SELECT $1 FROM '<uri>config.json'` is assumed to return the whole
+            # file as a single row and column -- unverified against a live
+            # account, since credentials are unavailable in this environment.
+            # The row access and the JSON parse both stay inside this try: a
+            # row shaped differently than expected (e.g. an empty row) or
+            # invalid JSON must degrade this one connector's lineage to a
+            # warning, exactly like a stage READ failure, rather than crash
+            # the whole run.
+            content = next(iter(rows[0].values()))
+            return json.loads(content)
         except Exception as exc:
             self.report.num_config_reads_failed += 1
             self.report.warning(
                 title="Could not read connector configuration",
-                message="Lineage for this connector is skipped. The role needs READ "
-                "on the connector's version stage.",
-                context=connector.connector_id,
+                message="Lineage for this connector is skipped. This can mean the "
+                "role lacks READ on the connector's version stage, or the stage "
+                "file was not the expected single-row JSON document.",
+                context=connector.key,
                 exc=exc,
             )
             return None
-        if not rows:
-            return None
-        return json.loads(next(iter(rows[0].values())))
 
     def _lineage_for_connector(
         self, connector: OpenflowConnector
@@ -462,13 +477,15 @@ class SnowflakeOpenflowSource(StatefulIngestionSourceBase, TestableSource):
                     context=f"{connector.key}: strategy={lineage.schema_strategy!r}",
                 )
                 continue
+            # `destination` (from destination_identifier, above) is the single
+            # formula for the destination's dotted identifier -- it is fed
+            # straight into the URN rather than recomputed via
+            # get_dataset_identifier's own db/schema/table formula, so that
+            # adding a Prefix/Suffix strategy later only ever needs a change
+            # in one place.
             outlets.append(
                 identifiers.gen_dataset_urn(
-                    identifiers.get_dataset_identifier(
-                        table_name=source_table,
-                        schema_name=source_schema,
-                        db_name=lineage.destination_database,
-                    )
+                    identifiers.snowflake_identifier(destination)
                 )
             )
             if upstream_platform and lineage.source_database:
