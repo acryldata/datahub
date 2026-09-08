@@ -152,3 +152,68 @@ def test_connector_key_stable_without_connector_id():
     assert connector is not None
     assert connector.connector_id is None
     assert connector.key == "MyRuntime/pg_cdc"
+
+
+def test_recreated_object_is_not_reported_as_deleted():
+    # These views are append-style lifecycle records and `key` is not
+    # per-incarnation: a connector's key is the composite <runtime>/<name>, stable
+    # across a drop and re-create under the same name. So one key can own several
+    # rows, the older ones carrying DELETED_ON.
+    #
+    # Without newest-wins resolution the superseded incarnation's DELETED_ON merges
+    # onto the live object (the field merge fills any None field, and deleted_on on
+    # a live row IS None), the caller's `deleted_on is None` filter then drops an
+    # object that exists, and stale-entity removal soft-deletes it in DataHub. No
+    # counter reflects that, which is why it needs a test rather than a comment.
+    show = OpenflowConnector.from_row({"name": "pg_cdc", "runtime": "MyRuntime"})
+    deleted_incarnation = OpenflowConnector.from_row(
+        {
+            "CONNECTOR_ID": 1,
+            "NAME": "pg_cdc",
+            "RUNTIME_NAME": "MyRuntime",
+            "CREATED_ON": "2026-01-01T00:00:00",
+            "DELETED_ON": "2026-02-01T00:00:00",
+        }
+    )
+    live_incarnation = OpenflowConnector.from_row(
+        {
+            "CONNECTOR_ID": 2,
+            "NAME": "pg_cdc",
+            "RUNTIME_NAME": "MyRuntime",
+            "CREATED_ON": "2026-03-01T00:00:00",
+        }
+    )
+    assert show is not None and deleted_incarnation is not None
+    assert live_incarnation is not None
+
+    # Both iteration orders, because the defect was order-independent.
+    for history in (
+        [deleted_incarnation, live_incarnation],
+        [live_incarnation, deleted_incarnation],
+    ):
+        merged = merge_show_and_history([show], history)
+        assert len(merged) == 1
+        assert merged[0].deleted_on is None, (
+            "a re-created object must not inherit the DELETED_ON of the "
+            "incarnation it replaced"
+        )
+        # The newest incarnation's surrogate id wins too, not the dead one's.
+        assert merged[0].connector_id == "2"
+
+
+def test_object_deleted_and_not_recreated_is_still_reported_deleted():
+    # The mirror case: newest-wins must not make deletion undetectable, or the
+    # deletion-detection feature the unfiltered DELETED_ON exists for is lost.
+    deleted = OpenflowConnector.from_row(
+        {
+            "CONNECTOR_ID": 1,
+            "NAME": "gone_cdc",
+            "RUNTIME_NAME": "MyRuntime",
+            "CREATED_ON": "2026-01-01T00:00:00",
+            "DELETED_ON": "2026-02-01T00:00:00",
+        }
+    )
+    assert deleted is not None
+    merged = merge_show_and_history([], [deleted])
+    assert len(merged) == 1
+    assert merged[0].deleted_on == "2026-02-01T00:00:00"

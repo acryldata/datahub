@@ -24,7 +24,11 @@ def test_history_queries_never_use_offset():
 def test_history_queries_paginate_by_created_on():
     for builder in HISTORY_BUILDERS:
         query = builder("2026-09-03T00:00:00")
-        assert "CREATED_ON >" in query
+        # `>=`, asserted exactly. A strict `>` drops every row sharing the page
+        # boundary's CREATED_ON, and a dropped history row is invisible: it
+        # surfaces as a deleted object staying live in DataHub. `"CREATED_ON >"`
+        # would be satisfied by both spellings, so it cannot pin this.
+        assert "CREATED_ON >=" in query
         assert "ORDER BY CREATED_ON" in query
 
 

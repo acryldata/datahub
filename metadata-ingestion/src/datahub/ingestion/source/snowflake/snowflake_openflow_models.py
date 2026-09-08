@@ -156,6 +156,17 @@ class OpenflowConnector:
 RowModel = TypeVar("RowModel", OpenflowDeployment, OpenflowRuntime, OpenflowConnector)
 
 
+def _newest_per_key(rows: List[RowModel]) -> List[RowModel]:
+    # Rows with no CREATED_ON sort oldest: an incarnation whose timestamp the view
+    # has not populated yet must not outrank one that has a real timestamp.
+    newest: Dict[str, RowModel] = {}
+    for row in rows:
+        current = newest.get(row.key)
+        if current is None or (row.created_on or "") >= (current.created_on or ""):
+            newest[row.key] = row
+    return list(newest.values())
+
+
 def merge_show_and_history(
     show_rows: List[RowModel], history_rows: List[RowModel]
 ) -> List[RowModel]:
@@ -172,6 +183,21 @@ def merge_show_and_history(
     # function. dataclasses.replace() builds a new merged instance instead of
     # setattr-ing onto the caller's object, so show_rows and its elements are
     # left untouched.
+    # Resolve the history side per key BEFORE merging. These views are append-style
+    # lifecycle records, and `key` is not per-incarnation: a connector's key is the
+    # composite <runtime_name>/<name> (see OpenflowConnector.key), which is stable
+    # across a drop and re-create under the same name, and each incarnation carries
+    # its own CONNECTOR_ID / RUNTIME_ID / DEPLOYMENT_ID surrogate. So one key can
+    # legitimately own several rows, of which the older ones carry DELETED_ON.
+    #
+    # Merging them naively lets a superseded incarnation's DELETED_ON survive onto
+    # the live object -- the field-level merge below fills any None field from the
+    # history row, and `deleted_on` on a live row IS None -- after which the
+    # caller's `deleted_on is None` filter drops an object that exists and stale
+    # entity removal soft-deletes it. Newest CREATED_ON wins, so an object counts as
+    # deleted only when its most recent lifecycle row says so.
+    history_rows = _newest_per_key(history_rows)
+
     by_key: Dict[str, RowModel] = {row.key: row for row in show_rows}
     for history_row in history_rows:
         existing = by_key.get(history_row.key)
