@@ -50,8 +50,9 @@ Upstream table and schema names are emitted exactly as the connector's configura
 `convert_urns_to_lowercase` applies to the destination Snowflake side only, because `postgres`,
 `mysql` and `mssql` all preserve identifier case by default — folding the upstream name would point
 the edge at a dataset none of those recipes ever wrote. If you do run one of those recipes with
-`convert_urns_to_lowercase: true`, its datasets are lowercased and this connector's upstream URNs
-will not match them.
+`convert_urns_to_lowercase: true`, set `source_convert_urns_to_lowercase: true` here to match —
+DataHub's MSSQL source actively advises enabling it for lineage, so this is a realistic case
+rather than a hypothetical one.
 
 One deliberate difference from the `snowflake` source, worth knowing if you set both: this source
 folds the destination identifier itself rather than letting the pipeline-level pass do it, because

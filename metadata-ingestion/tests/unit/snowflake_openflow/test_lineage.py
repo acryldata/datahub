@@ -983,3 +983,41 @@ def test_stage_get_does_not_retry_a_deterministic_error() -> None:
     assert (inlets, outlets) == ([], [])
     assert flaky.calls == 1
     assert source.report.num_config_reads_failed == 1
+
+
+def _inlets_with_config_overrides(**overrides):
+    # _inlets_for builds its source with no overrides, so the folding knob needs a
+    # source built directly.
+    source = _make_source(**overrides)
+    connector = OpenflowConnector(
+        name="cdc",
+        runtime_name="MyRuntime",
+        connector_id="1",
+        connector_definition="OPENFLOW_POSTGRES_CDC",
+        version_location_uri="@stage/v1/",
+    )
+    config_json = _cdc_config(
+        "jdbc:postgresql://host:5432/mysourcedb", '"Public"."MyTable"'
+    )
+    source._query_rows = _fake_get(json.dumps(config_json).encode())  # type: ignore[assignment]
+    inlets, _ = source._lineage_for_connector(connector)
+    return inlets
+
+
+def test_upstream_urn_folds_when_the_upstream_recipe_folds():
+    # DataHub's own MSSQL source warns operators to set convert_urns_to_lowercase
+    # for lineage (sql/mssql/source.py), so an upstream that folds is a realistic
+    # configuration rather than a hypothetical one. Without this knob the inlet
+    # stays verbatim and cannot match that recipe.
+    assert _inlets_with_config_overrides(source_convert_urns_to_lowercase=True) == [
+        "urn:li:dataset:(urn:li:dataPlatform:postgres,mysourcedb.public.mytable,PROD)"
+    ]
+
+
+def test_upstream_urn_stays_verbatim_by_default():
+    # The default must not move: postgres/mysql/mssql all preserve case unless told
+    # otherwise, and both the golden file and the live M3 milestone depend on the
+    # verbatim form.
+    assert _inlets_with_config_overrides() == [
+        "urn:li:dataset:(urn:li:dataPlatform:postgres,mysourcedb.Public.MyTable,PROD)"
+    ]

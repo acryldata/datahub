@@ -360,3 +360,30 @@ def test_close_closes_the_snowflake_connection(
     source.close()
 
     assert fake_snowflake_connection.closed
+
+
+_CASING_WARNING = "Snowflake platform instance case may not match the snowflake source"
+
+
+def test_uppercase_platform_instance_warns_rather_than_rejecting():
+    # Warn, never reject. AutoLowercaseUrnsProcessor.should_enable gates on the key
+    # being PRESENT in the raw recipe, so a `snowflake` recipe that omits it -- the
+    # default -- leaves the platform_instance prefix verbatim, exactly as this source
+    # does. An uppercase instance is therefore CORRECT against that recipe. An
+    # earlier revision raised ValueError here and would have pushed operators off
+    # the likelier geometry.
+    source = _make_source(snowflake_platform_instance="PROD_SF")
+    source._warn_if_platform_instance_casing_is_ambiguous()
+    assert _CASING_WARNING in _warning_titles(source.report)
+
+
+def test_lowercase_platform_instance_is_quiet():
+    source = _make_source(snowflake_platform_instance="prod_sf")
+    source._warn_if_platform_instance_casing_is_ambiguous()
+    assert _CASING_WARNING not in _warning_titles(source.report)
+
+
+def test_absent_platform_instance_is_quiet():
+    source = _make_source()
+    source._warn_if_platform_instance_casing_is_ambiguous()
+    assert _CASING_WARNING not in _warning_titles(source.report)

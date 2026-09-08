@@ -560,6 +560,41 @@ class SnowflakeOpenflowSource(StatefulIngestionSourceBase, TestableSource):
         # StatefulIngestionSourceBase) and this report being a
         # StaleEntityRemovalSourceReport.
 
+        self._warn_if_platform_instance_casing_is_ambiguous()
+
+    def _warn_if_platform_instance_casing_is_ambiguous(self) -> None:
+        # Warn, do not reject. Which casing is correct depends on how the OTHER
+        # recipe is written, which this source cannot observe, so there is no value
+        # that is right in every case.
+        #
+        # AutoLowercaseUrnsProcessor.should_enable gates on the key being PRESENT in
+        # the raw recipe (`return bool(recipe_value)`, where an absent key is None),
+        # not on the parsed config. So a `snowflake` recipe has three geometries:
+        #   key absent  -> the processor does NOT run, but SnowflakeIdentifierConfig
+        #                  still folds the identifier, so the instance stays verbatim
+        #                  -- e.g. PROD_SF.db.schema.table. This is the DEFAULT, and
+        #                  it is the geometry THIS source produces.
+        #   key = true  -> the processor runs and folds the whole name, instance too
+        #                  -- prod_sf.db.schema.table.
+        #   key = false -> nothing is folded.
+        # An uppercase instance therefore matches the default recipe and mismatches
+        # the explicit-flag one. An earlier revision raised a ValueError telling the
+        # operator to lowercase; that silently un-joined them from the DEFAULT
+        # geometry, which is the likelier one.
+        instance = self.config.snowflake_platform_instance
+        if not instance or instance == instance.lower():
+            return
+        self.report.warning(
+            title="Snowflake platform instance case may not match the snowflake source",
+            message="This source folds the destination identifier but leaves the "
+            "platform_instance prefix verbatim, matching a `snowflake` recipe that "
+            "does NOT set convert_urns_to_lowercase (its default). A `snowflake` "
+            "recipe that sets the key to true folds the prefix as well, and these "
+            "URNs will not match it. Lowercase the instance on both sides if that "
+            "is the recipe you run.",
+            context=f"snowflake_platform_instance={instance!r}",
+        )
+
     @classmethod
     def create(
         cls, config_dict: Dict[str, Any], ctx: PipelineContext
@@ -823,6 +858,12 @@ class SnowflakeOpenflowSource(StatefulIngestionSourceBase, TestableSource):
                     source_table,
                 )
                 if upstream_name is not None:
+                    if self.config.source_convert_urns_to_lowercase:
+                        # Fold only the identifier, not the platform_instance
+                        # prefix, because that is what the upstream source's own
+                        # in-source folding does. make_dataset_urn_with_platform_instance
+                        # composes the prefix separately from this name.
+                        upstream_name = upstream_name.lower()
                     inlets.append(
                         make_dataset_urn_with_platform_instance(
                             platform=upstream.platform,
@@ -857,7 +898,7 @@ class SnowflakeOpenflowSource(StatefulIngestionSourceBase, TestableSource):
             if next_created_on is None:
                 # Guard 1: a NULL CREATED_ON on the page boundary would make the
                 # cursor the literal string "None", and the next predicate
-                # `WHERE CREATED_ON > 'None'` is nonsense rather than an error.
+                # `WHERE CREATED_ON >= 'None'` is nonsense rather than an error.
                 self.report.warning(
                     title="Cannot paginate past a NULL CREATED_ON",
                     message="A full page ended with a row whose CREATED_ON is NULL, "
