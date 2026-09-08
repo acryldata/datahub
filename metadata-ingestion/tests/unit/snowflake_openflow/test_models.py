@@ -299,12 +299,21 @@ def test_view_only_key_prefers_the_open_incarnation():
     # re-created in the view must not be reported deleted on the strength of its
     # previous incarnation.
     closed_newer = OpenflowConnector.from_row(
-        {"CONNECTOR_ID": 1, "NAME": "priv_cdc", "RUNTIME_NAME": "MyRuntime",
-         "CREATED_ON": "2026-05-01T00:00:00", "DELETED_ON": "2026-05-02T00:00:00"}
+        {
+            "CONNECTOR_ID": 1,
+            "NAME": "priv_cdc",
+            "RUNTIME_NAME": "MyRuntime",
+            "CREATED_ON": "2026-05-01T00:00:00",
+            "DELETED_ON": "2026-05-02T00:00:00",
+        }
     )
     open_older = OpenflowConnector.from_row(
-        {"CONNECTOR_ID": 2, "NAME": "priv_cdc", "RUNTIME_NAME": "MyRuntime",
-         "CREATED_ON": "2026-04-01T00:00:00"}
+        {
+            "CONNECTOR_ID": 2,
+            "NAME": "priv_cdc",
+            "RUNTIME_NAME": "MyRuntime",
+            "CREATED_ON": "2026-04-01T00:00:00",
+        }
     )
     assert closed_newer is not None and open_older is not None
     # Open wins even though the closed row carries the NEWER timestamp, and in
