@@ -93,7 +93,7 @@ def test_merge_prefers_show_for_location_and_history_for_ids():
     )
     assert show is not None
     assert history is not None
-    merged = merge_show_and_history([show], [history])
+    merged, _ = merge_show_and_history([show], [history])
     assert len(merged) == 1
     # SHOW wins for location: the view returned NULL where SHOW was populated.
     assert merged[0].object_database == "MY_DB"
@@ -107,7 +107,7 @@ def test_merge_treats_show_only_object_as_new_not_deleted():
     # creation. Treating that as a deletion would drop a brand-new object.
     show = OpenflowRuntime.from_row({"name": "R", "key": "r-100", "deployment": "D"})
     assert show is not None
-    merged = merge_show_and_history([show], [])
+    merged, _ = merge_show_and_history([show], [])
     assert len(merged) == 1
     assert merged[0].key == "r-100"
 
@@ -191,7 +191,7 @@ def test_recreated_object_is_not_reported_as_deleted():
         [deleted_incarnation, live_incarnation],
         [live_incarnation, deleted_incarnation],
     ):
-        merged = merge_show_and_history([show], history)
+        merged, _ = merge_show_and_history([show], history)
         assert len(merged) == 1
         assert merged[0].deleted_on is None, (
             "a re-created object must not inherit the DELETED_ON of the "
@@ -214,7 +214,7 @@ def test_object_deleted_and_not_recreated_is_still_reported_deleted():
         }
     )
     assert deleted is not None
-    merged = merge_show_and_history([], [deleted])
+    merged, _ = merge_show_and_history([], [deleted])
     assert len(merged) == 1
     assert merged[0].deleted_on == "2026-02-01T00:00:00"
 
@@ -236,11 +236,14 @@ def test_show_present_object_is_never_marked_deleted_by_a_history_row():
         }
     )
     assert show is not None and deleted_untimestamped is not None
-    merged = merge_show_and_history([show], [deleted_untimestamped])
+    merged, _ = merge_show_and_history([show], [deleted_untimestamped])
     assert len(merged) == 1
     assert merged[0].deleted_on is None
-    # The other fields still merge from the view.
-    assert merged[0].connector_id == "1"
+    # And nothing else is taken from the dead incarnation either. Excluding only
+    # deleted_on would have shipped that row's `status` ("DELETED") on a live
+    # entity, and its version_location_uri would have pointed the config read at a
+    # superseded version of the connector.
+    assert merged[0].connector_id is None
 
 
 def test_show_present_object_survives_a_created_on_tie():
@@ -266,7 +269,7 @@ def test_show_present_object_survives_a_created_on_tie():
     )
     assert show is not None and same_ts_open is not None and same_ts_closed is not None
     for history in ([same_ts_open, same_ts_closed], [same_ts_closed, same_ts_open]):
-        merged = merge_show_and_history([show], history)
+        merged, _ = merge_show_and_history([show], history)
         assert len(merged) == 1
         assert merged[0].deleted_on is None
 
@@ -286,39 +289,34 @@ def test_view_only_deleted_object_still_reports_deleted_on_a_tie():
         }
     )
     assert closed is not None
-    merged = merge_show_and_history([], [closed])
+    merged, _ = merge_show_and_history([], [closed])
     assert len(merged) == 1
     assert merged[0].deleted_on == "2026-03-02T00:00:00"
 
 
-def test_view_only_key_prefers_the_open_incarnation():
-    # Exercises the open-beats-closed branch of the per-key resolver, which only
-    # governs keys SHOW did not list -- for SHOW-present keys the authority rule
-    # above already decides liveness, which is why that rule alone left this
-    # branch unexercised.
+def test_view_only_key_reports_the_newest_lifecycle_row():
+    # This path IS deletion detection: a deleted object is SHOW-absent by
+    # definition, so every deletion resolves here. Newest CREATED_ON wins, and on a
+    # tie CLOSED beats OPEN.
     #
-    # READ THE ASSUMPTION BEFORE TRUSTING THIS TEST. The rule, and therefore this
-    # data, assumes these are INCARNATION-style views: one row per object life,
-    # so an open row and a closed row under one key are two different lives and
-    # the open one is the object that exists. Under that reading the data below is
-    # a connector invisible to SHOW for privilege reasons whose current life is
-    # open, alongside a previous life that ended.
+    # An earlier revision preferred OPEN outright and a test asserted that,
+    # locking in a deterministic miss: under an event-style reading of these views
+    # the create row stays open forever, so every deleted object would have been
+    # reported live and DELETION_DETECTION -- declared supported by this source --
+    # would silently never fire. Preferring open existed to protect live objects,
+    # which the SHOW-authority rule above already does.
     #
-    # It is NOT valid under an EVENT-style reading, where rows are lifecycle
-    # events for one object and a create row stays open forever -- there the
-    # latest event governs, this assertion is wrong, and DELETION_DETECTION would
-    # never fire for a view-only key. Note the shape that distinguishes
-    # open-beats-closed from plain newest-first REQUIRES the open row to be the
-    # older one, which is itself hard to realise under the incarnation reading.
-    #
-    # Which reading is right is unverified: all three history views hold exactly
-    # one row in the account available here, so there is no churn to observe. One
-    # `GROUP BY <surrogate id> HAVING COUNT(*) > 1` against an account with churn
-    # settles it. Snowflake's standard object-catalog shape (CREATED_ON +
-    # LAST_ALTERED_ON + DELETED_ON + surrogate id) points to incarnation-style,
-    # which is why the rule is written this way -- but it is an assumption, not a
-    # measurement, and the SHOW-authority rule above is the one that holds either
-    # way.
+    # Newest-wins is correct under BOTH readings of the view grain, which matters
+    # because the grain is unverified here: incarnation-style, a re-created object
+    # carries the later timestamp; event-style, the delete event does.
+    open_older = OpenflowConnector.from_row(
+        {
+            "CONNECTOR_ID": 2,
+            "NAME": "priv_cdc",
+            "RUNTIME_NAME": "MyRuntime",
+            "CREATED_ON": "2026-04-01T00:00:00",
+        }
+    )
     closed_newer = OpenflowConnector.from_row(
         {
             "CONNECTOR_ID": 1,
@@ -328,19 +326,71 @@ def test_view_only_key_prefers_the_open_incarnation():
             "DELETED_ON": "2026-05-02T00:00:00",
         }
     )
-    open_older = OpenflowConnector.from_row(
+    assert open_older is not None and closed_newer is not None
+    for history in ([open_older, closed_newer], [closed_newer, open_older]):
+        merged, _ = merge_show_and_history([], history)
+        assert len(merged) == 1
+        assert merged[0].deleted_on == "2026-05-02T00:00:00"
+
+
+def test_view_only_recreation_is_reported_live():
+    # The mirror: a genuine re-creation carries the LATER timestamp under either
+    # reading, so newest-wins keeps it live without needing an open-beats-closed
+    # rule at all.
+    closed_older = OpenflowConnector.from_row(
+        {
+            "CONNECTOR_ID": 1,
+            "NAME": "priv_cdc",
+            "RUNTIME_NAME": "MyRuntime",
+            "CREATED_ON": "2026-01-01T00:00:00",
+            "DELETED_ON": "2026-02-01T00:00:00",
+        }
+    )
+    open_newer = OpenflowConnector.from_row(
         {
             "CONNECTOR_ID": 2,
             "NAME": "priv_cdc",
             "RUNTIME_NAME": "MyRuntime",
-            "CREATED_ON": "2026-04-01T00:00:00",
+            "CREATED_ON": "2026-03-01T00:00:00",
         }
     )
-    assert closed_newer is not None and open_older is not None
-    # Open wins even though the closed row carries the NEWER timestamp, and in
-    # both iteration orders.
-    for history in ([closed_newer, open_older], [open_older, closed_newer]):
-        merged = merge_show_and_history([], history)
+    assert closed_older is not None and open_newer is not None
+    for history in ([closed_older, open_newer], [open_newer, closed_older]):
+        merged, _ = merge_show_and_history([], history)
         assert len(merged) == 1
         assert merged[0].deleted_on is None
         assert merged[0].connector_id == "2"
+
+
+def test_mixed_lifecycle_keys_are_counted():
+    # The whole resolver rests on an unverified premise: whether these views hold
+    # one row per object life or one row per state change. This counter is the
+    # direction-neutral signal for it -- zero while the assumption holds, non-zero
+    # the moment a key owns both an open and a closed row, which is the only
+    # condition under which the grain question changes any answer. An operator can
+    # read it; the assumption alone cannot be read.
+    open_row = OpenflowConnector.from_row(
+        {
+            "CONNECTOR_ID": 2,
+            "NAME": "c",
+            "RUNTIME_NAME": "R",
+            "CREATED_ON": "2026-03-01T00:00:00",
+        }
+    )
+    closed_row = OpenflowConnector.from_row(
+        {
+            "CONNECTOR_ID": 1,
+            "NAME": "c",
+            "RUNTIME_NAME": "R",
+            "CREATED_ON": "2026-01-01T00:00:00",
+            "DELETED_ON": "2026-02-01T00:00:00",
+        }
+    )
+    assert open_row is not None and closed_row is not None
+
+    _, mixed = merge_show_and_history([], [open_row, closed_row])
+    assert mixed == 1
+
+    # Two rows of the same liveness are not mixed, whichever way round.
+    _, unmixed = merge_show_and_history([], [open_row, open_row])
+    assert unmixed == 0

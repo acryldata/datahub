@@ -941,9 +941,10 @@ class SnowflakeOpenflowSource(StatefulIngestionSourceBase, TestableSource):
             OpenflowDeployment.from_row(row)
             for row in self._paged_history(SnowflakeOpenflowQuery.deployment_history)
         ]
-        merged = merge_show_and_history(
+        merged, mixed_keys = merge_show_and_history(
             [row for row in show if row], [row for row in history if row]
         )
+        self.report.num_keys_with_mixed_lifecycle_rows += mixed_keys
         live = [row for row in merged if row.deleted_on is None]
         if not live:
             self.report.report_empty_inventory("deployments")
@@ -966,9 +967,10 @@ class SnowflakeOpenflowSource(StatefulIngestionSourceBase, TestableSource):
             OpenflowRuntime.from_row(row)
             for row in self._paged_history(SnowflakeOpenflowQuery.runtime_history)
         ]
-        merged = merge_show_and_history(
+        merged, mixed_keys = merge_show_and_history(
             [row for row in show if row], [row for row in history if row]
         )
+        self.report.num_keys_with_mixed_lifecycle_rows += mixed_keys
         live = [row for row in merged if row.deleted_on is None]
         if not live:
             self.report.report_empty_inventory("runtimes")
@@ -991,9 +993,10 @@ class SnowflakeOpenflowSource(StatefulIngestionSourceBase, TestableSource):
             OpenflowConnector.from_row(row)
             for row in self._paged_history(SnowflakeOpenflowQuery.connector_history)
         ]
-        merged = merge_show_and_history(
+        merged, mixed_keys = merge_show_and_history(
             [row for row in show if row], [row for row in history if row]
         )
+        self.report.num_keys_with_mixed_lifecycle_rows += mixed_keys
         live = [row for row in merged if row.deleted_on is None]
         if not live:
             # Gen 1 connectors are not SQL objects at all, so this surface sees

@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Any, Dict, List, Optional, TypeVar
+from typing import Any, Dict, List, Optional, Tuple, TypeVar
 
 COL_NAME = "NAME"
 COL_DEPLOYMENT_KEY = "DEPLOYMENT_KEY"
@@ -156,43 +156,61 @@ class OpenflowConnector:
 RowModel = TypeVar("RowModel", OpenflowDeployment, OpenflowRuntime, OpenflowConnector)
 
 
-def _resolve_per_key(rows: List[RowModel]) -> List[RowModel]:
-    # OPEN beats CLOSED first, and only then newest-first.
+def _resolve_per_key(rows: List[RowModel]) -> Tuple[List[RowModel], int]:
+    # Newest CREATED_ON wins; on a tie, CLOSED beats OPEN.
     #
-    # An earlier revision ordered on CREATED_ON alone with absent timestamps
-    # sorting oldest. That re-opened the very defect this resolver exists to close:
-    # the view populates CREATED_ON with a lag (Guard 1 in the pager exists because
-    # a NULL CREATED_ON really occurs), so a freshly re-created incarnation can
-    # arrive without one. Ordering on the timestamp handed the key back to the older
-    # DELETED_ON row exactly then, and the caller's `deleted_on is None` filter drops
-    # the live object and stale-entity removal soft-deletes it.
+    # This rule is deliberately correct under BOTH readings of these views, because
+    # which one applies is unverified (the account available here holds one row per
+    # view, so churn cannot be observed):
+    #   incarnation-style (one row per object life) - two incarnations of a key have
+    #     different CREATED_ON, so newest-wins picks the current one and the tie-break
+    #     never fires.
+    #   event-style (a row per state change) - the delete event carries the later
+    #     timestamp, so newest-wins detects the deletion.
     #
-    # An object is live if ANY of its lifecycle rows is still open, so an open row
-    # wins regardless of timestamp. Among rows in the same state, newest CREATED_ON
-    # wins, which keeps the most recent deletion for an object that really is gone.
-    def is_open(row: RowModel) -> bool:
-        return row.deleted_on is None
-
+    # An earlier revision preferred OPEN over CLOSED outright. That was wrong here and
+    # the SHOW-authority rule in merge_show_and_history is why: this resolver governs
+    # only keys SHOW did NOT list, and a SHOW-absent key is exactly what a deleted
+    # object looks like -- so 100% of deletions resolve through this function.
+    # Preferring open therefore reported every deleted object as live under the
+    # event-style reading, deterministically and with nothing to notice it, silently
+    # disabling the DELETION_DETECTION capability this source declares. Preferring
+    # open was introduced to protect live objects, and the SHOW-authority rule already
+    # does that, which removed the reason for it.
+    #
+    # Residual, accepted: a SHOW-invisible live object whose rows carry NO timestamps
+    # and whose only other row is a deletion is reported gone. Its metadata is stale
+    # regardless, and the alternative loses real deletions.
     resolved: Dict[str, RowModel] = {}
+    mixed = 0
     for row in rows:
         current = resolved.get(row.key)
         if current is None:
             resolved[row.key] = row
             continue
-        if is_open(row) != is_open(current):
-            if is_open(row):
-                resolved[row.key] = row
-            continue
-        # Same state: newest wins. Absent timestamps compare as "" and so lose to
-        # any real one, which is harmless here because both rows agree on liveness.
-        if (row.created_on or "") >= (current.created_on or ""):
+        if (row.deleted_on is None) != (current.deleted_on is None):
+            # Direction-neutral signal, returned to the caller for the report.
+            # Non-zero the instant a key owns BOTH an open and a closed lifecycle
+            # row, which is the only condition under which the unverified view-grain
+            # question can change the answer. Zero on an incarnation-style view with
+            # no drop-and-recreate; the moment it is not zero, the assumption this
+            # resolver rests on is worth re-checking against a real account.
+            mixed += 1
+        newer = (row.created_on or "") > (current.created_on or "")
+        tied_and_closed = (row.created_on or "") == (current.created_on or "") and (
+            row.deleted_on is not None
+        )
+        if newer or tied_and_closed:
             resolved[row.key] = row
-    return list(resolved.values())
+    return list(resolved.values()), mixed
 
 
 def merge_show_and_history(
     show_rows: List[RowModel], history_rows: List[RowModel]
-) -> List[RowModel]:
+) -> Tuple[List[RowModel], int]:
+    # Returns the merged rows and the count of keys holding BOTH an open and a
+    # closed lifecycle row -- see _resolve_per_key for why that number matters.
+    #
     # SHOW is authoritative for object location (the views returned NULL
     # DATABASE_NAME where SHOW was populated). The views are authoritative for
     # what only they carry: surrogate ids, timestamps, EXECUTE_AS_ROLE_NAME.
@@ -219,7 +237,7 @@ def merge_show_and_history(
     # caller's `deleted_on is None` filter drops an object that exists and stale
     # entity removal soft-deletes it. Newest CREATED_ON wins, so an object counts as
     # deleted only when its most recent lifecycle row says so.
-    history_rows = _resolve_per_key(history_rows)
+    history_rows, mixed_lifecycle_keys = _resolve_per_key(history_rows)
 
     by_key: Dict[str, RowModel] = {row.key: row for row in show_rows}
     for history_row in history_rows:
@@ -229,23 +247,30 @@ def merge_show_and_history(
             # privilege reasons. Deleted rows are filtered by the caller.
             by_key[history_row.key] = history_row
             continue
-        # `deleted_on` is EXCLUDED for a SHOW-present key. SHOW is authoritative
-        # for existence -- it lists what is there now -- so no lifecycle row may
-        # mark a SHOW-visible object deleted. This is what makes the whole class
-        # "a live object soft-deleted because some history row said deleted"
-        # unreachable, rather than merely unlikely: it holds regardless of whether
-        # CREATED_ON is populated, whether these views are incarnation-style or
-        # event-style, how a timestamp tie resolves, and whether lexicographic
-        # order matches real time across a DST fall-back. The per-key resolution
-        # above still decides which lifecycle row supplies the OTHER fields, and
-        # still governs view-only keys, where SHOW has said nothing.
+        if history_row.deleted_on is not None:
+            # SHOW listed this key, so the object exists; this history row describes
+            # an incarnation that ended. Take NOTHING from it -- not `deleted_on`,
+            # and not the other fields either.
+            #
+            # An earlier revision excluded only `deleted_on`. That closed the
+            # dangerous field and left the class open: `status` still arrived as
+            # 'DELETED' on a live entity (previously invisible, because that same row
+            # also set deleted_on and the object was dropped before anyone saw it),
+            # and `version_location_uri` could point _read_connector_config at a
+            # superseded incarnation's config.json, yielding lineage for the wrong
+            # version of the connector.
+            #
+            # SHOW is authoritative for existence, so this single condition makes
+            # "a live object contradicted by a dead incarnation's row" unreachable,
+            # independent of timestamp population, view grain, tie order or UTC
+            # offsets. A newer OPEN row for the same key is still merged normally.
+            continue
         updates = {
             field.name: getattr(history_row, field.name)
             for field in dataclasses.fields(existing)
-            if field.name != "deleted_on"
-            and getattr(existing, field.name) is None
+            if getattr(existing, field.name) is None
             and getattr(history_row, field.name) is not None
         }
         if updates:
             by_key[history_row.key] = dataclasses.replace(existing, **updates)
-    return list(by_key.values())
+    return list(by_key.values()), mixed_lifecycle_keys
