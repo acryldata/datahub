@@ -506,8 +506,10 @@ def build_connector_job(
 @capability(SourceCapability.SCHEMA_METADATA, SNOWFLAKE_SOURCE_HINT, supported=False)
 @capability(
     SourceCapability.LINEAGE_FINE,
-    "Not supported: NiFi processors operate on FlowFiles rather than typed SQL, so "
-    "there is no statement to parse for column mapping.",
+    "Not supported: Openflow publishes no column-level mapping. Neither the "
+    "connector's configuration nor the OPENFLOW_* ACCOUNT_USAGE views carry a "
+    "column-to-column relation, and the configuration selects source tables by "
+    "name or pattern, so lineage is derivable only at table grain.",
     supported=False,
 )
 @capability(SourceCapability.DATA_PROFILING, SNOWFLAKE_SOURCE_HINT, supported=False)

@@ -18,8 +18,13 @@ supported here; use the `snowflake` source for the destination tables.
 - **An empty result may be a permissions problem.** `SHOW OPENFLOW …` is privilege-filtered and
   returns **zero rows** with no error when the role lacks `MONITOR`. The ingestion report raises a
   warning in this case rather than reporting success.
-- **Column-level lineage is not available.** NiFi processors operate on FlowFiles rather than typed
-  SQL, so there is no statement to parse.
+- **Column-level lineage is not available.** Openflow publishes no column-to-column mapping:
+  neither a connector's configuration nor the `OPENFLOW_*` `ACCOUNT_USAGE` views carry one, and the
+  configuration selects source tables by name or pattern, so lineage is derivable only at table
+  grain. Note this is a property of what Openflow exposes, not of the pipeline being non-SQL — the
+  `fivetran` source emits column-level lineage without parsing anything, by reading the
+  `column_lineage` tables Fivetran maintains in its log schema. Snowflake would need to publish an
+  equivalent for Openflow.
 - **Only the `SOURCE_SCHEMA` destination schema strategy is supported.** Prefix, Suffix and Pattern
   strategies exist; a connector using one has its lineage skipped and counted in the report rather
   than guessed.
