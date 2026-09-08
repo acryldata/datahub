@@ -13,6 +13,7 @@ from typing import (
     List,
     Optional,
     Sequence,
+    Set,
     Tuple,
     Type,
     Union,
@@ -1047,6 +1048,14 @@ class SnowflakeOpenflowSource(StatefulIngestionSourceBase, TestableSource):
         # a connector row carries (SHOW's `runtime` / the view's RUNTIME_NAME) --
         # the opaque RUNTIME_KEY that keys the container is not on connector rows.
         runtime_keys_by_name: Dict[str, OpenflowRuntimeKey] = {}
+        # Runtime names are scoped to their DEPLOYMENT, not to the account, so two
+        # deployments may each hold a runtime called `default`. A connector row
+        # carries only the runtime NAME, never a deployment, so such a name cannot
+        # be resolved to one runtime and any choice would be a guess. Names seen
+        # more than once are recorded here and removed from the map, turning a
+        # silent mis-nesting into a counted miss -- the same trade-off the case
+        # comment below already makes, applied to the likelier collision.
+        ambiguous_runtime_names: Set[str] = set()
 
         for runtime in runtimes:
             parent_deployment = by_deployment_name.get(runtime.deployment_name)
@@ -1062,7 +1071,11 @@ class SnowflakeOpenflowSource(StatefulIngestionSourceBase, TestableSource):
             self.report.num_runtimes += 1
             runtime_key = self._runtime_key(runtime, parent_deployment)
             if runtime.name:
-                runtime_keys_by_name[runtime.name] = runtime_key
+                if runtime.name in runtime_keys_by_name:
+                    ambiguous_runtime_names.add(runtime.name)
+                    del runtime_keys_by_name[runtime.name]
+                elif runtime.name not in ambiguous_runtime_names:
+                    runtime_keys_by_name[runtime.name] = runtime_key
             yield from gen_containers(
                 container_key=runtime_key,
                 name=runtime.display_name or runtime.name or runtime.key,
@@ -1096,7 +1109,17 @@ class SnowflakeOpenflowSource(StatefulIngestionSourceBase, TestableSource):
             # only in case (which quoted identifiers permit) -- worse than a
             # miss, now that the miss is counted.
             parent_runtime_key = runtime_keys_by_name.get(connector.runtime_name)
-            if parent_runtime_key is None:
+            if connector.runtime_name in ambiguous_runtime_names:
+                self.report.num_connectors_with_ambiguous_runtime += 1
+                self.report.warning(
+                    title="Runtime name is not unique across deployments",
+                    message="More than one deployment exposes a runtime with this "
+                    "name, and a connector row carries no deployment, so the "
+                    "connector cannot be attributed to one of them. It is emitted "
+                    "without a parent runtime rather than nested under a guess.",
+                    context=connector.runtime_name,
+                )
+            elif parent_runtime_key is None:
                 self._report_connector_without_runtime_parent(connector)
             flow = build_connector_flow(
                 connector,

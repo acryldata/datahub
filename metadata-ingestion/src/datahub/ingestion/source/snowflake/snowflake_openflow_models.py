@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Any, Dict, List, Optional, Tuple, TypeVar
+from typing import Any, Dict, List, Optional, Set, Tuple, TypeVar
 
 COL_NAME = "NAME"
 COL_DEPLOYMENT_KEY = "DEPLOYMENT_KEY"
@@ -182,7 +182,7 @@ def _resolve_per_key(rows: List[RowModel]) -> Tuple[List[RowModel], int]:
     # and whose only other row is a deletion is reported gone. Its metadata is stale
     # regardless, and the alternative loses real deletions.
     resolved: Dict[str, RowModel] = {}
-    mixed = 0
+    mixed_keys: Set[str] = set()
     for row in rows:
         current = resolved.get(row.key)
         if current is None:
@@ -195,14 +195,19 @@ def _resolve_per_key(rows: List[RowModel]) -> Tuple[List[RowModel], int]:
             # question can change the answer. Zero on an incarnation-style view with
             # no drop-and-recreate; the moment it is not zero, the assumption this
             # resolver rests on is worth re-checking against a real account.
-            mixed += 1
+            #
+            # Counted per KEY, not per comparison: a key holding one open row and
+            # five closed ones is one ambiguous key, and counting comparisons would
+            # report it as 5 or 1 depending on arrival order and could exceed
+            # num_connectors, which the field name promises it cannot.
+            mixed_keys.add(row.key)
         newer = (row.created_on or "") > (current.created_on or "")
         tied_and_closed = (row.created_on or "") == (current.created_on or "") and (
             row.deleted_on is not None
         )
         if newer or tied_and_closed:
             resolved[row.key] = row
-    return list(resolved.values()), mixed
+    return list(resolved.values()), len(mixed_keys)
 
 
 def merge_show_and_history(

@@ -236,3 +236,59 @@ def test_nested_connector_is_not_counted_as_orphaned():
     list(source.get_workunits_internal())
 
     assert source.report.num_connectors_without_runtime_parent == 0
+
+
+AMBIGUOUS_WARNING_TITLE = "Runtime name is not unique across deployments"
+
+
+def test_runtime_name_shared_by_two_deployments_leaves_connectors_unnested():
+    # Runtime names are scoped to their deployment, so two deployments may each
+    # hold a runtime called `default`. A connector row carries only the runtime
+    # NAME, never a deployment, so the name cannot be resolved to one of them.
+    #
+    # The failure this prevents is silent in the worst way: a flat name->key map
+    # takes the last writer, the lookup SUCCEEDS, and every connector in the first
+    # deployment nests under the second deployment's runtime. Nothing fires,
+    # because num_connectors_without_runtime_parent only counts lookup misses.
+    source = _make_source()
+    source._query_rows = _fake_query_rows(  # type: ignore[method-assign]
+        [
+            {"key": "dep-a", "name": "DeploymentA"},
+            {"key": "dep-b", "name": "DeploymentB"},
+        ],
+        [
+            {"key": "rt-a", "name": "default", "deployment": "DeploymentA"},
+            {"key": "rt-b", "name": "default", "deployment": "DeploymentB"},
+        ],
+        [{"name": "pg_cdc", "runtime": "default"}],
+    )
+
+    workunits = list(source.get_workunits_internal())
+
+    assert source.report.num_connectors_with_ambiguous_runtime == 1
+    assert AMBIGUOUS_WARNING_TITLE in _warning_titles(source.report)
+    # Un-nested rather than nested under a guess: no container aspect on the flow.
+    assert _container_aspects(workunits, "urn:li:dataFlow:") == []
+
+
+def test_unique_runtime_names_across_deployments_still_nest():
+    # The guard must not fire on the ordinary shape, or every multi-deployment
+    # account loses its nesting.
+    source = _make_source()
+    source._query_rows = _fake_query_rows(  # type: ignore[method-assign]
+        [
+            {"key": "dep-a", "name": "DeploymentA"},
+            {"key": "dep-b", "name": "DeploymentB"},
+        ],
+        [
+            {"key": "rt-a", "name": "alpha", "deployment": "DeploymentA"},
+            {"key": "rt-b", "name": "beta", "deployment": "DeploymentB"},
+        ],
+        [{"name": "pg_cdc", "runtime": "beta"}],
+    )
+
+    workunits = list(source.get_workunits_internal())
+
+    assert source.report.num_connectors_with_ambiguous_runtime == 0
+    assert AMBIGUOUS_WARNING_TITLE not in _warning_titles(source.report)
+    assert len(_container_aspects(workunits, "urn:li:dataFlow:")) == 1
