@@ -1021,3 +1021,27 @@ def test_upstream_urn_stays_verbatim_by_default():
     assert _inlets_with_config_overrides() == [
         "urn:li:dataset:(urn:li:dataPlatform:postgres,mysourcedb.Public.MyTable,PROD)"
     ]
+
+
+def test_connector_without_a_config_uri_is_counted_and_warned():
+    # SHOW does not carry version_location_uri, so a connector reaches this path
+    # when the history side could not supply it. The SHOW-authority rule created a
+    # new way in: a live connector whose only history row is closed contributes
+    # nothing, so the URI is absent. Lineage is genuinely underivable here -- the
+    # defect would be losing it with nothing for an operator to see.
+    source = _make_source()
+    connector = OpenflowConnector(
+        name="cdc",
+        runtime_name="MyRuntime",
+        connector_id="1",
+        connector_definition="OPENFLOW_POSTGRES_CDC",
+        version_location_uri=None,
+    )
+
+    inlets, outlets = source._lineage_for_connector(connector)
+
+    assert inlets == [] and outlets == []
+    assert source.report.num_connectors_without_config_uri == 1
+    assert "Connector has no config location" in [
+        entry.title for entry in source.report.warnings
+    ]

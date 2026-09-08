@@ -21,6 +21,7 @@ EMPTY_INVENTORY_MESSAGE = (
 @dataclasses.dataclass
 class SnowflakeOpenflowReport(StaleEntityRemovalSourceReport):
     num_deployments: int = 0
+    num_connectors_without_config_uri: int = 0
     num_connectors_with_ambiguous_runtime: int = 0
     num_keys_with_mixed_lifecycle_rows: int = 0
     num_history_pages_beyond_first: int = 0

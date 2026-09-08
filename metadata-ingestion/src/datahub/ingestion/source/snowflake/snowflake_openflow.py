@@ -696,6 +696,21 @@ class SnowflakeOpenflowSource(StatefulIngestionSourceBase, TestableSource):
         self, connector: OpenflowConnector
     ) -> Optional[Dict[str, Any]]:
         if not connector.version_location_uri:
+            # Counted and warned, not silent. SHOW does not carry this column, so a
+            # connector reaches here when the history side could not supply it --
+            # including the case the SHOW-authority rule newly creates: a live
+            # connector whose only history row is closed (what the view's ~20-minute
+            # lag produces just after a drop and re-create) now contributes nothing,
+            # so the URI is absent and lineage would vanish with nothing to see.
+            self.report.num_connectors_without_config_uri += 1
+            self.report.warning(
+                title="Connector has no config location",
+                message="No version_location_uri is available for this connector, so "
+                "its configuration cannot be read and no lineage is derived for it. "
+                "The ACCOUNT_USAGE views lag by roughly 20 minutes, so a connector "
+                "created or re-created very recently may resolve on the next run.",
+                context=connector.key,
+            )
             return None
         try:
             # One bounded retry per connector, around the download only. A
