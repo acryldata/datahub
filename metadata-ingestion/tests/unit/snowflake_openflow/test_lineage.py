@@ -1045,3 +1045,30 @@ def test_connector_without_a_config_uri_is_counted_and_warned():
     assert "Connector has no config location" in [
         entry.title for entry in source.report.warnings
     ]
+
+
+def test_upstream_instance_prefix_folds_with_the_identifier():
+    # The flag is only correct to set when the upstream recipe spells
+    # convert_urns_to_lowercase out, and that recipe also gets the pipeline-level
+    # pass, which folds the WHOLE urn name -- and the composed name is
+    # `<instance>.<identifier>`. So folding the identifier while leaving the
+    # instance verbatim matches no upstream shape at all.
+    #
+    # Nothing caught this before because no unit fixture, no integration fixture
+    # and no golden set source_platform_instance. That absence IS the finding.
+    assert _inlets_with_config_overrides(
+        source_convert_urns_to_lowercase=True,
+        source_platform_instance="PG_Prod",
+    ) == [
+        "urn:li:dataset:(urn:li:dataPlatform:postgres,pg_prod.mysourcedb.public.mytable,PROD)"
+    ]
+
+
+def test_upstream_instance_prefix_kept_verbatim_when_not_folding():
+    # Default path: an upstream that preserves case (the postgres/mysql/mssql
+    # default) keeps both halves exactly as written.
+    assert _inlets_with_config_overrides(
+        source_platform_instance="PG_Prod",
+    ) == [
+        "urn:li:dataset:(urn:li:dataPlatform:postgres,PG_Prod.mysourcedb.Public.MyTable,PROD)"
+    ]

@@ -876,17 +876,34 @@ class SnowflakeOpenflowSource(StatefulIngestionSourceBase, TestableSource):
                     source_table,
                 )
                 if upstream_name is not None:
+                    source_instance = self.config.source_platform_instance
                     if self.config.source_convert_urns_to_lowercase:
-                        # Fold only the identifier, not the platform_instance
-                        # prefix, because that is what the upstream source's own
-                        # in-source folding does. make_dataset_urn_with_platform_instance
-                        # composes the prefix separately from this name.
+                        # Fold the identifier AND the platform_instance prefix.
+                        #
+                        # An earlier revision folded only the identifier, reasoning
+                        # that this matched the upstream source's own in-source
+                        # folding. It does not, and there is no upstream shape in
+                        # which it would. postgres/mysql/mssql all default
+                        # convert_urns_to_lowercase to False, so this flag is only
+                        # correct to set when the upstream recipe spells the key out
+                        # explicitly -- and an explicitly present key is exactly what
+                        # AutoLowercaseUrnsProcessor.should_enable gates on, so that
+                        # recipe ALSO gets the pipeline-level pass. That pass calls
+                        # lowercase_dataset_urn, which rebuilds the urn with
+                        # `name.lower()` over the WHOLE name, and the name composed by
+                        # make_dataset_urn_with_platform_instance is
+                        # `<instance>.<identifier>`. Folding half of it emitted
+                        # `PG_Prod.db.schema.table` where that recipe wrote
+                        # `pg_prod.db.schema.table` -- a well-formed urn joining to
+                        # nothing, which renders identically to a real one.
                         upstream_name = upstream_name.lower()
+                        if source_instance:
+                            source_instance = source_instance.lower()
                     inlets.append(
                         make_dataset_urn_with_platform_instance(
                             platform=upstream.platform,
                             name=upstream_name,
-                            platform_instance=self.config.source_platform_instance,
+                            platform_instance=source_instance,
                             # default_source_env_to_env guarantees source_env is set;
                             # the fallback keeps that guarantee visible to mypy.
                             env=self.config.source_env or self.config.env,

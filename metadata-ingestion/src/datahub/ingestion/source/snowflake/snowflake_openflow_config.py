@@ -138,7 +138,10 @@ class SnowflakeOpenflowSourceConfig(
     source_convert_urns_to_lowercase: bool = Field(
         default=False,
         description="Whether the upstream system's own ingestion lowercases its "
-        "dataset URNs, i.e. whether its recipe sets `convert_urns_to_lowercase`. "
+        "dataset URNs, i.e. whether its recipe sets `convert_urns_to_lowercase` "
+        "explicitly. When enabled this folds the upstream identifier AND "
+        "`source_platform_instance`, because the pipeline-level pass that recipe "
+        "engages folds the whole URN name, prefix included. "
         "Defaults to False because `postgres`, `mysql` and `mssql` all preserve "
         "identifier case by default — but DataHub's own MSSQL source warns "
         "operators to enable it for lineage, so an operator who followed that "
