@@ -217,3 +217,75 @@ def test_object_deleted_and_not_recreated_is_still_reported_deleted():
     merged = merge_show_and_history([], [deleted])
     assert len(merged) == 1
     assert merged[0].deleted_on == "2026-02-01T00:00:00"
+
+
+def test_show_present_object_is_never_marked_deleted_by_a_history_row():
+    # SHOW is authoritative for existence. This is the invariant that makes the
+    # whole "live object soft-deleted by a stale lifecycle row" class unreachable,
+    # independently of whether CREATED_ON is populated at all -- which is the case
+    # the timestamp-ordering approach got wrong, because the view populates
+    # CREATED_ON with a lag (the pager has a guard for NULL CREATED_ON precisely
+    # because it happens).
+    show = OpenflowConnector.from_row({"name": "pg_cdc", "runtime": "MyRuntime"})
+    deleted_untimestamped = OpenflowConnector.from_row(
+        {
+            "CONNECTOR_ID": 1,
+            "NAME": "pg_cdc",
+            "RUNTIME_NAME": "MyRuntime",
+            "DELETED_ON": "2026-02-01T00:00:00",
+        }
+    )
+    assert show is not None and deleted_untimestamped is not None
+    merged = merge_show_and_history([show], [deleted_untimestamped])
+    assert len(merged) == 1
+    assert merged[0].deleted_on is None
+    # The other fields still merge from the view.
+    assert merged[0].connector_id == "1"
+
+
+def test_show_present_object_survives_a_created_on_tie():
+    # The reviewer reproduced a tie resolving by iteration order. With SHOW
+    # authoritative for existence, order cannot matter for liveness.
+    show = OpenflowConnector.from_row({"name": "pg_cdc", "runtime": "MyRuntime"})
+    same_ts_open = OpenflowConnector.from_row(
+        {
+            "CONNECTOR_ID": 2,
+            "NAME": "pg_cdc",
+            "RUNTIME_NAME": "MyRuntime",
+            "CREATED_ON": "2026-03-01T00:00:00",
+        }
+    )
+    same_ts_closed = OpenflowConnector.from_row(
+        {
+            "CONNECTOR_ID": 1,
+            "NAME": "pg_cdc",
+            "RUNTIME_NAME": "MyRuntime",
+            "CREATED_ON": "2026-03-01T00:00:00",
+            "DELETED_ON": "2026-03-02T00:00:00",
+        }
+    )
+    assert show is not None and same_ts_open is not None and same_ts_closed is not None
+    for history in ([same_ts_open, same_ts_closed], [same_ts_closed, same_ts_open]):
+        merged = merge_show_and_history([show], history)
+        assert len(merged) == 1
+        assert merged[0].deleted_on is None
+
+
+def test_view_only_deleted_object_still_reports_deleted_on_a_tie():
+    # The mirror risk: SHOW authority must not make deletion undetectable for an
+    # object SHOW no longer lists. An open and a closed row of the same key with
+    # the SAME timestamp must resolve to open only when SHOW vouches for it; with
+    # no SHOW row, a closed-only history must stay closed.
+    closed = OpenflowConnector.from_row(
+        {
+            "CONNECTOR_ID": 1,
+            "NAME": "gone_cdc",
+            "RUNTIME_NAME": "MyRuntime",
+            "CREATED_ON": "2026-03-01T00:00:00",
+            "DELETED_ON": "2026-03-02T00:00:00",
+        }
+    )
+    assert closed is not None
+    merged = merge_show_and_history([], [closed])
+    assert len(merged) == 1
+    assert merged[0].deleted_on == "2026-03-02T00:00:00"

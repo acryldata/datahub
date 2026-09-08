@@ -156,15 +156,38 @@ class OpenflowConnector:
 RowModel = TypeVar("RowModel", OpenflowDeployment, OpenflowRuntime, OpenflowConnector)
 
 
-def _newest_per_key(rows: List[RowModel]) -> List[RowModel]:
-    # Rows with no CREATED_ON sort oldest: an incarnation whose timestamp the view
-    # has not populated yet must not outrank one that has a real timestamp.
-    newest: Dict[str, RowModel] = {}
+def _resolve_per_key(rows: List[RowModel]) -> List[RowModel]:
+    # OPEN beats CLOSED first, and only then newest-first.
+    #
+    # An earlier revision ordered on CREATED_ON alone with absent timestamps
+    # sorting oldest. That re-opened the very defect this resolver exists to close:
+    # the view populates CREATED_ON with a lag (Guard 1 in the pager exists because
+    # a NULL CREATED_ON really occurs), so a freshly re-created incarnation can
+    # arrive without one. Ordering on the timestamp handed the key back to the older
+    # DELETED_ON row exactly then, and the caller's `deleted_on is None` filter drops
+    # the live object and stale-entity removal soft-deletes it.
+    #
+    # An object is live if ANY of its lifecycle rows is still open, so an open row
+    # wins regardless of timestamp. Among rows in the same state, newest CREATED_ON
+    # wins, which keeps the most recent deletion for an object that really is gone.
+    def is_open(row: RowModel) -> bool:
+        return row.deleted_on is None
+
+    resolved: Dict[str, RowModel] = {}
     for row in rows:
-        current = newest.get(row.key)
-        if current is None or (row.created_on or "") >= (current.created_on or ""):
-            newest[row.key] = row
-    return list(newest.values())
+        current = resolved.get(row.key)
+        if current is None:
+            resolved[row.key] = row
+            continue
+        if is_open(row) != is_open(current):
+            if is_open(row):
+                resolved[row.key] = row
+            continue
+        # Same state: newest wins. Absent timestamps compare as "" and so lose to
+        # any real one, which is harmless here because both rows agree on liveness.
+        if (row.created_on or "") >= (current.created_on or ""):
+            resolved[row.key] = row
+    return list(resolved.values())
 
 
 def merge_show_and_history(
@@ -196,7 +219,7 @@ def merge_show_and_history(
     # caller's `deleted_on is None` filter drops an object that exists and stale
     # entity removal soft-deletes it. Newest CREATED_ON wins, so an object counts as
     # deleted only when its most recent lifecycle row says so.
-    history_rows = _newest_per_key(history_rows)
+    history_rows = _resolve_per_key(history_rows)
 
     by_key: Dict[str, RowModel] = {row.key: row for row in show_rows}
     for history_row in history_rows:
@@ -206,10 +229,21 @@ def merge_show_and_history(
             # privilege reasons. Deleted rows are filtered by the caller.
             by_key[history_row.key] = history_row
             continue
+        # `deleted_on` is EXCLUDED for a SHOW-present key. SHOW is authoritative
+        # for existence -- it lists what is there now -- so no lifecycle row may
+        # mark a SHOW-visible object deleted. This is what makes the whole class
+        # "a live object soft-deleted because some history row said deleted"
+        # unreachable, rather than merely unlikely: it holds regardless of whether
+        # CREATED_ON is populated, whether these views are incarnation-style or
+        # event-style, how a timestamp tie resolves, and whether lexicographic
+        # order matches real time across a DST fall-back. The per-key resolution
+        # above still decides which lifecycle row supplies the OTHER fields, and
+        # still governs view-only keys, where SHOW has said nothing.
         updates = {
             field.name: getattr(history_row, field.name)
             for field in dataclasses.fields(existing)
-            if getattr(existing, field.name) is None
+            if field.name != "deleted_on"
+            and getattr(existing, field.name) is None
             and getattr(history_row, field.name) is not None
         }
         if updates:
