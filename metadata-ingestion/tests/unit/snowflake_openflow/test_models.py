@@ -289,3 +289,28 @@ def test_view_only_deleted_object_still_reports_deleted_on_a_tie():
     merged = merge_show_and_history([], [closed])
     assert len(merged) == 1
     assert merged[0].deleted_on == "2026-03-02T00:00:00"
+
+
+def test_view_only_key_prefers_the_open_incarnation():
+    # Exercises the open-beats-closed branch of the per-key resolver, which only
+    # governs keys SHOW did not list -- for SHOW-present keys the authority rule
+    # above already decides liveness, which is why that rule alone left this
+    # branch unexercised. A connector invisible to SHOW for privilege reasons but
+    # re-created in the view must not be reported deleted on the strength of its
+    # previous incarnation.
+    closed_newer = OpenflowConnector.from_row(
+        {"CONNECTOR_ID": 1, "NAME": "priv_cdc", "RUNTIME_NAME": "MyRuntime",
+         "CREATED_ON": "2026-05-01T00:00:00", "DELETED_ON": "2026-05-02T00:00:00"}
+    )
+    open_older = OpenflowConnector.from_row(
+        {"CONNECTOR_ID": 2, "NAME": "priv_cdc", "RUNTIME_NAME": "MyRuntime",
+         "CREATED_ON": "2026-04-01T00:00:00"}
+    )
+    assert closed_newer is not None and open_older is not None
+    # Open wins even though the closed row carries the NEWER timestamp, and in
+    # both iteration orders.
+    for history in ([closed_newer, open_older], [open_older, closed_newer]):
+        merged = merge_show_and_history([], history)
+        assert len(merged) == 1
+        assert merged[0].deleted_on is None
+        assert merged[0].connector_id == "2"
