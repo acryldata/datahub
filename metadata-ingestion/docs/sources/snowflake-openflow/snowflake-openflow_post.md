@@ -59,13 +59,20 @@ the edge at a dataset none of those recipes ever wrote. If you do run one of tho
 DataHub's MSSQL source actively advises enabling it for lineage, so this is a realistic case
 rather than a hypothetical one.
 
-One deliberate difference from the `snowflake` source, worth knowing if you set both: this source
-folds the destination identifier itself rather than letting the pipeline-level pass do it, because
-that pass rewrites every dataset URN in the stream and would take the upstream ones with it. The
-pipeline pass also folds the `platform_instance` prefix, whereas this source folds only the
-identifier after it. So an **uppercase** `snowflake_platform_instance` here will not match the same
-instance written by a `snowflake` recipe that has `convert_urns_to_lowercase: true` spelled out.
-Use a lowercase platform instance on both sides and the question does not arise.
+`source_convert_urns_to_lowercase` folds **both** the upstream identifier and
+`source_platform_instance`, because the pipeline-level pass that an explicitly-flagged upstream
+recipe engages folds the whole URN name, prefix included. Folding only one half would match no
+upstream configuration at all.
+
+The destination side deliberately behaves differently, which is worth knowing if you set both.
+This source folds the destination identifier itself rather than letting the pipeline-level pass do
+it, because that pass rewrites every dataset URN in the stream and would take the upstream ones
+with it — but it folds only the identifier, leaving `snowflake_platform_instance` verbatim. The two
+halves differ because their defaults differ: an upstream that folds must have been told to, whereas
+`SnowflakeIdentifierConfig` folds the destination identifier by default. So an **uppercase**
+`snowflake_platform_instance` will not match a `snowflake` recipe that has
+`convert_urns_to_lowercase: true` spelled out. Use a lowercase platform instance on both sides and
+the question does not arise; the ingestion report warns when it cannot be sure.
 
 **A connector is catalogued but has no lineage.** Either its destination schema strategy is not
 `SOURCE_SCHEMA`, or it selects tables by pattern rather than by name. Both are counted in the

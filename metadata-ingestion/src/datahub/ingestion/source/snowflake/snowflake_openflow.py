@@ -564,6 +564,7 @@ class SnowflakeOpenflowSource(StatefulIngestionSourceBase, TestableSource):
         # StaleEntityRemovalSourceReport.
 
         self._warn_if_platform_instance_casing_is_ambiguous()
+        self._warn_if_upstream_folding_is_unverifiable()
 
     def _warn_if_platform_instance_casing_is_ambiguous(self) -> None:
         # Warn, do not reject. Which casing is correct depends on how the OTHER
@@ -596,6 +597,55 @@ class SnowflakeOpenflowSource(StatefulIngestionSourceBase, TestableSource):
             "URNs will not match it. Lowercase the instance on both sides if that "
             "is the recipe you run.",
             context=f"snowflake_platform_instance={instance!r}",
+        )
+
+    def _warn_if_upstream_folding_is_unverifiable(self) -> None:
+        # The mirror of _warn_if_platform_instance_casing_is_ambiguous, for the
+        # upstream side. Same shape of problem and the same answer: warn, never
+        # guess, because the correct value depends on a recipe this source cannot
+        # observe.
+        #
+        # source_convert_urns_to_lowercase is only correct to set when the UPSTREAM
+        # recipe spells convert_urns_to_lowercase out. postgres, mysql and mssql all
+        # default it to False, and an absent key leaves AutoLowercaseUrnsProcessor
+        # off for that source too -- so the operator has to know which of those two
+        # their upstream recipe is, and nothing here can check it. A mismatch emits a
+        # well-formed URN naming a dataset that does not exist, which renders in the
+        # UI exactly like a live one, so it must be said out loud rather than
+        # discovered.
+        #
+        # Only warn when a coordinate was actually chosen: on the default recipe
+        # there is nothing to mismatch, and a warning every run would be noise.
+        #
+        # source_env cannot be tested for None -- default_source_env_to_env fills it
+        # from `env` during validation, so it is always set. Compare it to `env`
+        # instead, which is what "the operator chose an upstream env" actually means.
+        if not self.config.include_openflow_lineage:
+            return
+        configured = (
+            self.config.source_platform_instance is not None
+            or self.config.source_convert_urns_to_lowercase
+            or self.config.source_env != self.config.env
+        )
+        if not configured:
+            return
+        self.report.warning(
+            title="Upstream coordinates cannot be verified from this source",
+            message="Upstream lineage URNs are built from source_platform_instance, "
+            "source_env and source_convert_urns_to_lowercase, which must match the "
+            "recipe that ingests the upstream system. This source cannot read that "
+            "recipe, so a mismatch is not detectable here and produces lineage "
+            "pointing at datasets that do not exist. Set "
+            "source_convert_urns_to_lowercase to true only if that recipe sets "
+            "convert_urns_to_lowercase explicitly; postgres, mysql and mssql all "
+            "default it to false.",
+            context=(
+                f"source_platform_instance="
+                f"{self.config.source_platform_instance!r}, "
+                f"source_env={self.config.source_env!r}, "
+                f"source_convert_urns_to_lowercase="
+                f"{self.config.source_convert_urns_to_lowercase!r}"
+            ),
         )
 
     @classmethod

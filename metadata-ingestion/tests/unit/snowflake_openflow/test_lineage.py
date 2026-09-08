@@ -1054,8 +1054,11 @@ def test_upstream_instance_prefix_folds_with_the_identifier():
     # `<instance>.<identifier>`. So folding the identifier while leaving the
     # instance verbatim matches no upstream shape at all.
     #
-    # Nothing caught this before because no unit fixture, no integration fixture
-    # and no golden set source_platform_instance. That absence IS the finding.
+    # Nothing caught this before for a subtler reason than "the field was never
+    # set": test_lineage.py:691 and test_config.py:59 both set it. They set it to
+    # `pg_prod`, which is ALREADY lowercase, so folding it is a no-op and the fold
+    # site was unobservable. A value that cannot distinguish the two behaviours
+    # gives the coverage report a hit and gives the fold no test at all.
     assert _inlets_with_config_overrides(
         source_convert_urns_to_lowercase=True,
         source_platform_instance="PG_Prod",

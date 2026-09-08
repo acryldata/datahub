@@ -387,3 +387,33 @@ def test_absent_platform_instance_is_quiet():
     source = _make_source()
     source._warn_if_platform_instance_casing_is_ambiguous()
     assert _CASING_WARNING not in _warning_titles(source.report)
+
+
+_UPSTREAM_WARNING = "Upstream coordinates cannot be verified from this source"
+
+
+def test_configured_upstream_coordinates_warn_that_they_cannot_be_checked():
+    # The upstream mirror of the destination-side casing warning. Correctness of
+    # these three fields depends on the recipe that ingests the upstream system,
+    # which this source cannot read, so a mismatch emits a well-formed URN naming
+    # a dataset that does not exist and renders exactly like a live one.
+    source = _make_source(source_platform_instance="pg_prod")
+    source._warn_if_upstream_folding_is_unverifiable()
+    assert _UPSTREAM_WARNING in _warning_titles(source.report)
+
+
+def test_upstream_warning_is_quiet_when_nothing_is_configured():
+    # With no upstream coordinates and no folding there is nothing to mismatch,
+    # so the default recipe must not draw a warning on every run.
+    source = _make_source()
+    source._warn_if_upstream_folding_is_unverifiable()
+    assert _UPSTREAM_WARNING not in _warning_titles(source.report)
+
+
+def test_upstream_warning_is_quiet_when_lineage_is_disabled():
+    # No upstream URNs are built at all, so the coordinates cannot be wrong.
+    source = _make_source(
+        source_platform_instance="pg_prod", include_openflow_lineage=False
+    )
+    source._warn_if_upstream_folding_is_unverifiable()
+    assert _UPSTREAM_WARNING not in _warning_titles(source.report)
