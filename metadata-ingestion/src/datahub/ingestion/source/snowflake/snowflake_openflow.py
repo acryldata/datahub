@@ -629,7 +629,14 @@ class SnowflakeOpenflowSource(StatefulIngestionSourceBase, TestableSource):
         )
         if not configured:
             return
-        self.report.warning(
+        # info, not warning. There is no state in which this source CAN verify the
+        # coordinates, so a warning here can never be cleared -- a correctly
+        # configured deployment would finish every run "with warnings" and nothing
+        # the operator does would fix it. An unclearable warning is noise, and this
+        # connector has four conditional warnings whose credibility it would spend.
+        # Its twin returns early unless a real ambiguity exists; this one cannot, so
+        # it drops a severity level instead.
+        self.report.info(
             title="Upstream coordinates cannot be verified from this source",
             message="Upstream lineage URNs are built from source_platform_instance, "
             "source_env and source_convert_urns_to_lowercase, which must match the "

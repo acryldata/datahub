@@ -392,14 +392,21 @@ def test_absent_platform_instance_is_quiet():
 _UPSTREAM_WARNING = "Upstream coordinates cannot be verified from this source"
 
 
-def test_configured_upstream_coordinates_warn_that_they_cannot_be_checked():
+def _info_titles(report) -> list:
+    return [entry.title for entry in report.infos]
+
+
+def test_configured_upstream_coordinates_are_reported_as_info():
     # The upstream mirror of the destination-side casing warning. Correctness of
     # these three fields depends on the recipe that ingests the upstream system,
     # which this source cannot read, so a mismatch emits a well-formed URN naming
     # a dataset that does not exist and renders exactly like a live one.
     source = _make_source(source_platform_instance="pg_prod")
     source._warn_if_upstream_folding_is_unverifiable()
-    assert _UPSTREAM_WARNING in _warning_titles(source.report)
+    # info, not warning: no action by the operator can ever clear it, so a warning
+    # would be permanently unclearable noise beside four warnings that CAN be acted on.
+    assert _UPSTREAM_WARNING in _info_titles(source.report)
+    assert _UPSTREAM_WARNING not in _warning_titles(source.report)
 
 
 def test_upstream_warning_is_quiet_when_nothing_is_configured():
@@ -407,7 +414,7 @@ def test_upstream_warning_is_quiet_when_nothing_is_configured():
     # so the default recipe must not draw a warning on every run.
     source = _make_source()
     source._warn_if_upstream_folding_is_unverifiable()
-    assert _UPSTREAM_WARNING not in _warning_titles(source.report)
+    assert _UPSTREAM_WARNING not in _info_titles(source.report)
 
 
 def test_upstream_warning_is_quiet_when_lineage_is_disabled():
@@ -416,4 +423,27 @@ def test_upstream_warning_is_quiet_when_lineage_is_disabled():
         source_platform_instance="pg_prod", include_openflow_lineage=False
     )
     source._warn_if_upstream_folding_is_unverifiable()
-    assert _UPSTREAM_WARNING not in _warning_titles(source.report)
+    assert _UPSTREAM_WARNING not in _info_titles(source.report)
+
+
+def test_upstream_info_fires_on_the_fold_flag_alone():
+    # Second arm of the predicate. Deleting it left the suite green before this.
+    source = _make_source(source_convert_urns_to_lowercase=True)
+    source._warn_if_upstream_folding_is_unverifiable()
+    assert _UPSTREAM_WARNING in _info_titles(source.report)
+
+
+def test_upstream_info_fires_when_source_env_differs_from_env():
+    # Third arm. source_env cannot be tested for None -- a validator fills it from
+    # env -- so "the operator chose one" means it differs from env.
+    source = _make_source(env="PROD", source_env="DEV")
+    source._warn_if_upstream_folding_is_unverifiable()
+    assert _UPSTREAM_WARNING in _info_titles(source.report)
+
+
+def test_upstream_info_is_quiet_when_source_env_merely_restates_env():
+    # Restating the default is not a choice: the URN is byte-identical to the
+    # default recipe's, so reporting it would be reporting on nothing.
+    source = _make_source(env="PROD", source_env="PROD")
+    source._warn_if_upstream_folding_is_unverifiable()
+    assert _UPSTREAM_WARNING not in _info_titles(source.report)
