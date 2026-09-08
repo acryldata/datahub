@@ -394,3 +394,48 @@ def test_mixed_lifecycle_keys_are_counted():
     # Two rows of the same liveness are not mixed, whichever way round.
     _, unmixed = merge_show_and_history([], [open_row, open_row])
     assert unmixed == 0
+
+    # Three rows for ONE key is the shape that separates counting keys from
+    # counting transitions, and it is the only shape that does: at two rows the
+    # two definitions coincide, so a test using two rows passes under both and
+    # cannot detect a regression to per-transition counting.
+    second_closed = OpenflowConnector.from_row(
+        {
+            "CONNECTOR_ID": 3,
+            "NAME": "c",
+            "RUNTIME_NAME": "R",
+            "CREATED_ON": "2026-02-15T00:00:00",
+            "DELETED_ON": "2026-02-16T00:00:00",
+        }
+    )
+    assert second_closed is not None
+    _, three_rows = merge_show_and_history([], [closed_row, open_row, second_closed])
+    assert three_rows == 1, (
+        "one key with three rows is ONE ambiguous key; counting liveness "
+        "transitions would report 2 here"
+    )
+
+    # And two distinct ambiguous keys are two, so the counter is not merely
+    # clamped to 1.
+    other_open = OpenflowConnector.from_row(
+        {
+            "CONNECTOR_ID": 4,
+            "NAME": "d",
+            "RUNTIME_NAME": "R",
+            "CREATED_ON": "2026-03-01T00:00:00",
+        }
+    )
+    other_closed = OpenflowConnector.from_row(
+        {
+            "CONNECTOR_ID": 5,
+            "NAME": "d",
+            "RUNTIME_NAME": "R",
+            "CREATED_ON": "2026-01-01T00:00:00",
+            "DELETED_ON": "2026-02-01T00:00:00",
+        }
+    )
+    assert other_open is not None and other_closed is not None
+    _, two_keys = merge_show_and_history(
+        [], [open_row, closed_row, other_open, other_closed]
+    )
+    assert two_keys == 2
