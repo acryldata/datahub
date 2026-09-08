@@ -295,9 +295,30 @@ def test_view_only_key_prefers_the_open_incarnation():
     # Exercises the open-beats-closed branch of the per-key resolver, which only
     # governs keys SHOW did not list -- for SHOW-present keys the authority rule
     # above already decides liveness, which is why that rule alone left this
-    # branch unexercised. A connector invisible to SHOW for privilege reasons but
-    # re-created in the view must not be reported deleted on the strength of its
-    # previous incarnation.
+    # branch unexercised.
+    #
+    # READ THE ASSUMPTION BEFORE TRUSTING THIS TEST. The rule, and therefore this
+    # data, assumes these are INCARNATION-style views: one row per object life,
+    # so an open row and a closed row under one key are two different lives and
+    # the open one is the object that exists. Under that reading the data below is
+    # a connector invisible to SHOW for privilege reasons whose current life is
+    # open, alongside a previous life that ended.
+    #
+    # It is NOT valid under an EVENT-style reading, where rows are lifecycle
+    # events for one object and a create row stays open forever -- there the
+    # latest event governs, this assertion is wrong, and DELETION_DETECTION would
+    # never fire for a view-only key. Note the shape that distinguishes
+    # open-beats-closed from plain newest-first REQUIRES the open row to be the
+    # older one, which is itself hard to realise under the incarnation reading.
+    #
+    # Which reading is right is unverified: all three history views hold exactly
+    # one row in the account available here, so there is no churn to observe. One
+    # `GROUP BY <surrogate id> HAVING COUNT(*) > 1` against an account with churn
+    # settles it. Snowflake's standard object-catalog shape (CREATED_ON +
+    # LAST_ALTERED_ON + DELETED_ON + surrogate id) points to incarnation-style,
+    # which is why the rule is written this way -- but it is an assumption, not a
+    # measurement, and the SHOW-authority rule above is the one that holds either
+    # way.
     closed_newer = OpenflowConnector.from_row(
         {
             "CONNECTOR_ID": 1,
