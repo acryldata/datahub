@@ -78,7 +78,7 @@ def _fake_query_rows(
 def test_paged_history_stops_on_null_created_on_boundary():
     # A full page whose last row has a NULL CREATED_ON must not become the
     # literal cursor string "None" -- that would produce a next query of
-    # `WHERE CREATED_ON > 'None'`. The fake is bounded to a few repeats of
+    # `WHERE CREATED_ON >= 'None'`. The fake is bounded to a few repeats of
     # the NULL-boundary page before it goes empty: a lone Guard-1 regression
     # would still be caught by Guard 2 at the second call (wrong warning,
     # fast failure), but with *both* guards gone nothing else would stop the
@@ -392,7 +392,7 @@ def test_absent_platform_instance_is_quiet():
 _UPSTREAM_WARNING = "Upstream coordinates cannot be verified from this source"
 
 
-def _info_titles(report) -> list:
+def _info_titles(report: SnowflakeOpenflowReport) -> List[Optional[str]]:
     return [entry.title for entry in report.infos]
 
 
