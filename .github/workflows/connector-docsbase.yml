@@ -1,0 +1,407 @@
+# Generates versioned connector docs + config schemas and publishes the
+# datahub-ingestion-docsbase image. For each acryl-datahub release it checks out
+# the tag, runs docGen (which produces config_schemas/), and captures the raw
+# docs/sources — then assembles one image keyed by version: /<version>/{docs,schemas}.
+#
+# :latest is a sliding window, not a per-run snapshot: assemble-and-publish pulls
+# forward whatever :latest already has, merges in this run's freshly generated
+# versions (which win over stale copies), then prunes anything outside the
+# `days` retention window. This is what makes a single-version workflow_call
+# from publish-pypi-release.yml safe — it extends the corpus instead of
+# replacing it with just that one version.
+#
+# JDK/Python versions mirror documentation.yml. Steady state is workflow_dispatch
+# (manual/backfill) plus workflow_call from publish-pypi-release.yml (auto-refresh
+# on each final release).
+name: connector-docsbase
+
+concurrency:
+  # Every run writes the mutable :latest tag, so serialize on one group with
+  # cancel-in-progress: false (never drop a real corpus build for a newer one).
+  # Caveat: GitHub keeps only ONE run pending per group, so if three releases
+  # land within a single run's build time the middle one's pending run is
+  # cancelled and that version is skipped — until the next backfill (scheduled or
+  # manual workflow_dispatch) regenerates it. (A `queue: max` key would hold all
+  # pending runs, but it isn't accepted by the workflow syntax check.)
+  group: connector-docsbase
+  cancel-in-progress: false
+
+on:
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "N-day window of final releases: what to generate (ignored if 'versions' set) and, always, what to retain in the published image — anything older is pruned"
+        default: "90"
+      versions:
+        description: 'Explicit JSON array of versions, e.g. ["1.6.0.10"] (overrides days)'
+        default: ""
+      dry_run:
+        description: "Build the image but do NOT push"
+        type: boolean
+        default: true
+      image_tag:
+        description: "Extra alias tag (optional). Primary tag is the <floor>-<ceiling> range; :latest is always pushed."
+        default: ""
+  # Called from publish-pypi-release.yml right after a final release
+  # lands on PyPI, so the image refreshes with that connector version instead
+  # of waiting for someone to remember to click workflow_dispatch.
+  workflow_call:
+    inputs:
+      days:
+        description: "N-day window of final releases: what to generate (ignored if 'versions' set) and, always, what to retain in the published image — anything older is pruned"
+        type: string
+        default: "90"
+      versions:
+        description: 'Explicit JSON array of versions, e.g. ["1.6.0.10"] (overrides days)'
+        type: string
+        default: ""
+      dry_run:
+        description: "Build the image but do NOT push"
+        type: boolean
+        default: true
+      image_tag:
+        description: "Extra alias tag (optional). Primary tag is the <floor>-<ceiling> range; :latest is always pushed."
+        type: string
+        default: ""
+    secrets:
+      DOCSBASE_DH_TOKEN:
+        # The reusable workflow's whole purpose is publishing; a caller that
+        # runs it with dry_run=false must supply the token. (The runtime check
+        # in assemble-and-publish still fails loudly if it's provided-but-empty.)
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  # A version directory/tag looks like X.Y.Z or X.Y.Z.W, all numeric (no
+  # rc/post/dev). Mirrored in list_versions.py's _FINAL_RELEASE and
+  # publish-pypi-release.yml's is_final_release check — keep all three in
+  # sync if this changes.
+  DOCSBASE_VERSION_RE: '^[0-9]+(\.[0-9]+){2,3}$'
+
+jobs:
+  versions:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.pick.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: pick
+        env:
+          VERSIONS: ${{ inputs.versions }}
+          DAYS: ${{ inputs.days }}
+        run: |
+          set -euo pipefail
+          if [ -n "$VERSIONS" ]; then
+            M="$VERSIONS"
+          else
+            M="$(python3 metadata-ingestion/scripts/docsbase/list_versions.py --days "$DAYS")"
+          fi
+          echo "matrix=$M" >> "$GITHUB_OUTPUT"
+          echo "Selected versions: $M"
+
+  generate:
+    needs: versions
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        version: ${{ fromJson(needs.versions.outputs.matrix) }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the release tag
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: v${{ matrix.version }}
+
+      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          distribution: "zulu"
+          java-version: "21"
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: "3.10"
+
+      # Connector extras build C-extensions (gssapi->krb5, python-ldap->sasl/ldap,
+      # pyodbc->unixodbc); the bare runner lacks these headers. install_deps.sh
+      # ships in every tag we check out, so it tracks that version's needs instead
+      # of drifting from a hand-maintained copy here (documentation.yml calls it too).
+      - name: Install system build deps for connector extras
+        run: ./metadata-ingestion/scripts/install_deps.sh
+
+      # docGen installs the connector extras for this tag and emits
+      # docs/generated/ingestion/config_schemas/<plugin>_config.json
+      - name: Run docGen (produces config schemas)
+        run: ./gradlew --no-daemon :metadata-ingestion:docGen
+
+      - name: Assemble this version's corpus
+        env:
+          V: ${{ matrix.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p "out/$V/schemas" "out/$V/docs"
+          shopt -s nullglob
+          schemas=(docs/generated/ingestion/config_schemas/*_config.json)
+          # docGen exits 0 even when plugins fail: docgen.py swallows per-plugin
+          # errors into logger.warning and still counts them as loaded, so a
+          # systemic problem (missing header, dep rot on an old tag) yields a
+          # handful of schemas rather than none. Live corpus runs 100 -> 111, so
+          # this floor only trips on a real collapse. Override with DOCSBASE_MIN_SCHEMAS.
+          if [ ${#schemas[@]} -lt "${DOCSBASE_MIN_SCHEMAS:-80}" ]; then
+            echo "::error::only ${#schemas[@]} config_schemas produced for $V (expected >= ${DOCSBASE_MIN_SCHEMAS:-80})"
+            echo "::error::check the docGen log for 'Failed to load additional metadata for'"
+            exit 1
+          fi
+          cp "${schemas[@]}" "out/$V/schemas/"
+          cp -R metadata-ingestion/docs/sources/. "out/$V/docs/"
+          # cp -R on an empty-but-present source succeeds, so a docs-less version
+          # would otherwise pass the schemas check and enter the corpus silently.
+          docs_n="$(find "out/$V/docs" -mindepth 1 -maxdepth 1 | wc -l)"
+          [ "$docs_n" -gt 0 ] || { echo "::error::no docs/sources captured for $V"; exit 1; }
+          echo "schemas: ${#schemas[@]} | docs dirs: $docs_n"
+
+      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: docsbase-${{ matrix.version }}
+          path: out/
+          if-no-files-found: error
+          retention-days: 3
+
+  assemble-and-publish:
+    needs: generate
+    if: ${{ success() }} # a failed leg means a hole in the range — don't publish a partial corpus
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Login (when a token is available) runs BEFORE the accumulate step's pull so
+      # that pull is authenticated: Docker Hub returns the same "repository does not
+      # exist or may require 'docker login'" message for a missing repo and an
+      # unauthorized one, so an anonymous pull failure would otherwise be
+      # misclassified as "fresh corpus" and republish :latest with just this run's
+      # version. This step's condition can't reference github.event_name — in a
+      # workflow_call that context is the CALLER's event (e.g. 'release'), never
+      # 'workflow_call'. inputs.dry_run carries the intent regardless of trigger.
+      - name: Check whether docker login is possible
+        id: docker-login
+        env:
+          ENABLE_DOCKER_LOGIN: ${{ secrets.DOCSBASE_DH_TOKEN != '' }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          if [ "$DRY_RUN" != "true" ] && [ "$ENABLE_DOCKER_LOGIN" != "true" ]; then
+            echo "::error::dry_run=false but DOCSBASE_DH_TOKEN is unset/empty — refusing to"
+            echo "::error::build and discard silently. Configure the secret, or pass dry_run=true."
+            exit 1
+          fi
+          echo "docker-login=$ENABLE_DOCKER_LOGIN" >> "$GITHUB_OUTPUT"
+
+      # Not gated on dry_run — pulling :latest to accumulate onto is read-only, and
+      # authenticating it avoids both the misclassification above and the anonymous
+      # pull rate-limit on shared runner IPs.
+      - name: Log in to Docker Hub
+        if: ${{ steps.docker-login.outputs.docker-login == 'true' }}
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
+        with:
+          username: acryldata
+          password: ${{ secrets.DOCSBASE_DH_TOKEN }}
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: docsbase-*
+          path: corpus
+          merge-multiple: true
+
+      # :latest is a sliding window: pull it forward so this run extends the
+      # corpus instead of replacing it (critical for a single-version
+      # workflow_call — without this, an auto-refresh would publish :latest
+      # containing only the one new release). This run's freshly generated
+      # versions always win over whatever :latest already had. Then prune to
+      # the `days` retention window (unioned with this run's own versions, so
+      # an explicit one-off backfill of an old version isn't immediately
+      # pruned in the same run that generated it) so the image doesn't grow
+      # without bound.
+      - name: Accumulate onto :latest, then prune to the retention window
+        env:
+          DAYS: ${{ inputs.days }}
+          VERSIONS: ${{ inputs.versions }}
+        run: |
+          set -euo pipefail
+          # No `|| true`: download-artifact's `pattern:` input does NOT fail on zero
+          # matches (it logs "Total of 0 artifact(s) downloaded" and exits 0), so an
+          # empty corpus/ here is a real bug we must not publish from. grep exiting 1
+          # under pipefail fails the step.
+          this_run="$(find corpus -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | grep -E "$DOCSBASE_VERSION_RE" | sort -u)"
+          echo "this run generated: $(echo "$this_run" | tr '\n' ' ')"
+          # If explicit versions were requested, assert each one actually landed —
+          # catches a partial download, not just a total miss.
+          requested="$(jq -r '.[]?' <<< "${VERSIONS:-[]}" 2>/dev/null || true)"
+          for v in $requested; do
+            [ -d "corpus/$v" ] || { echo "::error::requested version $v missing from artifacts"; exit 1; }
+          done
+
+          REPO_REF=acryldata/datahub-ingestion-docsbase:latest
+          mkdir -p previous
+          if docker pull "$REPO_REF" >pull.log 2>&1; then
+            # FROM scratch has no CMD/ENTRYPOINT, so create needs an explicit
+            # (never-executed — we only cp out of it) command to accept.
+            cid="$(docker create "$REPO_REF" noop)"
+            docker cp "$cid:/." previous/ >/dev/null
+            docker rm "$cid" >/dev/null
+            pulled="$(find previous -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | grep -E "$DOCSBASE_VERSION_RE" | sort -u || true)"
+            # A pull that succeeded but yielded no version trees is a contradiction
+            # (layout change, or :latest pointing at something unexpected). Publishing
+            # anyway would overwrite :latest with just this run — refuse.
+            if [ -z "$pulled" ]; then
+              echo "::error::pulled $REPO_REF but it contains no version trees — unexpected layout; refusing to shrink :latest"
+              exit 1
+            fi
+            echo "pulled forward from $REPO_REF: $(echo "$pulled" | tr '\n' ' ')"
+            while IFS= read -r v; do
+              [ -n "$v" ] || continue
+              if [ -d "corpus/$v" ]; then
+                continue # this run regenerated it — keep the fresh copy
+              fi
+              cp -R "previous/$v" "corpus/$v"
+            done <<< "$pulled"
+          elif grep -qiE 'manifest unknown|manifest for .* not found' pull.log; then
+            # Only "manifest unknown" unambiguously means "no such tag" — matching the
+            # broader "repository does not exist" text would classify an auth failure
+            # as a fresh start. A first-ever publish is a once-per-repo event.
+            echo "::warning::no existing $REPO_REF — starting a FRESH corpus (expected only on the very first publish)"
+          else
+            echo "::error::could not pull $REPO_REF to accumulate onto (not a missing-image error)"
+            cat pull.log
+            exit 1
+          fi
+
+          window="$(python3 metadata-ingestion/scripts/docsbase/list_versions.py --days "$DAYS")"
+          # An empty window collapses `keep` to just this run's versions and prunes
+          # every accumulated release out of :latest. Refuse rather than shrink.
+          jq -e 'type == "array" and length > 0' <<< "$window" >/dev/null \
+            || { echo "::error::empty retention window from list_versions.py — refusing to prune"; exit 1; }
+          if [ -n "$this_run" ]; then
+            this_run_json="$(echo "$this_run" | jq -R . | jq -cs .)"
+          else
+            this_run_json="[]"
+          fi
+          keep="$(jq -cn --argjson w "$window" --argjson m "$this_run_json" '($w + $m) | unique')"
+          echo "retaining (${DAYS}d window + this run): $keep"
+
+          for d in corpus/*/; do
+            [ -d "$d" ] || continue
+            v="$(basename "$d")"
+            echo "$v" | grep -qE "$DOCSBASE_VERSION_RE" || continue
+            if ! jq -e --arg v "$v" 'index($v) != null' <<< "$keep" >/dev/null; then
+              echo "::notice::pruning $v — outside the ${DAYS}-day retention window"
+              rm -rf "$d"
+            fi
+          done
+
+      - name: Layout check
+        run: |
+          set -euo pipefail
+          echo "versions present:"
+          find corpus -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort -V || true
+          find corpus -maxdepth 2 -type d | head -50
+
+      # The corpus is a sliding window of releases; its coverage is the
+      # [floor, ceiling] range plus the explicit version list, computed from
+      # whatever the previous step (accumulate + prune) left in corpus/ — record
+      # it in an in-image manifest + OCI labels so consumers can inspect coverage
+      # cheaply and pin by digest.
+      - name: Compute coverage + write manifest
+        id: coverage
+        env:
+          IMAGE_TAG: ${{ inputs.image_tag }}
+        run: |
+          set -euo pipefail
+          REPO=acryldata/datahub-ingestion-docsbase
+          versions="$(find corpus -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | grep -E "$DOCSBASE_VERSION_RE" | sort -V || true)"
+          [ -n "$versions" ] || { echo "::error::no version trees in corpus"; exit 1; }
+          floor="$(echo "$versions" | head -1)"
+          ceiling="$(echo "$versions" | tail -1)"
+          versions_json="$(echo "$versions" | jq -R . | jq -cs .)"
+          versions_count="$(echo "$versions" | wc -l | tr -d ' ')"
+          generated_at="$(date -u +%FT%TZ)"
+          cat > corpus/CORPUS_MANIFEST.json <<EOF
+          {"floor":"$floor","ceiling":"$ceiling","versions_count":$versions_count,"versions":$versions_json,"source_sha":"$GITHUB_SHA","generated_at":"$generated_at"}
+          EOF
+          # Tags: range is the primary pointer, latest is the moving one. The range
+          # tag is NOT content-addressed — a re-run, or a backfill of a middle
+          # version, reproduces the same floor-ceiling with different content and
+          # overwrites it; the manifest carries the honest version list. The digest
+          # emitted after push is the only real identity. An explicit image_tag, if
+          # given, is published as an extra alias.
+          tags="$REPO:$floor-$ceiling
+          $REPO:latest"
+          [ -n "$IMAGE_TAG" ] && tags="$tags
+          $REPO:$IMAGE_TAG"
+          {
+            echo "repo=$REPO"
+            echo "floor=$floor"
+            echo "ceiling=$ceiling"
+            echo "range=$floor-$ceiling"
+            echo "versions_count=$versions_count"
+            echo "generated_at=$generated_at"
+            echo "tags<<TAGS"; echo "$tags"; echo "TAGS"
+          } >> "$GITHUB_OUTPUT"
+          echo "Coverage $floor .. $ceiling ($(echo "$versions" | wc -l | tr -d ' ') versions)"
+
+      - name: Build image
+        env:
+          TAGS: ${{ steps.coverage.outputs.tags }}
+          FLOOR: ${{ steps.coverage.outputs.floor }}
+          CEILING: ${{ steps.coverage.outputs.ceiling }}
+          VERSIONS_COUNT: ${{ steps.coverage.outputs.versions_count }}
+          GENERATED_AT: ${{ steps.coverage.outputs.generated_at }}
+        run: |
+          set -euo pipefail
+          # Build context = corpus/ only, so the whole monorepo checkout (and the
+          # previous/ duplicate) isn't tarred as context and the image can't be
+          # gutted by a future entry in the repo-root .dockerignore (maintained for
+          # the product images). The Dockerfile + .dockerignore live inside corpus/
+          # and exclude themselves from the FROM-scratch image.
+          printf 'FROM scratch\nCOPY . /\n' > corpus/Dockerfile
+          printf 'Dockerfile\n.dockerignore\n' > corpus/.dockerignore
+          tag_args=()
+          while IFS= read -r t; do [ -n "$t" ] && tag_args+=(-t "$t"); done <<< "$TAGS"
+          docker build -f corpus/Dockerfile \
+            --label "org.acryl.docsbase.floor=$FLOOR" \
+            --label "org.acryl.docsbase.ceiling=$CEILING" \
+            --label "org.acryl.docsbase.versions_count=$VERSIONS_COUNT" \
+            --label "org.acryl.docsbase.source_sha=$GITHUB_SHA" \
+            --label "org.acryl.docsbase.generated_at=$GENERATED_AT" \
+            "${tag_args[@]}" corpus
+
+      - name: Push
+        if: ${{ inputs.dry_run == false && steps.docker-login.outputs.docker-login == 'true' }}
+        env:
+          TAGS: ${{ steps.coverage.outputs.tags }}
+          REPO: ${{ steps.coverage.outputs.repo }}
+          RANGE: ${{ steps.coverage.outputs.range }}
+        run: |
+          set -euo pipefail
+          while IFS= read -r t; do [ -n "$t" ] && docker push "$t"; done <<< "$TAGS"
+          # Emit the immutable digest — this is what a consumer pins (COPY --from=...@<digest>).
+          digest="$(docker inspect --format '{{index .RepoDigests 0}}' "$REPO:$RANGE")"
+          echo "pushed:"
+          while IFS= read -r t; do [ -n "$t" ] && echo "  - $t"; done <<< "$TAGS"
+          echo "digest: $digest"
+          {
+            echo "### docsbase published"
+            echo ""
+            echo "- range: \`$RANGE\`"
+            echo "- digest: \`$digest\`"
+            echo ""
+            echo "Pin this digest by \`@sha256\` in the consuming image (\`COPY --from=<repo>@<digest>\`)."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Dry-run notice
+        if: ${{ inputs.dry_run == true }}
+        env:
+          TAGS: ${{ steps.coverage.outputs.tags }}
+        run: |
+          echo "DRY RUN — built but did not push:"
+          while IFS= read -r t; do [ -n "$t" ] && echo "  - $t"; done <<< "$TAGS"
