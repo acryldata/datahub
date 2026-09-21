@@ -133,6 +133,23 @@ Token recognition rules:
 
 Capture the output as `NEXT_VERSION`.
 
+**Stale-RC guard (exit 3).** "Latest tag" is ranked by version number, not by date, so an
+abandoned RC line on a higher minor outranks the live release train. `next-version.sh`
+refuses to guess when the latest stable tag is _newer_ than the highest-ranked RC tag,
+and exits `3` printing nothing on stdout:
+
+| Exit | Meaning                                                                 | Action                                                                                                                                                                                                                                                                                                                       |
+| ---- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `0`  | Version printed on stdout.                                              | Proceed.                                                                                                                                                                                                                                                                                                                     |
+| `3`  | Stale RC line — a higher-ranked RC tag is older than the latest stable. | **Stop.** Check whether that RC line is real (`git ls-remote --tags origin '<tag>'`, `gh release view <tag>`). Local-only tags with no release are dead: delete them locally and on the remote, then re-run. Only set `OSS_RELEASE_ALLOW_STALE_RC=true` if the operator explicitly confirms they want to continue that line. |
+
+This guard exists because a leftover local-only `v1.8.0rc3` once outranked the active
+`v1.7.0.11` stable and produced `v1.8.0rc4` on top of a `1.7.0.x` train. The tell was
+visible in the preflight summary — `latest stable tag: v1.7.0.11` next to a proposed
+`v1.8.0rc4` is a base and a version from **different release lines**. If you ever see
+`NEXT_VERSION` and `LATEST_STABLE` disagree on major/minor/patch by more than the single
+bump you asked for, stop and ask the operator before tagging.
+
 **Empty-range guard** — re-use `RANGE_COUNT` from the preflight summary:
 
 ```bash

@@ -111,6 +111,43 @@ _get_latest_stable_tag() {
 
 LATEST=$(_get_latest_tag)
 
+# ── stale-RC guard ────────────────────────────────────────────────────────────
+# _get_latest_tag ranks tags by version number, with no notion of recency. An
+# abandoned RC line on a higher minor therefore outranks the live release train
+# and silently hijacks auto-detection: a leftover v1.8.0rc3 beat the active
+# v1.7.0.11 stable and produced v1.8.0rc4 on top of a 1.7.0.x train. The tags in
+# that case were local-only, so "does it exist on the remote" was the tell — but
+# checking that needs the network. Creation date is the offline equivalent: a
+# genuinely in-flight RC is NEWER than the latest stable, a parked one is older.
+_tag_field() { git for-each-ref --format="%(creatordate:$2)" "refs/tags/$1" 2>/dev/null; }
+
+if _is_rc "$LATEST" && [ "${OSS_RELEASE_ALLOW_STALE_RC:-}" != "true" ]; then
+    _stable=$(_get_latest_stable_tag)
+    _rc_ts=$(_tag_field "$LATEST" unix)
+    _stable_ts=$(_tag_field "$_stable" unix)
+    if [ -n "$_rc_ts" ] && [ -n "$_stable_ts" ] && [ "$_stable_ts" -gt "$_rc_ts" ]; then
+        cat >&2 <<STALE
+ERROR: stale release-candidate line detected — refusing to guess.
+
+  Highest-ranked tag : $LATEST (created $(_tag_field "$LATEST" short))
+  Latest stable tag  : $_stable (created $(_tag_field "$_stable" short))
+
+  The stable tag is NEWER than the highest-ranked RC, so '$LATEST' is very likely
+  an abandoned or local-only line. Bumping it would cut the next RC on top of the
+  live '$_stable' train instead of continuing it.
+
+  Check whether that RC line is real:
+      git ls-remote --tags origin '$LATEST'
+      gh release view $LATEST --repo acryldata/datahub
+
+  If it is dead, delete the stale tag(s) locally and on the remote, then re-run.
+  To continue that RC line deliberately, re-run with:
+      OSS_RELEASE_ALLOW_STALE_RC=true \$0 $*
+STALE
+        exit 3
+    fi
+fi
+
 # Auto-mode: if no explicit args and latest tag is already an RC, just bump the RC number
 if [ $# -eq 0 ] && _is_rc "$LATEST"; then
     read -r major minor patch fourth rc <<< "$(_parse_version "$LATEST")"

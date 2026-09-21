@@ -88,6 +88,41 @@ git tag v1.5.0.13rc3
 assert_eq "stable strips rcN" "v1.5.0.13" "$(run_next stable)"
 cleanup_sandbox
 
+# ── stale-RC guard (see next-version.sh) ─────────────────────────────────────
+# All sandbox tags point at the same commit, and a LIGHTWEIGHT tag reports the
+# commit's date as its creatordate — so these cases must use annotated tags with
+# an explicit GIT_COMMITTER_DATE to get distinguishable timestamps.
+tag_at() {  # tag_at <tag> <YYYY-MM-DD>
+    GIT_COMMITTER_DATE="$2T12:00:00+0000" git tag -a "$1" -m "$1"
+}
+
+# Case 6: stale RC line — stable is NEWER than the higher-ranked RC → refuse.
+# This is the v1.8.0rc3-vs-v1.7.0.11 shape that mis-cut v1.8.0rc4.
+sandbox
+tag_at v1.8.0rc3 2026-09-07
+tag_at v1.7.0.11 2026-09-21
+set +e
+out=$(run_next); rc=$?
+set -e
+assert_eq "stale RC line exits 3"      "3"  "$rc"
+assert_eq "stale RC line prints nothing" ""  "$out"
+cleanup_sandbox
+
+# Case 7: legitimate in-flight RC — RC is newer than stable → normal bump.
+sandbox
+tag_at v1.7.0.11   2026-09-21
+tag_at v1.7.0.12rc1 2026-09-22
+assert_eq "in-flight RC still bumps" "v1.7.0.12rc2" "$(run_next)"
+cleanup_sandbox
+
+# Case 8: escape hatch lets a deliberate stale-line continuation through.
+sandbox
+tag_at v1.8.0rc3 2026-09-07
+tag_at v1.7.0.11 2026-09-21
+assert_eq "escape hatch overrides guard" "v1.8.0rc4" \
+    "$(OSS_RELEASE_ALLOW_STALE_RC=true run_next)"
+cleanup_sandbox
+
 # Note: the "no tags at all" case is intentionally NOT tested. The script falls
 # back to `gh release list --repo acryldata/datahub` when local has no tags,
 # which can't be isolated without mocking the gh binary. The fallback is
