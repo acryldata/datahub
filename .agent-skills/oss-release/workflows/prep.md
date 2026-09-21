@@ -133,22 +133,33 @@ Token recognition rules:
 
 Capture the output as `NEXT_VERSION`.
 
-**Stale-RC guard (exit 3).** "Latest tag" is ranked by version number, not by date, so an
-abandoned RC line on a higher minor outranks the live release train. `next-version.sh`
-refuses to guess when the latest stable tag is _newer_ than the highest-ranked RC tag,
-and exits `3` printing nothing on stdout:
+**Version detection reads tags from `origin` only.** `next-version.sh` asks
+`git ls-remote --tags origin` rather than trusting the local tag namespace. This is not
+paranoia: Step 1 above runs `compare-upstream.sh`, which does `git fetch <upstream> master`,
+and git auto-follows tags reachable from a newly fetched ref. So **every prep run can pull
+`datahub-project/datahub`'s release tags into the same local namespace as the fork's own.**
 
-| Exit | Meaning                                                                 | Action                                                                                                                                                                                                                                                                                                                       |
-| ---- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `0`  | Version printed on stdout.                                              | Proceed.                                                                                                                                                                                                                                                                                                                     |
-| `3`  | Stale RC line — a higher-ranked RC tag is older than the latest stable. | **Stop.** Check whether that RC line is real (`git ls-remote --tags origin '<tag>'`, `gh release view <tag>`). Local-only tags with no release are dead: delete them locally and on the remote, then re-run. Only set `OSS_RELEASE_ALLOW_STALE_RC=true` if the operator explicitly confirms they want to continue that line. |
+Upstream numbers some lines with three segments (`v1.8.0rc3`) where this fork uses four
+(`v1.7.0.11`). Under pure version sorting the upstream tag outranks every fork tag, so
+`git tag -l` cannot be used to answer "what did we last release." It once produced
+`v1.8.0rc4` on top of a live `1.7.0.x` train. If `origin` is unreachable the script falls
+back to local tags and warns loudly — treat that warning as a reason to check the version
+by hand.
 
-This guard exists because a leftover local-only `v1.8.0rc3` once outranked the active
-`v1.7.0.11` stable and produced `v1.8.0rc4` on top of a `1.7.0.x` train. The tell was
-visible in the preflight summary — `latest stable tag: v1.7.0.11` next to a proposed
-`v1.8.0rc4` is a base and a version from **different release lines**. If you ever see
-`NEXT_VERSION` and `LATEST_STABLE` disagree on major/minor/patch by more than the single
-bump you asked for, stop and ask the operator before tagging.
+**Stale-RC guard (exit 3).** Secondary defense, for an RC line abandoned on `origin`
+itself. `next-version.sh` refuses to guess when the latest stable tag is _newer_ than the
+highest-ranked RC tag, and exits `3` printing nothing on stdout:
+
+| Exit | Meaning                                                                 | Action                                                                                                                                                                                                        |
+| ---- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `0`  | Version printed on stdout.                                              | Proceed.                                                                                                                                                                                                      |
+| `3`  | Stale RC line — a higher-ranked RC tag is older than the latest stable. | **Stop.** Check whether that line is real (`gh release view <tag> --repo acryldata/datahub`). Only set `OSS_RELEASE_ALLOW_STALE_RC=true` if the operator explicitly confirms they want to continue that line. |
+
+**The cross-check that would have caught this.** The preflight summary prints
+`latest stable tag`, and Step 3 prints `NEXT_VERSION`. Compare them every time. A base and a
+version from **different release lines** — `latest stable tag: v1.7.0.11` beside a proposed
+`v1.8.0rc4` — means something is wrong regardless of which guard did or did not fire. Stop
+and ask the operator before tagging; do not write an explanation for why it is fine.
 
 **Empty-range guard** — re-use `RANGE_COUNT` from the preflight summary:
 

@@ -88,6 +88,43 @@ git tag v1.5.0.13rc3
 assert_eq "stable strips rcN" "v1.5.0.13" "$(run_next stable)"
 cleanup_sandbox
 
+# ── origin-only tag sourcing (see next-version.sh) ───────────────────────────
+# The default sandbox points origin at itself, so every local tag is also an
+# origin tag. These cases need a REAL separate origin so a tag can exist
+# locally without existing on origin — the shape produced by prep Step 1's
+# `git fetch <upstream> master`, which auto-follows datahub-project/datahub's
+# release tags into the local namespace.
+sandbox_with_remote_origin() {
+    SANDBOX_DIR=$(mktemp -d)
+    git init --quiet --bare "$SANDBOX_DIR/origin.git"
+    cd "$SANDBOX_DIR"
+    git init --quiet -b master work
+    cd work
+    git config user.email "test@example.com"
+    git config user.name "Test"
+    git commit --allow-empty -m "init" --quiet
+    git remote add origin "$SANDBOX_DIR/origin.git"
+    git push --quiet origin master
+}
+
+# Case 9: an upstream tag present locally but NOT on origin must be ignored.
+# This is the exact v1.8.0rc3-vs-v1.7.0.11 bug: upstream's 3-segment line
+# outranks the fork's 4-segment line under pure version sorting.
+sandbox_with_remote_origin
+git tag v1.7.0.11
+git push --quiet origin v1.7.0.11     # fork tag — on origin
+git tag v1.8.0rc3                     # upstream tag — local only
+assert_eq "local-only upstream tag ignored" "v1.7.0.12rc1" "$(run_next)"
+cleanup_sandbox
+
+# Case 10: an RC that IS on origin still drives the bump.
+sandbox_with_remote_origin
+git tag v1.7.0.11
+git tag v1.7.0.12rc1
+git push --quiet origin v1.7.0.11 v1.7.0.12rc1
+assert_eq "origin RC still bumps" "v1.7.0.12rc2" "$(run_next)"
+cleanup_sandbox
+
 # ── stale-RC guard (see next-version.sh) ─────────────────────────────────────
 # All sandbox tags point at the same commit, and a LIGHTWEIGHT tag reports the
 # commit's date as its creatordate — so these cases must use annotated tags with

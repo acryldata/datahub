@@ -84,9 +84,38 @@ _parse_version() {
 
 _is_rc() { [[ "$1" =~ rc[0-9]+$ ]]; }
 
+# Tags that exist on ORIGIN (acryldata/datahub) — the only ones this fork
+# releases from. Local `git tag -l` is NOT a safe substitute: prep Step 1 runs
+# compare-upstream.sh, which does `git fetch <upstream> master`, and git
+# auto-follows tags reachable from the fetched ref. datahub-project/datahub's
+# own release tags therefore land in the same local tag namespace on every run.
+# Upstream numbers some lines with three segments (v1.8.0rc3) where the fork
+# uses four (v1.7.0.11), so an upstream tag can outrank every fork tag and
+# hijack the version calculation. Asking origin directly is the only way to
+# tell the two apart. Cached so repeated calls cost one network round-trip.
+_ORIGIN_TAGS_CACHE=""
+_origin_tags() {
+    if [ -n "$_ORIGIN_TAGS_CACHE" ]; then
+        printf '%s\n' "$_ORIGIN_TAGS_CACHE"
+        return 0
+    fi
+    local out
+    if out=$(git ls-remote --tags --refs origin 'v*' 2>/dev/null) && [ -n "$out" ]; then
+        _ORIGIN_TAGS_CACHE=$(printf '%s\n' "$out" | awk -F'refs/tags/' 'NF>1 {print $2}')
+    else
+        # Offline or origin unreachable. Fall back to local tags so the script
+        # still works, but say so — the fallback is exactly the contaminated
+        # namespace described above.
+        echo "Warning: could not list tags on origin; falling back to local tags," >&2
+        echo "         which may include upstream OSS tags and skew the version." >&2
+        _ORIGIN_TAGS_CACHE=$(git tag -l 'v*')
+    fi
+    printf '%s\n' "$_ORIGIN_TAGS_CACHE"
+}
+
 _get_latest_tag() {
     local tag
-    tag=$(git tag -l 'v*' | _sort_tags | head -n 1)
+    tag=$(_origin_tags | _sort_tags | head -n 1)
     if [ -z "$tag" ] && command -v gh &>/dev/null && gh auth token &>/dev/null; then
         tag=$(gh release list --repo acryldata/datahub --limit 100 --json tagName \
             --jq '.[].tagName' 2>/dev/null | _sort_tags | head -n 1)
@@ -96,7 +125,7 @@ _get_latest_tag() {
 
 _get_latest_stable_tag() {
     local tag
-    tag=$(git tag -l 'v*' | grep -v 'rc' | _sort_tags | head -n 1)
+    tag=$(_origin_tags | grep -v 'rc' | _sort_tags | head -n 1)
     if [ -z "$tag" ] && command -v gh &>/dev/null && gh auth token &>/dev/null; then
         tag=$(gh release list --repo acryldata/datahub --limit 100 --json tagName \
             --jq '.[].tagName' 2>/dev/null | grep -v 'rc' | _sort_tags | head -n 1)
