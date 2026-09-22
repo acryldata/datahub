@@ -84,9 +84,38 @@ _parse_version() {
 
 _is_rc() { [[ "$1" =~ rc[0-9]+$ ]]; }
 
+# Tags that exist on ORIGIN (acryldata/datahub) — the only ones this fork
+# releases from. Local `git tag -l` is NOT a safe substitute: prep Step 1 runs
+# compare-upstream.sh, which does `git fetch <upstream> master`, and git
+# auto-follows tags reachable from the fetched ref. datahub-project/datahub's
+# own release tags therefore land in the same local tag namespace on every run.
+# Upstream numbers some lines with three segments (v1.8.0rc3) where the fork
+# uses four (v1.7.0.11), so an upstream tag can outrank every fork tag and
+# hijack the version calculation. Asking origin directly is the only way to
+# tell the two apart. Cached so repeated calls cost one network round-trip.
+_ORIGIN_TAGS_CACHE=""
+_origin_tags() {
+    if [ -n "$_ORIGIN_TAGS_CACHE" ]; then
+        printf '%s\n' "$_ORIGIN_TAGS_CACHE"
+        return 0
+    fi
+    local out
+    if out=$(git ls-remote --tags --refs origin 'v*' 2>/dev/null) && [ -n "$out" ]; then
+        _ORIGIN_TAGS_CACHE=$(printf '%s\n' "$out" | awk -F'refs/tags/' 'NF>1 {print $2}')
+    else
+        # Offline or origin unreachable. Fall back to local tags so the script
+        # still works, but say so — the fallback is exactly the contaminated
+        # namespace described above.
+        echo "Warning: could not list tags on origin; falling back to local tags," >&2
+        echo "         which may include upstream OSS tags and skew the version." >&2
+        _ORIGIN_TAGS_CACHE=$(git tag -l 'v*')
+    fi
+    printf '%s\n' "$_ORIGIN_TAGS_CACHE"
+}
+
 _get_latest_tag() {
     local tag
-    tag=$(git tag -l 'v*' | _sort_tags | head -n 1)
+    tag=$(_origin_tags | _sort_tags | head -n 1)
     if [ -z "$tag" ] && command -v gh &>/dev/null && gh auth token &>/dev/null; then
         tag=$(gh release list --repo acryldata/datahub --limit 100 --json tagName \
             --jq '.[].tagName' 2>/dev/null | _sort_tags | head -n 1)
@@ -96,7 +125,7 @@ _get_latest_tag() {
 
 _get_latest_stable_tag() {
     local tag
-    tag=$(git tag -l 'v*' | grep -v 'rc' | _sort_tags | head -n 1)
+    tag=$(_origin_tags | grep -v 'rc' | _sort_tags | head -n 1)
     if [ -z "$tag" ] && command -v gh &>/dev/null && gh auth token &>/dev/null; then
         tag=$(gh release list --repo acryldata/datahub --limit 100 --json tagName \
             --jq '.[].tagName' 2>/dev/null | grep -v 'rc' | _sort_tags | head -n 1)
@@ -110,6 +139,43 @@ _get_latest_stable_tag() {
     echo "Warning: tag fetch failed — version may be based on stale local tags" >&2
 
 LATEST=$(_get_latest_tag)
+
+# ── stale-RC guard ────────────────────────────────────────────────────────────
+# _get_latest_tag ranks tags by version number, with no notion of recency. An
+# abandoned RC line on a higher minor therefore outranks the live release train
+# and silently hijacks auto-detection: a leftover v1.8.0rc3 beat the active
+# v1.7.0.11 stable and produced v1.8.0rc4 on top of a 1.7.0.x train. The tags in
+# that case were local-only, so "does it exist on the remote" was the tell — but
+# checking that needs the network. Creation date is the offline equivalent: a
+# genuinely in-flight RC is NEWER than the latest stable, a parked one is older.
+_tag_field() { git for-each-ref --format="%(creatordate:$2)" "refs/tags/$1" 2>/dev/null; }
+
+if _is_rc "$LATEST" && [ "${OSS_RELEASE_ALLOW_STALE_RC:-}" != "true" ]; then
+    _stable=$(_get_latest_stable_tag)
+    _rc_ts=$(_tag_field "$LATEST" unix)
+    _stable_ts=$(_tag_field "$_stable" unix)
+    if [ -n "$_rc_ts" ] && [ -n "$_stable_ts" ] && [ "$_stable_ts" -gt "$_rc_ts" ]; then
+        cat >&2 <<STALE
+ERROR: stale release-candidate line detected — refusing to guess.
+
+  Highest-ranked tag : $LATEST (created $(_tag_field "$LATEST" short))
+  Latest stable tag  : $_stable (created $(_tag_field "$_stable" short))
+
+  The stable tag is NEWER than the highest-ranked RC, so '$LATEST' is very likely
+  an abandoned or local-only line. Bumping it would cut the next RC on top of the
+  live '$_stable' train instead of continuing it.
+
+  Check whether that RC line is real:
+      git ls-remote --tags origin '$LATEST'
+      gh release view $LATEST --repo acryldata/datahub
+
+  If it is dead, delete the stale tag(s) locally and on the remote, then re-run.
+  To continue that RC line deliberately, re-run with:
+      OSS_RELEASE_ALLOW_STALE_RC=true \$0 $*
+STALE
+        exit 3
+    fi
+fi
 
 # Auto-mode: if no explicit args and latest tag is already an RC, just bump the RC number
 if [ $# -eq 0 ] && _is_rc "$LATEST"; then
