@@ -118,7 +118,7 @@ jobs:
     if: >
       github.event_name == 'pull_request_target' &&
       github.event.pull_request.merged == true
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # This repo's default workflow permission is "read", which grants only
     # contents/metadata/packages — `gh pr view --json comments` needs pull-requests.
     # Nothing here writes to GitHub; all writes go to Linear over its own API.
@@ -173,7 +173,7 @@ jobs:
     if: >
       (github.event_name == 'release' && github.event.action == 'published') ||
       github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # contents: read      → actions/checkout, and linear-release-action's github_token
     #                       (it uses it only to download the Linear release CLI)
     # pull-requests: read → the `gh pr view` lookups in the attach step
@@ -463,7 +463,7 @@ jobs:
   # ── JOB 3: RELEASE DELETED IN GITHUB → delete corresponding Linear release ─
   delete-linear-release:
     if: github.event_name == 'release' && github.event.action == 'deleted'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Talks only to the Linear API — no GitHub token needed at all.
     permissions: {}
     steps:
