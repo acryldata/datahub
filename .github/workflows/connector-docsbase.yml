@@ -82,7 +82,7 @@ env:
 
 jobs:
   versions:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       matrix: ${{ steps.pick.outputs.matrix }}
     steps:
@@ -108,7 +108,7 @@ jobs:
       max-parallel: 6
       matrix:
         version: ${{ fromJson(needs.versions.outputs.matrix) }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout the release tag
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -187,7 +187,7 @@ jobs:
   assemble-and-publish:
     needs: generate
     if: ${{ success() }} # a failed leg means a hole in the range — don't publish a partial corpus
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
