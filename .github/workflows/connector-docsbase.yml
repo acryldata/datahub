@@ -10,9 +10,9 @@
 # from publish-pypi-release.yml safe — it extends the corpus instead of
 # replacing it with just that one version.
 #
-# JDK/Python versions mirror documentation.yml. Steady state is workflow_dispatch
-# (manual/backfill) plus workflow_call from publish-pypi-release.yml (auto-refresh
-# on each final release).
+# JDK/Python versions are read per tag from that tag's documentation.yml.
+# Steady state is workflow_dispatch (manual/backfill) plus workflow_call from
+# publish-pypi-release.yml (auto-refresh on each final release).
 name: connector-docsbase
 
 concurrency:
@@ -115,13 +115,29 @@ jobs:
         with:
           ref: v${{ matrix.version }}
 
+      # Toolchain versions come from the checked-out tag's own documentation.yml
+      # (the job that runs docGen for that release), not a hardcoded copy here:
+      # they move between releases (v1.7.0.11 went to Python 3.11 / JDK 25, and
+      # v1.7.0.12+ cannot install the [docs] extra on 3.10).
+      - name: Read this tag's docs toolchain versions
+        id: toolchain
+        run: |
+          set -euo pipefail
+          wf=.github/workflows/documentation.yml
+          java="$(grep -m1 -E '^[[:space:]]*java-version:' "$wf" | sed -E 's/.*:[[:space:]]*"?([^"[:space:]]+)"?[[:space:]]*$/\1/')"
+          python="$(grep -m1 -E '^[[:space:]]*python-version:' "$wf" | sed -E 's/.*:[[:space:]]*"?([^"[:space:]]+)"?[[:space:]]*$/\1/')"
+          [ -n "$java" ] && [ -n "$python" ] || { echo "::error::could not read java/python-version from $wf"; exit 1; }
+          echo "java=$java" >> "$GITHUB_OUTPUT"
+          echo "python=$python" >> "$GITHUB_OUTPUT"
+          echo "JDK $java | Python $python"
+
       - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:
           distribution: "zulu"
-          java-version: "21"
+          java-version: ${{ steps.toolchain.outputs.java }}
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
-          python-version: "3.10"
+          python-version: ${{ steps.toolchain.outputs.python }}
 
       # Connector extras build C-extensions (gssapi->krb5, python-ldap->sasl/ldap,
       # pyodbc->unixodbc); the bare runner lacks these headers. install_deps.sh
