@@ -56,6 +56,7 @@ base_requirements = {
     "httpcore>=1.0.9",
     "azure-identity==1.21.0",
     "aws-msk-iam-sasl-signer-python==1.0.2",
+    "google-auth>=2.0.0,<3.0.0",
     "h11>=0.16",
 }
 

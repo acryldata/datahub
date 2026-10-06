@@ -154,6 +154,10 @@ sink:
 
 **Note:** MSK IAM authentication requires `pip install 'acryl-datahub-actions>=1.3.1.2'` for the OAuth callback.
 
+For Google Cloud Managed Service for Apache Kafka, use `oauth_cb: "datahub_actions.utils.kafka_gcp_managed_kafka:oauth_cb"`
+with the same `security.protocol` / `sasl.mechanism`, and the cluster's bootstrap address (port `9092`). Credentials come from
+Application Default Credentials (e.g. GKE Workload Identity); the service account needs `roles/managedkafka.client`.
+
 ### Config details
 
 Note that a `.` is used to denote nested fields in the YAML recipe.
