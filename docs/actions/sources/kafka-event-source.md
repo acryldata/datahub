@@ -96,7 +96,8 @@ action:
 The Kafka Event Source also reads Kafka client properties from `KAFKA_PROPERTIES_*` environment variables, which is how
 the DataHub Helm chart passes Kafka settings to the actions pod. The part of the name after the prefix is lowercased and
 its underscores become dots, so `KAFKA_PROPERTIES_SASL_MECHANISM=PLAIN` sets `sasl.mechanism: PLAIN`.
-`KAFKA_PROPERTIES_OAUTH_CB` sets `oauth_cb` (for example `datahub_actions.utils.kafka_msk_iam:oauth_cb` for AWS MSK IAM),
+`KAFKA_PROPERTIES_OAUTH_CB` sets `oauth_cb` (for example `datahub_actions.utils.kafka_msk_iam:oauth_cb` for AWS MSK IAM,
+or `datahub_actions.utils.kafka_gcp_managed_kafka:oauth_cb` for Google Cloud Managed Service for Apache Kafka),
 which is resolved to a function the same way as `oauth_cb` in `consumer_config`. Empty values are ignored.
 
 - Values in `connection.consumer_config` take precedence over environment variables.
