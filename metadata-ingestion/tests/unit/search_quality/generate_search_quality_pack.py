@@ -18,6 +18,19 @@ ACTOR = "urn:li:corpuser:datahub"
 CRANFIELD_PLATFORM = "urn:li:dataPlatform:cranfield"
 PROBE_PLATFORM = "urn:li:dataPlatform:catalogprobe"
 PROBE_PROPERTY = "urn:li:structuredProperty:catalogProbeTier"
+# Nonce words. A real word such as "tier" is already a dataset name, and that
+# name outranks the property, so the light rung would stop on the wrong hit.
+FULLTEXT_PROBE_VALUE = "Zephyrical Quorvane Plinth"
+FULLTEXT_PROBE_TOKENS = ("zephyrical", "quorvane", "plinth")
+FULLTEXT_PROBE_FIELD = "structuredProperties.catalogProbeTier"
+SEARCHABLE_TEXT_FIELDS = frozenset(
+    {"name", "qualifiedName", "description", "title", "displayName", "text"}
+)
+STRING_OPT_IN_PROPERTY = "urn:li:structuredProperty:packStringSearch"
+STRING_OPT_OUT_PROPERTY = "urn:li:structuredProperty:packStringFilter"
+URN_OPT_IN_PROPERTY = "urn:li:structuredProperty:packUrnSearch"
+URN_OPT_OUT_PROPERTY = "urn:li:structuredProperty:packUrnFilter"
+BOOSTED_PROPERTY = "urn:li:structuredProperty:packBoostedLabel"
 LONG_TAIL_SHARDS = ("03-long-tail.json", "04-long-tail-timeseries.json")
 
 KEYWORD_ENTITY_TYPES = [
@@ -61,6 +74,17 @@ def mcp(entity_urn: str, aspect_name: str, aspect: dict[str, Any]) -> dict[str, 
 
 def dataset_urn(platform: str, name: str, origin: str = "PROD") -> str:
     return f"urn:li:dataset:(urn:li:dataPlatform:{platform},{name},{origin})"
+
+
+STRING_OPT_IN_DATASET = dataset_urn(
+    "dbt", "long_tail_companions.analytics.dogs_in_movies"
+)
+URN_OPT_IN_DATASET = dataset_urn(
+    "snowflake", "long_tail_companions.analytics.b2c_ecommerce"
+)
+BOOSTED_PROPERTY_DATASET = dataset_urn(
+    "dbt", "long_tail_companions.adoption.pet_profiles"
+)
 
 
 def parse_cranfield_documents(path: Path) -> list[dict[str, str]]:
@@ -192,6 +216,52 @@ def definitions(platforms: Iterable[str]) -> list[dict[str, Any]]:
             },
         )
     )
+    for urn, qualified_name, value_type, search_configuration in [
+        (
+            STRING_OPT_IN_PROPERTY,
+            "packStringSearch",
+            "urn:li:dataType:datahub.string",
+            {"queryByDefault": True},
+        ),
+        (
+            STRING_OPT_OUT_PROPERTY,
+            "packStringFilter",
+            "urn:li:dataType:datahub.string",
+            {"queryByDefault": False},
+        ),
+        (
+            URN_OPT_IN_PROPERTY,
+            "packUrnSearch",
+            "urn:li:dataType:datahub.urn",
+            {"queryByDefault": True},
+        ),
+        (
+            URN_OPT_OUT_PROPERTY,
+            "packUrnFilter",
+            "urn:li:dataType:datahub.urn",
+            {"queryByDefault": False},
+        ),
+        (
+            BOOSTED_PROPERTY,
+            "packBoostedLabel",
+            "urn:li:dataType:datahub.string",
+            {"queryByDefault": True, "boostScore": 40.0},
+        ),
+    ]:
+        proposals.append(
+            mcp(
+                urn,
+                "propertyDefinition",
+                {
+                    "qualifiedName": qualified_name,
+                    "displayName": qualified_name,
+                    "valueType": value_type,
+                    "entityTypes": ["urn:li:entityType:datahub.dataset"],
+                    "cardinality": "SINGLE",
+                    "searchConfiguration": search_configuration,
+                },
+            )
+        )
     return proposals
 
 
@@ -201,6 +271,11 @@ def catalog_probes() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     synonym = dataset_urn("catalogprobe", "staging_revenue_ledger")
     quoted = dataset_urn("catalogprobe", "quoted_phrase_alpha")
     prop = dataset_urn("catalogprobe", "tier_gold_asset")
+    string_opt_out = dataset_urn("catalogprobe", "string_filter_asset")
+    urn_opt_in = URN_OPT_IN_DATASET
+    urn_opt_out = dataset_urn("catalogprobe", "urn_filter_asset")
+    description_competitor = dataset_urn("catalogprobe", "boosted_description_asset")
+    fulltext = dataset_urn("catalogprobe", "analyzer_asset")
     entities = [
         (
             exact,
@@ -232,6 +307,36 @@ def catalog_probes() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
             "catalogprobe.tier_gold_asset",
             "Dataset carrying the catalog probe tier property.",
         ),
+        (
+            string_opt_out,
+            "Catalogprobe String Filter Asset",
+            "catalogprobe.string_filter_asset",
+            "A dataset used to test a structured property excluded from full-text search.",
+        ),
+        (
+            urn_opt_in,
+            "Catalogprobe URN Search Asset",
+            "catalogprobe.urn_search_asset",
+            "A dataset used to test a URN structured property included in search configuration.",
+        ),
+        (
+            urn_opt_out,
+            "Catalogprobe URN Filter Asset",
+            "catalogprobe.urn_filter_asset",
+            "A dataset used to test a URN structured property excluded from full-text search.",
+        ),
+        (
+            description_competitor,
+            "Catalogprobe Boosted Description Asset",
+            "catalogprobe.boosted_description_asset",
+            "Dataset whose description contains the boosted property phrase: packboostalpha packboostbravo.",
+        ),
+        (
+            fulltext,
+            "Catalogprobe Analyzer Asset",
+            "catalogprobe.analyzer_asset",
+            "Dataset carrying a mixed-case structured property for analyzer probes.",
+        ),
     ]
     proposals: list[dict[str, Any]] = []
     for urn, name, qualified, description in entities:
@@ -262,6 +367,24 @@ def catalog_probes() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
             },
         )
     )
+    # The phrase below is not this whole value, so the case-sensitive keyword
+    # term cannot explain it. A stem of the last word matches only .stemmed.
+    proposals.append(
+        mcp(
+            fulltext,
+            "structuredProperties",
+            {
+                "properties": [
+                    {
+                        "propertyUrn": PROBE_PROPERTY,
+                        "values": [{"string": FULLTEXT_PROBE_VALUE}],
+                        "created": stamp(),
+                        "lastModified": stamp(),
+                    }
+                ]
+            },
+        )
+    )
     # Business label on an existing long-tail table. The words are not in its name.
     proposals.append(
         mcp(
@@ -279,6 +402,50 @@ def catalog_probes() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
             },
         )
     )
+    structured_assignments = [
+        (
+            STRING_OPT_IN_DATASET,
+            STRING_OPT_IN_PROPERTY,
+            "packstringoptin",
+        ),
+        (
+            URN_OPT_IN_DATASET,
+            URN_OPT_IN_PROPERTY,
+            "urn:li:dataset:(urn:li:dataPlatform:catalogprobe,packurnoptin,PROD)",
+        ),
+        (
+            BOOSTED_PROPERTY_DATASET,
+            BOOSTED_PROPERTY,
+            "packboostalpha packboostbravo",
+        ),
+        (
+            string_opt_out,
+            STRING_OPT_OUT_PROPERTY,
+            "packstringoptout",
+        ),
+        (
+            urn_opt_out,
+            URN_OPT_OUT_PROPERTY,
+            "urn:li:corpuser:packurnoptout",
+        ),
+    ]
+    for dataset, property_urn, value in structured_assignments:
+        proposals.append(
+            mcp(
+                dataset,
+                "structuredProperties",
+                {
+                    "properties": [
+                        {
+                            "propertyUrn": property_urn,
+                            "values": [{"string": value}],
+                            "created": stamp(),
+                            "lastModified": stamp(),
+                        }
+                    ]
+                },
+            )
+        )
     judgments = [
         probe(
             "catalog-exact-name",
@@ -289,6 +456,116 @@ def catalog_probes() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         probe("catalog-synonym", "stg catalogprobeledger", synonym),
         probe("catalog-quoted", '"catalogprobe quoted phrase"', quoted),
         probe("catalog-property", "catalogprobegold", prop),
+        {
+            "id": "structured-property-string-opt-in",
+            "group": "structured-property",
+            "query": "packstringoptin",
+            "surfaces": ["keyword"],
+            "entityTypes": ["dataset"],
+            "grades": [{"urn": STRING_OPT_IN_DATASET, "relevance": 1}],
+            "exactTopHit": STRING_OPT_IN_DATASET,
+        },
+        {
+            "id": "structured-property-urn-opt-in",
+            "group": "structured-property",
+            "query": "packurnoptin",
+            "surfaces": ["keyword"],
+            "entityTypes": ["dataset"],
+            "grades": [{"urn": URN_OPT_IN_DATASET, "relevance": 1}],
+            "exactTopHit": URN_OPT_IN_DATASET,
+        },
+        {
+            "id": "structured-property-urn-opt-in-identity",
+            "group": "structured-property",
+            "query": "urn:li:dataset:(urn:li:dataPlatform:catalogprobe,packurnoptin,PROD)",
+            "surfaces": ["keyword"],
+            "entityTypes": ["dataset"],
+            "grades": [{"urn": URN_OPT_IN_DATASET, "relevance": 1}],
+            "exactTopHit": URN_OPT_IN_DATASET,
+        },
+        {
+            "id": "structured-property-string-opt-out-fulltext",
+            "group": "structured-property",
+            "query": "packstringoptout",
+            "surfaces": ["keyword"],
+            "entityTypes": ["dataset"],
+            "grades": [],
+            "expectNoHits": True,
+        },
+        {
+            "id": "structured-property-urn-opt-out-fulltext",
+            "group": "structured-property",
+            "query": "packurnoptout",
+            "surfaces": ["keyword"],
+            "entityTypes": ["dataset"],
+            "grades": [],
+            "expectNoHits": True,
+        },
+        {
+            "id": "structured-property-string-opt-out-filter",
+            "group": "structured-property",
+            "query": "*",
+            "surfaces": ["keyword"],
+            "entityTypes": ["dataset"],
+            "grades": [{"urn": string_opt_out, "relevance": 1}],
+            "filter": {
+                "field": "structuredProperties.packStringFilter",
+                "condition": "EQUAL",
+                "value": "packstringoptout",
+            },
+            "exactTopHit": string_opt_out,
+        },
+        {
+            "id": "structured-property-urn-opt-in-filter",
+            "group": "structured-property",
+            "query": "*",
+            "surfaces": ["keyword"],
+            "entityTypes": ["dataset"],
+            "grades": [{"urn": URN_OPT_IN_DATASET, "relevance": 1}],
+            "filter": {
+                "field": "structuredProperties.packUrnSearch",
+                "condition": "EQUAL",
+                "value": "urn:li:dataset:(urn:li:dataPlatform:catalogprobe,packurnoptin,PROD)",
+            },
+            "exactTopHit": URN_OPT_IN_DATASET,
+        },
+        {
+            "id": "structured-property-urn-opt-out-filter",
+            "group": "structured-property",
+            "query": "*",
+            "surfaces": ["keyword"],
+            "entityTypes": ["dataset"],
+            "grades": [{"urn": urn_opt_out, "relevance": 1}],
+            "filter": {
+                "field": "structuredProperties.packUrnFilter",
+                "condition": "EQUAL",
+                "value": "urn:li:corpuser:packurnoptout",
+            },
+            "exactTopHit": urn_opt_out,
+        },
+        {
+            "id": "structured-property-boosted-ranking",
+            "group": "structured-property",
+            "query": "packboostalpha packboostbravo",
+            "surfaces": ["keyword"],
+            "entityTypes": ["dataset"],
+            "grades": [{"urn": BOOSTED_PROPERTY_DATASET, "relevance": 1}],
+            "exactTopHit": BOOSTED_PROPERTY_DATASET,
+        },
+        fulltext_property_probe(
+            "structured-property-fulltext-token", "zephyrical", fulltext
+        ),
+        fulltext_property_probe(
+            "structured-property-fulltext-stem", "plinths", fulltext
+        ),
+        fulltext_property_probe(
+            "structured-property-fulltext-phrase", '"zephyrical quorvane"', fulltext
+        ),
+        fulltext_property_probe(
+            "structured-property-fulltext-case",
+            "zephyrical quorvane plinth",
+            fulltext,
+        ),
     ]
     return proposals, judgments
 
@@ -309,6 +586,19 @@ def catalog_query(
         "surfaces": ["keyword"],
         "entityTypes": KEYWORD_ENTITY_TYPES,
         "grades": [{"urn": urn, "relevance": relevance} for urn, relevance in grades],
+    }
+
+
+def fulltext_property_probe(query_id: str, query: str, urn: str) -> dict[str, Any]:
+    return {
+        "id": query_id,
+        "group": "structured-property",
+        "query": query,
+        "surfaces": ["keyword"],
+        "entityTypes": ["dataset"],
+        "grades": [{"urn": urn, "relevance": 1}],
+        "exactTopHit": urn,
+        "matchedFieldContains": {"value": FULLTEXT_PROBE_FIELD, "hits": 1},
     }
 
 
@@ -640,6 +930,24 @@ def longtail_judgments() -> list[dict[str, Any]]:
             "lifetime value tier",
             [(customers[1], 4)],
         ),
+        catalog_query(
+            "longtail-structured-property-string",
+            "packstringoptin",
+            [(STRING_OPT_IN_DATASET, 4)],
+        ),
+        catalog_query(
+            "longtail-structured-property-urn",
+            "packurnoptin",
+            [(URN_OPT_IN_DATASET, 4)],
+        ),
+        catalog_query(
+            "longtail-structured-property-boost",
+            "packboostalpha packboostbravo",
+            [
+                (BOOSTED_PROPERTY_DATASET, 4),
+                (dataset_urn("catalogprobe", "boosted_description_asset"), 2),
+            ],
+        ),
     ]
 
 
@@ -860,6 +1168,40 @@ def load_mcps(directory: Path) -> dict[str, list[dict[str, Any]]]:
     return loaded
 
 
+def iter_searchable_text(payload: Any) -> Iterable[str]:
+    if isinstance(payload, dict):
+        for key, value in payload.items():
+            if key in SEARCHABLE_TEXT_FIELDS and isinstance(value, str):
+                yield value
+            else:
+                yield from iter_searchable_text(value)
+    elif isinstance(payload, list):
+        for item in payload:
+            yield from iter_searchable_text(item)
+
+
+def assert_fulltext_probe_tokens_absent(
+    loaded: dict[str, list[dict[str, Any]]],
+) -> None:
+    """Probe tokens must not appear in a name or description.
+
+    Name fields outrank a structured property, so a shared word would make
+    exactTopHit a name hit and the light rung would stop there.
+    """
+    for path, proposals in loaded.items():
+        for proposal in proposals:
+            payload = proposal.get("aspect", {}).get("json")
+            for text in iter_searchable_text(payload):
+                folded = text.casefold()
+                for token in FULLTEXT_PROBE_TOKENS:
+                    if token not in folded:
+                        continue
+                    raise AssertionError(
+                        f"{token} appears in {path} {proposal.get('aspectName')} "
+                        f"on {proposal.get('entityUrn')}"
+                    )
+
+
 def validate_judgments(judgments: dict[str, Any], seen: set[str]) -> None:
     allowed_groups = {
         "benchmark",
@@ -867,6 +1209,7 @@ def validate_judgments(judgments: dict[str, Any], seen: set[str]) -> None:
         "catalog-probe",
         "semantic-probe",
         "longtail",
+        "structured-property",
     }
     allowed_surfaces = {"keyword", "semantic", "hybrid", "lineage"}
     for judgment in judgments["judgments"]:
@@ -932,6 +1275,7 @@ def validate_pack(directory: Path) -> None:
     ]
     if len(benchmark) != 225:
         raise AssertionError(f"Expected 225 benchmark queries, found {len(benchmark)}")
+    assert_fulltext_probe_tokens_absent(loaded)
 
 
 def generate(root: Path | None = None) -> Path:
@@ -1043,6 +1387,7 @@ def generate(root: Path | None = None) -> Path:
         f"Wrote search-quality pack to {directory} "
         f"mcps={sum(len(items) for items in shards.values()) + kept} judgments={counts}"
     )
+    validate_pack(directory)
     return directory
 
 

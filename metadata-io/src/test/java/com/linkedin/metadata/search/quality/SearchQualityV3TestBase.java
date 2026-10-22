@@ -347,14 +347,15 @@ public abstract class SearchQualityV3TestBase extends AbstractTestNGSpringContex
     assertEquals(entities.getRouteChain().get(0), "urn:li:searchTemplate:searchLight");
     OperationContext lineage =
         opContext
-            .withSearchSurface(SearchTemplateSurfaces.SEARCH_ENTITIES_LINEAGE)
+            .withSearchSurface(SearchTemplateSurfaces.SEARCH_ENTITIES)
             .withSearchFlags(flags -> flags.setFulltext(true));
     ResolvedSearchTemplate lineageTemplate =
         SearchTemplates.current()
             .bind(lineage, "pet profiles", false)
             .getSearchContext()
             .getResolvedSearchTemplate();
-    assertEquals(lineageTemplate.getUrn(), "urn:li:searchTemplate:lineage");
+    assertEquals(lineageTemplate.getRouteChain().get(0), "urn:li:searchTemplate:searchLight");
+    assertEquals(lineageTemplate.getUrn(), "urn:li:searchTemplate:light");
   }
 
   @Test
@@ -377,7 +378,9 @@ public abstract class SearchQualityV3TestBase extends AbstractTestNGSpringContex
         if (!probe.passed()) {
           probeFailures.add(probe.message());
         }
-        if ("ranking".equals(group) || "catalog-probe".equals(group)) {
+        if ("ranking".equals(group)
+            || "catalog-probe".equals(group)
+            || "structured-property".equals(group)) {
           probes.add(probe);
         }
       }
@@ -493,7 +496,6 @@ public abstract class SearchQualityV3TestBase extends AbstractTestNGSpringContex
   }
 
   private RankedSearchResult run(JsonNode judgment, boolean javaBuilder) throws Exception {
-    boolean lineage = judgment.path("surfaces").toString().contains("lineage");
     Filter filter = null;
     if (judgment.hasNonNull("filter")) {
       JsonNode criterion = judgment.get("filter");
@@ -522,10 +524,7 @@ public abstract class SearchQualityV3TestBase extends AbstractTestNGSpringContex
     }
     List<String> entityTypes = new ArrayList<>();
     judgment.path("entityTypes").forEach(node -> entityTypes.add(node.asText()));
-    String surface =
-        lineage
-            ? SearchTemplateSurfaces.SEARCH_ENTITIES_LINEAGE
-            : SearchTemplateSurfaces.SEARCH_ENTITIES;
+    String surface = SearchTemplateSurfaces.SEARCH_ENTITIES;
     return search(
         entityTypes,
         judgment.path("query").asText(),
@@ -655,9 +654,7 @@ public abstract class SearchQualityV3TestBase extends AbstractTestNGSpringContex
     templates.setSurfaces(
         Map.of(
             SearchTemplateSurfaces.SEARCH_ENTITIES,
-            Map.of("fulltext", slot("urn:li:searchTemplate:searchLight")),
-            SearchTemplateSurfaces.SEARCH_ENTITIES_LINEAGE,
-            Map.of("fulltext", slot("urn:li:searchTemplate:lineage"))));
+            Map.of("fulltext", slot("urn:li:searchTemplate:searchLight"))));
     return templates;
   }
 
