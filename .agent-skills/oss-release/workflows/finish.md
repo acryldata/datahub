@@ -164,10 +164,10 @@ parameters table to `false`. Everything else identical to the prep render.
 The `acryldata/connector-tests` repo pins the CLI version it uses in two files under
 `harness/` (documented in that repo's README, "version files" section):
 
-| File                                | Used by                                                    |
-| ----------------------------------- | ---------------------------------------------------------- |
-| `harness/version_to_validate.txt`  | PR validation (`validate_connector.yaml`, `validate_connector_deps.yml`) |
-| `harness/golden_update_version.txt` | Golden-file regeneration (`update_golden_files.yaml`)      |
+| File                                | Used by                                                                  |
+| ----------------------------------- | ------------------------------------------------------------------------ |
+| `harness/version_to_validate.txt`   | PR validation (`validate_connector.yaml`, `validate_connector_deps.yml`) |
+| `harness/golden_update_version.txt` | Golden-file regeneration (`update_golden_files.yaml`)                    |
 
 These do NOT update themselves on a release. If they go stale, golden files get
 regenerated and PRs get validated against an old CLI — drift that surfaces later as
