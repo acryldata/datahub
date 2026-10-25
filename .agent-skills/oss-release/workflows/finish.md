@@ -159,7 +159,7 @@ release. Note: **no `--prerelease`** for stable releases. Intentionally NOT in
 `--prerelease` in the rendered commands code block; set `Pre-release` row in the
 parameters table to `false`. Everything else identical to the prep render.
 
-## Step 6 — Bump connector-tests harness versions
+## Step 6 — Refresh connector-tests golden files + harness versions
 
 The `acryldata/connector-tests` repo pins the CLI version it uses in two files under
 `harness/` (documented in that repo's README, "version files" section):
@@ -169,26 +169,46 @@ The `acryldata/connector-tests` repo pins the CLI version it uses in two files u
 | `harness/version_to_validate.txt`  | PR validation (`validate_connector.yaml`, `validate_connector_deps.yml`) |
 | `harness/golden_update_version.txt` | Golden-file regeneration (`update_golden_files.yaml`)      |
 
-These do NOT update themselves on release. If they go stale, golden files get
+These do NOT update themselves on a release. If they go stale, golden files get
 regenerated and PRs get validated against an old CLI — drift that surfaces later as
 confusing golden mismatches against the current release.
 
-After the stable release is published, update both files to the new stable tag in
-<https://github.com/acryldata/connector-tests>. Work in a local clone of that repo if
-one is available; otherwise edit via `gh api` / the GitHub UI:
+**Do NOT edit the harness files by hand.** Bumping the version without regenerating
+goldens creates version↔golden mismatch (the repo README's "Version Mismatch" failure
+mode). The `Update Golden Files` workflow handles everything atomically: it
+regenerates all goldens with the given CLI, rewrites **both** harness files to that
+version, and opens a `golden-files-update-<run_id>` PR containing goldens + version
+bumps together.
+
+After the stable release is published, dispatch it with the stable version:
 
 ```bash
-# In a clone of acryldata/connector-tests:
-git checkout main && git pull --ff-only
-git checkout -b chore/bump-harness-cli-<STABLE_VERSION>
-# Replace the version line (last non-comment line) in each file with <STABLE_VERSION>,
-# keeping the leading `v` and the comment header intact.
+gh workflow run update_golden_files.yaml \
+    --repo acryldata/connector-tests \
+    -f version=<STABLE_VERSION>
 ```
 
-Edit `harness/version_to_validate.txt` and `harness/golden_update_version.txt`, then
-commit and open a PR against `acryldata/connector-tests` for review. This is a
-follow-up PR, not a release blocker — the stable release is already out; do not
-hold or re-cut it on this step.
+Manual dispatches skip the weekly-refresh delay and are **NOT auto-merged** — the PR
+sits unmerged until a human merges it, and an unattended one silently re-stales the
+harness. So the PR link is a **required final artifact of `finish`**, same as the
+release URL:
+
+1. The dispatch prints the run URL. The run regenerates goldens for every connector,
+   so it can take a while — poll it (`/loop` or re-check later) rather than blocking.
+2. When the run completes, find the PR it opened:
+
+   ```bash
+   gh pr list --repo acryldata/connector-tests --label golden-file-update --state open \
+       --json number,title,url,createdAt
+   ```
+
+3. **End your `finish` report with the PR URL and an explicit "needs review + merge"
+   call-out.** If you hand off before the run finishes, end with the run URL instead
+   and state that the resulting PR still needs to be found, reviewed, and merged —
+   never leave the step implied.
+
+This is a follow-up, not a release blocker — the stable release is already out; do
+not hold or re-cut it on this step.
 
 Skip in dry-run (no stable was published).
 
