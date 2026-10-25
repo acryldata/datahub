@@ -159,6 +159,37 @@ release. Note: **no `--prerelease`** for stable releases. Intentionally NOT in
 `--prerelease` in the rendered commands code block; set `Pre-release` row in the
 parameters table to `false`. Everything else identical to the prep render.
 
+## Step 6 — Bump connector-tests harness versions
+
+The `acryldata/connector-tests` repo pins the CLI version it uses in two files under
+`harness/` (documented in that repo's README, "version files" section):
+
+| File                                | Used by                                                    |
+| ----------------------------------- | ---------------------------------------------------------- |
+| `harness/version_to_validate.txt`  | PR validation (`validate_connector.yaml`, `validate_connector_deps.yml`) |
+| `harness/golden_update_version.txt` | Golden-file regeneration (`update_golden_files.yaml`)      |
+
+These do NOT update themselves on release. If they go stale, golden files get
+regenerated and PRs get validated against an old CLI — drift that surfaces later as
+confusing golden mismatches against the current release.
+
+After the stable release is published, update both files to the new stable tag:
+
+```bash
+cd ~/repos/connector-tests
+git checkout main && git pull --ff-only
+git checkout -b chore/bump-harness-cli-<STABLE_VERSION>
+# Replace the version line (last non-comment line) in each file with <STABLE_VERSION>,
+# keeping the leading `v` and the comment header intact.
+```
+
+Edit `harness/version_to_validate.txt` and `harness/golden_update_version.txt`, then
+commit and open a PR against `acryldata/connector-tests` for review. This is a
+follow-up PR, not a release blocker — the stable release is already out; do not
+hold or re-cut it on this step.
+
+Skip in dry-run (no stable was published).
+
 ## Linear release tracking — automated, no step needed
 
 Linear release tracking is **fully automated** by the `.github/workflows/linear-release-tracking.yml`
