@@ -173,10 +173,12 @@ These do NOT update themselves on release. If they go stale, golden files get
 regenerated and PRs get validated against an old CLI — drift that surfaces later as
 confusing golden mismatches against the current release.
 
-After the stable release is published, update both files to the new stable tag:
+After the stable release is published, update both files to the new stable tag in
+<https://github.com/acryldata/connector-tests>. Work in a local clone of that repo if
+one is available; otherwise edit via `gh api` / the GitHub UI:
 
 ```bash
-cd ~/repos/connector-tests
+# In a clone of acryldata/connector-tests:
 git checkout main && git pull --ff-only
 git checkout -b chore/bump-harness-cli-<STABLE_VERSION>
 # Replace the version line (last non-comment line) in each file with <STABLE_VERSION>,
