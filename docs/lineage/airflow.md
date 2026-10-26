@@ -88,6 +88,7 @@ enabled = True  # default
 | log_level                          | _no change_          | [debug] Set the log level for the plugin.                                                                                                                                                                                                                 |
 | debug_emitter                      | false                | [debug] If true, the plugin will log the emitted events.                                                                                                                                                                                                  |
 | dag_filter_str                     | { "allow": [".*"] }  | AllowDenyPattern value in form of JSON string to filter the DAGs from running.                                                                                                                                                                            |
+| task_filter_str                    | { "allow": [".*"] }  | AllowDenyPattern value in form of JSON string matched against the task ID. Filtered tasks are skipped for lineage and runs. See [Filtering tasks](#filtering-tasks).                                                                                      |
 | dataset_pattern                    | { "allow": [".*"] }  | AllowDenyPattern value in form of JSON string matched against `<platform>:<name>` of every inlet and outlet. See [Filtering inlets and outlets](#filtering-inlets-and-outlets).                                                                           |
 | normalize_object_storage_urns      | true                 | Map OpenLineage S3, GCS, Azure and DBFS paths to the `s3`, `gcs`, `abs` and `dbfs` platforms and keep the bucket in the name, so they match datasets from DataHub's storage sources and the Spark agent. Set to `false` to keep the pre-1.8 URNs.         |
 | capture_ol_file_datasets           | false                | Keep `file` datasets that operators report through OpenLineage. These are usually scratch paths on the worker, such as `/tmp/tmpab12/out.csv`, so they are skipped by default. Files declared as Airflow Assets or manual inlets/outlets are always kept. |
@@ -121,6 +122,21 @@ On managed Airflow, such as Amazon MWAA or Google Cloud Composer, set the same v
 
 ```bash
 AIRFLOW__DATAHUB__DATASET_PATTERN='{"deny": ["gcs:my-tmp-bucket/.*", "s3:my-scratch-bucket/.*"]}'
+```
+
+#### Filtering tasks
+
+`task_filter_str` works like `dag_filter_str`, but matches the task ID instead of the DAG ID. Filtered tasks are skipped entirely: no DataJob, no lineage, and no runs are emitted for them. Use it to keep utility tasks, such as sensors or triggers, out of DataHub. Because the pattern matches the task ID alone, it applies across all DAGs; use `dag_filter_str` to exclude whole DAGs and `task_filter_str` to exclude tasks within the DAGs that remain.
+
+```ini title="airflow.cfg"
+[datahub]
+task_filter_str = {"deny": ["wait_for_.*", ".*_sensor"]}
+```
+
+On managed Airflow, such as Amazon MWAA or Google Cloud Composer, set the same value as the `datahub.task_filter_str` configuration override or as an environment variable:
+
+```bash
+AIRFLOW__DATAHUB__TASK_FILTER_STR='{"deny": ["wait_for_.*", ".*_sensor"]}'
 ```
 
 ## Automatic lineage extraction
