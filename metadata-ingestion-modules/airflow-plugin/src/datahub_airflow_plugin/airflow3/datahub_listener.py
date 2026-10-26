@@ -1155,7 +1155,7 @@ class DataHubListener:
             return None
 
         # Check if task is allowed by filter pattern
-        if not self.config.task_filter_pattern.allowed(task.task_id):
+        if not self.config.task_allowed(dag.dag_id, task.task_id):
             logger.debug(
                 f"Task {task.task_id} of DAG {dag.dag_id} is not allowed by the pattern"
             )
@@ -1306,7 +1306,7 @@ class DataHubListener:
             return
 
         # Check if task is allowed before doing any expensive operations
-        if not self.config.task_filter_pattern.allowed(task_instance.task_id):
+        if not self.config.task_allowed(task_instance.dag_id, task_instance.task_id):
             logger.debug(f"Task {task_instance.task_id} is not allowed by the pattern")
             return
 
@@ -1549,7 +1549,7 @@ class DataHubListener:
         emitter.emit(event)
 
         for task in dag.tasks:
-            if not self.config.task_filter_pattern.allowed(task.task_id):
+            if not self.config.task_allowed(dag.dag_id, task.task_id):
                 logger.debug(
                     f"Task {task.task_id} of DAG {dag.dag_id} is not allowed by the pattern"
                 )

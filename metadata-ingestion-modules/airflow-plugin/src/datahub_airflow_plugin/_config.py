@@ -151,6 +151,29 @@ class DatahubLineageConfig(ConfigModel):
         else:
             return DatahubCompositeHook(connection_ids)
 
+    def task_allowed(self, dag_id: str, task_id: str) -> bool:
+        """Check a task against the task filter using both its bare task id
+        and its '<dag_id>.<task_id>' composite form.
+
+        A task is denied if either form matches a deny pattern; otherwise it
+        is allowed if either form matches an allow pattern. This lets patterns
+        scope rules to a single DAG (e.g. 'my_dag\\.my_task$') while bare
+        patterns (e.g. '.*_sensor') still apply across all DAGs. Note that a
+        '.' in a dag id is a regex wildcard unless escaped.
+        """
+        composite = f"{dag_id}.{task_id}"
+
+        # Deny wins over allow: a deny on either form filters the task even
+        # if the other form is matched by an allow pattern.
+        if self.task_filter_pattern.denied(task_id) or self.task_filter_pattern.denied(
+            composite
+        ):
+            return False
+
+        return self.task_filter_pattern.allowed(
+            task_id
+        ) or self.task_filter_pattern.allowed(composite)
+
 
 def get_lineage_config() -> DatahubLineageConfig:
     """Load the DataHub plugin config from airflow.cfg."""

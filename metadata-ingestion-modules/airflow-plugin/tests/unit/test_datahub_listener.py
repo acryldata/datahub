@@ -1,7 +1,7 @@
 """Unit tests for the Airflow 3 DataHub listener."""
 
 import sys
-from types import ModuleType, SimpleNamespace
+from types import MethodType, ModuleType, SimpleNamespace
 from typing import Any, Iterator, List
 from unittest.mock import MagicMock, patch
 
@@ -9,6 +9,7 @@ import pytest
 
 import datahub_airflow_plugin.airflow3.datahub_listener as listener_mod
 from datahub.configuration.common import AllowDenyPattern
+from datahub_airflow_plugin._config import DatahubLineageConfig
 from datahub_airflow_plugin.airflow3.datahub_listener import DataHubListener
 
 
@@ -393,6 +394,9 @@ def _make_filter_stub(dag_pattern: str, task_pattern: str) -> Any:
         dag_filter_pattern=AllowDenyPattern.model_validate_json(dag_pattern),
         task_filter_pattern=AllowDenyPattern.model_validate_json(task_pattern),
     )
+    # Reuse the production task_allowed logic (bare + dag.task composite
+    # matching) by binding it onto the stub config.
+    config.task_allowed = MethodType(DatahubLineageConfig.task_allowed, config)
     stub = SimpleNamespace(
         config=config,
         check_kill_switch=lambda: False,
@@ -490,3 +494,43 @@ class TestTaskFilterPattern:
             "urn:li:dataJob:(urn:li:dataFlow:(airflow,PROD,my_dag),skip_this_task)"
             not in emitted_urns
         )
+
+
+class TestTaskFilterCompositePattern:
+    """task_filter_str patterns may match bare task ids or 'dag_id.task_id'."""
+
+    def test_scoped_deny_only_filters_one_dag(self) -> None:
+        stub = _make_filter_stub(
+            '{"allow": [".*"]}', '{"deny": ["my_dag\\\\.skip_.*$"]}'
+        )
+
+        assert not stub.config.task_allowed("my_dag", "skip_this_task")
+        assert stub.config.task_allowed("other_dag", "skip_this_task")
+        assert stub.config.task_allowed("my_dag", "real_task")
+
+    def test_bare_deny_still_applies_across_all_dags(self) -> None:
+        stub = _make_filter_stub('{"allow": [".*"]}', '{"deny": ["skip_.*"]}')
+
+        assert not stub.config.task_allowed("my_dag", "skip_this_task")
+        assert not stub.config.task_allowed("other_dag", "skip_this_task")
+        assert stub.config.task_allowed("my_dag", "real_task")
+
+    def test_scoped_allow_only_keeps_one_dag(self) -> None:
+        stub = _make_filter_stub('{"allow": [".*"]}', '{"allow": ["my_dag\\\\."]}')
+
+        assert stub.config.task_allowed("my_dag", "any_task")
+        assert not stub.config.task_allowed("other_dag", "any_task")
+
+    def test_deny_wins_over_scoped_allow(self) -> None:
+        stub = _make_filter_stub('{"allow": ["my_dag\\\\."]}', '{"deny": ["skip_.*"]}')
+
+        assert not stub.config.task_allowed("my_dag", "skip_this_task")
+        assert stub.config.task_allowed("my_dag", "real_task")
+
+    def test_same_task_id_in_two_dags_can_be_treated_differently(self) -> None:
+        stub = _make_filter_stub(
+            '{"allow": [".*"]}', '{"deny": ["drop_dag\\\\.skip_me$"]}'
+        )
+
+        assert not stub.config.task_allowed("drop_dag", "skip_me")
+        assert stub.config.task_allowed("keep_dag", "skip_me")
