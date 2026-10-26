@@ -119,6 +119,7 @@ public class OpenLineageToDataHub {
       Pattern.compile("(?:arn:)?aws:glue:([^:]+):([^:]+)");
   public static final String WAREHOUSE_PATH_PATTERN = "/warehouse/";
   public static final String DB_SUFFIX = ".db/";
+  public static final String ICEBERG_PLATFORM = "iceberg";
 
   public static final Map<String, String> PLATFORM_MAP =
       Stream.of(
@@ -135,6 +136,53 @@ public class OpenLineageToDataHub {
     String namespace = dataset.getNamespace();
     String datasetName = dataset.getName();
     Optional<DatasetUrn> datahubUrn;
+
+    // Iceberg REST catalog naming: resolve a catalog-scoped logical URN from the catalog facet's
+    // warehouseUri (the server-side catalog identity) instead of the ambiguous bare symlink name.
+    if (mappingConfig.isIcebergCatalogNaming()
+        && dataset.getFacets() != null
+        && dataset.getFacets().getCatalog() != null
+        && dataset.getFacets().getSymlinks() != null) {
+      Optional<DatasetUrn> icebergUrn = getIcebergCatalogDatasetUrn(dataset, mappingConfig);
+      if (icebergUrn.isPresent()) {
+        Optional<DatasetUrn> originalUrn =
+            getDatasetUrnFromOlDataset(namespace, datasetName, null, mappingConfig);
+        if (originalUrn.isPresent()) {
+          mappingConfig
+              .getUrnAliases()
+              .put(originalUrn.get().toString(), icebergUrn.get().toString());
+        }
+        log.debug("Dataset URN (iceberg catalog naming): {}", icebergUrn);
+        return icebergUrn;
+      }
+      // Not an Iceberg REST catalog facet (e.g. Glue, Hive, or no warehouseUri); fall through to
+      // default symlink resolution.
+    }
+
+    // With icebergCatalogNaming enabled, a dataset whose TABLE symlink points at a REST catalog
+    // endpoint but which carries no catalog facet cannot be resolved to a catalog-scoped URN.
+    // Emitting its bare namespace.table name would recreate exactly the cross-catalog ambiguity
+    // the flag exists to avoid (several REST catalogs sharing one endpoint). Observed with
+    // Spark 4 + Iceberg: the MERGE INTO write carries the catalog facet, but the follow-up
+    // "ALTER TABLE ... SET TBLPROPERTIES" on the same table emits an output with schema,
+    // dataSource, symlinks and version yet no catalog facet, which surfaces as a dangling
+    // iceberg,<namespace>.<table> dataset. Drop it; the fully-faceted copy of the same table in
+    // the same application run already carries schema and identity. Glue (arn/aws namespaces),
+    // Hive (thrift) and Hadoop (storage path) symlink namespaces keep the default resolution.
+    if (mappingConfig.isIcebergCatalogNaming()
+        && !mappingConfig.isDisableSymlinkResolution()
+        && dataset.getFacets() != null
+        && dataset.getFacets().getCatalog() == null
+        && dataset.getFacets().getSymlinks() != null
+        && hasRestTableSymlink(dataset.getFacets().getSymlinks())) {
+      log.info(
+          "Dropping dataset stub namespace={} name={}: TABLE symlink points at a REST catalog "
+              + "endpoint but no catalog facet is present, so no catalog-scoped URN can be "
+              + "resolved; emitting its bare symlink name would be cross-catalog ambiguous",
+          dataset.getNamespace(),
+          dataset.getName());
+      return Optional.empty();
+    }
 
     if (dataset.getFacets() != null
         && dataset.getFacets().getSymlinks() != null
@@ -193,6 +241,72 @@ public class OpenLineageToDataHub {
     }
 
     return datahubUrn;
+  }
+
+  /**
+   * Builds a catalog-scoped logical URN for a dataset carrying an Iceberg REST catalog facet:
+   * platform {@code iceberg}, name {@code <catalogFacet.warehouseUri>.<namespace>.<table>}, where
+   * {@code warehouseUri} is the server-side catalog identity (e.g. the Polaris catalog name) and
+   * the {@code namespace.table} part comes from the dataset's TABLE symlink.
+   *
+   * <p>This keeps tables from different REST catalogs sharing one endpoint distinct: one Polaris
+   * deployment serving several catalogs emits identical bare {@code namespace.table} symlinks for
+   * logically separate tables, which would collapse into one dataset under default symlink
+   * resolution. Because the qualifier comes from the catalog facet's {@code warehouseUri} and not
+   * from the Spark-side catalog alias, two sessions using different alias names for the same
+   * warehouse still produce the same URN and merge correctly.
+   *
+   * <p>Returns empty when the dataset does not carry an Iceberg REST catalog facet (other catalog
+   * types, or a missing {@code warehouseUri}) or has no TABLE symlink, so the caller can fall back
+   * to default symlink resolution.
+   */
+  private static Optional<DatasetUrn> getIcebergCatalogDatasetUrn(
+      OpenLineage.Dataset dataset, DatahubOpenlineageConfig mappingConfig) {
+    OpenLineage.CatalogDatasetFacet catalog = dataset.getFacets().getCatalog();
+    if (catalog.getWarehouseUri() == null
+        || catalog.getWarehouseUri().trim().isEmpty()
+        || !"iceberg".equalsIgnoreCase(catalog.getFramework())
+        || !"rest".equalsIgnoreCase(catalog.getType())) {
+      return Optional.empty();
+    }
+    String tableName = null;
+    for (OpenLineage.SymlinksDatasetFacetIdentifiers symlink :
+        dataset.getFacets().getSymlinks().getIdentifiers()) {
+      if ("TABLE".equals(symlink.getType())) {
+        // Normalize the same way the symlink branch does: strip a leading "table/" prefix and
+        // join path segments with dots, so Hive/Iceberg-style "table/db.name" symlinks work too.
+        tableName =
+            symlink.getName().startsWith(TABLE_PREFIX)
+                ? symlink.getName().replaceFirst(TABLE_PREFIX, "").replace("/", ".")
+                : symlink.getName();
+      }
+    }
+    if (tableName == null || tableName.isEmpty()) {
+      return Optional.empty();
+    }
+    if (mappingConfig.isLowerCaseDatasetUrns()) {
+      tableName = tableName.toLowerCase();
+    }
+    return Optional.of(
+        DatahubUtils.createDatasetUrn(
+            ICEBERG_PLATFORM, catalog.getWarehouseUri(), tableName, mappingConfig.getFabricType()));
+  }
+
+  /**
+   * Whether the symlinks facet contains a TABLE symlink whose namespace is an HTTP(S) endpoint, the
+   * marker of an Iceberg REST catalog dataset: REST catalogs symlink to the endpoint URI, while
+   * Glue symlinks use aws:glue/arn namespaces and Hive/Hadoop catalogs use thrift or storage-path
+   * namespaces.
+   */
+  private static boolean hasRestTableSymlink(OpenLineage.SymlinksDatasetFacet symlinks) {
+    for (OpenLineage.SymlinksDatasetFacetIdentifiers symlink : symlinks.getIdentifiers()) {
+      if ("TABLE".equals(symlink.getType())
+          && (symlink.getNamespace().startsWith("http://")
+              || symlink.getNamespace().startsWith("https://"))) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private static Optional<DatasetUrn> getDatasetUrnFromOlDataset(
