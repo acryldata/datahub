@@ -69,6 +69,7 @@ public class DatahubOpenlineageConfig {
   @Builder.Default private final boolean lowerCaseDatasetUrns = false;
   @Builder.Default private final boolean removeLegacyLineage = false;
   @Builder.Default private final boolean enhancedMergeIntoExtraction = false;
+  @Builder.Default private final boolean icebergCatalogNaming = false;
 
   public List<PathSpec> getPathSpecsForPlatform(String platform) {
     if ((pathSpecs == null) || (pathSpecs.isEmpty())) {

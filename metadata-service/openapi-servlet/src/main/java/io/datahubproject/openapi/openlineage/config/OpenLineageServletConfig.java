@@ -57,6 +57,7 @@ public class OpenLineageServletConfig {
             .includeSchemaMetadata(properties.isIncludeSchemaMetadata())
             .captureColumnLevelLineage(properties.isCaptureColumnLevelLineage())
             .usePatch(properties.isUsePatch())
+            .icebergCatalogNaming(properties.isIcebergCatalogNaming())
             .fabricType(fabricType)
             .orchestrator(properties.getOrchestrator())
             .domains(properties.getDomains())
