@@ -180,13 +180,64 @@ regenerates all goldens with the given CLI, rewrites **both** harness files to t
 version, and opens a `golden-files-update-<run_id>` PR containing goldens + version
 bumps together.
 
-After the stable release is published, dispatch it with the stable version:
+### Gate on the stable wheel reaching pypi FIRST
+
+**Do not dispatch immediately after `cut-release.sh`.** `update_golden_files.yaml` runs
+`pip install acryl-datahub==<STABLE_VERSION>` in every connector job, and the stable tag's
+own wheel is published by the `release: published` event that Step 5 just emitted.
+Dispatching right away races that publish and **every** job fails in its install step with:
+
+```
+error: No solution found when resolving dependencies
+```
+
+This is the same race `prep` Steps 5-6 guard against, except here it is near-certain rather
+than occasional: the pypi-release run for `<STABLE_VERSION>` starts seconds before you would
+dispatch. Observed on `v1.7.0.19` — dispatch fired 29s after the pypi-release run started,
+and all ~19 `update-golden` jobs failed on install while that run was still in progress.
+
+So run the same gate `prep` uses, with the **stable** version:
+
+```bash
+.agent-skills/oss-release/scripts/wait-for-pypi-release.sh <STABLE_VERSION>
+```
+
+Exit codes are identical to `prep` Step 5 (`0` proceed, `2` no run yet, `3` still running,
+`4` publish failed — do NOT dispatch, `5` settle window pending). **Only dispatch on exit
+`0`.** Poll with `/loop` rather than blocking; expect 5-10 min plus the 120s settle window.
+
+### Dispatch
+
+Once the gate exits `0`, dispatch with the stable version:
 
 ```bash
 gh workflow run update_golden_files.yaml \
     --repo acryldata/connector-tests \
     -f version=<STABLE_VERSION>
 ```
+
+Pass the version **with** the leading `v` (e.g. `v1.7.0.19`) — that is the format the
+harness version files carry.
+
+**Check for a concurrent run first.** Teammates and the weekly schedule dispatch this same
+workflow:
+
+```bash
+gh run list --repo acryldata/connector-tests --workflow update_golden_files.yaml --limit 5 \
+    --json databaseId,status,conclusion,createdAt,actor
+```
+
+A concurrent run does **not** necessarily make yours redundant. Verify what it actually
+changed before skipping your own dispatch — check the harness version files on its branch,
+not just that a PR appeared:
+
+```bash
+gh pr view <PR> --repo acryldata/connector-tests --json files --jq '.files[].path'
+```
+
+Observed on `v1.7.0.19`: a teammate's run opened a PR that regenerated only Tableau goldens
+and left both harness version files pinned to the previous release. The release's own
+dispatch was still required.
 
 Manual dispatches skip the weekly-refresh delay and are **NOT auto-merged** — the PR
 sits unmerged until a human merges it, and an unattended one silently re-stales the
