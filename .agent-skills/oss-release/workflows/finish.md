@@ -206,6 +206,14 @@ Exit codes are identical to `prep` Step 5 (`0` proceed, `2` no run yet, `3` stil
 `4` publish failed — do NOT dispatch, `5` settle window pending). **Only dispatch on exit
 `0`.** Poll with `/loop` rather than blocking; expect 5-10 min plus the 120s settle window.
 
+Exit `0` is a **probabilistic mitigation, not a guarantee** — same caveat `prep` Step 5
+carries. pypi's index and CDN edges converge on their own schedule, so a golden-update job
+can still lose the race after the window. If one fails with `No solution found when
+resolving dependencies`, **re-run the failed jobs or re-dispatch** — do not re-cut the
+release, and do not treat it as a connector regression. Note that `known-flaky-tests.md`
+documents this signature only for the nightly connector-tests workflow; it applies equally
+to `update_golden_files.yaml`.
+
 ### Dispatch
 
 Once the gate exits `0`, dispatch with the stable version:
@@ -224,7 +232,7 @@ workflow:
 
 ```bash
 gh run list --repo acryldata/connector-tests --workflow update_golden_files.yaml --limit 5 \
-    --json databaseId,status,conclusion,createdAt,actor
+    --json databaseId,status,conclusion,createdAt,event,headBranch,url
 ```
 
 A concurrent run does **not** necessarily make yours redundant. Verify what it actually
