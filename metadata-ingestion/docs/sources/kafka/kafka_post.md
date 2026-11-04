@@ -172,6 +172,7 @@ DataHub includes pre-built OAuth callbacks for common use cases:
 
 - **AWS MSK IAM**: `datahub_actions.utils.kafka_msk_iam:oauth_cb`
 - **Azure Event Hubs**: `datahub_actions.utils.kafka_eventhubs_auth:oauth_cb`
+- **Google Cloud Managed Service for Apache Kafka**: `datahub_actions.utils.kafka_gcp_managed_kafka:oauth_cb` (uses Application Default Credentials, e.g. GKE Workload Identity; the service account needs `roles/managedkafka.client`)
 
 **Important:** To use these built-in callbacks, you must install the `acryl-datahub-actions` package:
 
