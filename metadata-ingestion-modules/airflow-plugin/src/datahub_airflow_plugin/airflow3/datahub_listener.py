@@ -1154,6 +1154,13 @@ class DataHubListener:
             logger.debug(f"DAG {dag.dag_id} is not allowed by the pattern")
             return None
 
+        # Check if task is allowed by filter pattern
+        if not self.config.task_allowed(dag.dag_id, task.task_id):
+            logger.debug(
+                f"Task {task.task_id} of DAG {dag.dag_id} is not allowed by the pattern"
+            )
+            return None
+
         # Task type can vary between Airflow versions (MappedOperator, SerializedBaseOperator, etc.)
         return dagrun, task, dag  # type: ignore[return-value]
 
@@ -1296,6 +1303,11 @@ class DataHubListener:
         # Check if DAG is allowed before doing any expensive operations
         if not self.config.dag_filter_pattern.allowed(task_instance.dag_id):
             logger.debug(f"DAG {task_instance.dag_id} is not allowed by the pattern")
+            return
+
+        # Check if task is allowed before doing any expensive operations
+        if not self.config.task_allowed(task_instance.dag_id, task_instance.task_id):
+            logger.debug(f"Task {task_instance.task_id} is not allowed by the pattern")
             return
 
         # Handle async operators by skipping deferred state
@@ -1537,6 +1549,11 @@ class DataHubListener:
         emitter.emit(event)
 
         for task in dag.tasks:
+            if not self.config.task_allowed(dag.dag_id, task.task_id):
+                logger.debug(
+                    f"Task {task.task_id} of DAG {dag.dag_id} is not allowed by the pattern"
+                )
+                continue
             task_urn = builder.make_data_job_urn_with_flow(
                 str(dataflow.urn), task.task_id
             )
