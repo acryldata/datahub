@@ -35,4 +35,5 @@ public class DatahubOpenlineageProperties {
 
   // Advanced configuration
   private boolean usePatch = false;
+  private boolean icebergCatalogNaming = false;
 }
