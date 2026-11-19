@@ -182,6 +182,29 @@ datahub:
     capture-column-level-lineage: true
 ```
 
+#### Iceberg REST Catalog Datasets (Multi-Catalog Endpoints)
+
+When one Iceberg REST endpoint serves several catalogs (the standard Polaris deployment, e.g. one catalog per data zone), tables in different catalogs emit identical bare `namespace.table` symlinks and would collapse into a single dataset. Enable the opt-in
+`iceberg-catalog-naming` option to name these datasets by their catalog-scoped logical name
+`<catalog>.<namespace>.<table>` on the `iceberg` platform instead, where `<catalog>` comes from the OpenLineage catalog facet's `warehouseUri` (the server-side catalog name):
+
+```bash
+DATAHUB_OPENLINEAGE_ICEBERG_CATALOG_NAMING=true
+```
+
+or via `application.yml`:
+
+```yaml
+datahub:
+  openlineage:
+    iceberg-catalog-naming: true
+```
+
+The resulting URNs (`urn:li:dataset:(urn:li:dataPlatform:iceberg,<catalog>.<namespace>.<table>,<env>)`)
+follow the common `<catalog>.<namespace>.<table>` convention for Iceberg REST catalog tables (e.g. Polaris) on the
+`iceberg` platform, so runtime lineage attaches to entities that other ingestion paths produce under
+the same convention instead of creating unlinked duplicates. Only Iceberg **REST** catalogs are affected (Glue, Hive and other catalog types keep the default symlink resolution). Because the catalog name comes from the event's catalog facet and not from the producer's local Spark catalog alias, two Spark sessions using different alias names for the same warehouse still produce the same URN. The option is off by default; enabling it changes the URNs of already-ingested datasets, so existing path-based entities are not migrated.
+
 **Priority Order for Orchestrator Determination**
 
 The orchestrator name is determined in the following priority order:
