@@ -86,6 +86,11 @@ class DatahubLineageConfig(ConfigModel):
         description="regex patterns for DAGs to ingest",
     )
 
+    task_filter_pattern: AllowDenyPattern = Field(
+        default_factory=AllowDenyPattern.allow_all,
+        description="regex patterns for tasks to ingest",
+    )
+
     dataset_pattern: AllowDenyPattern = Field(
         default_factory=AllowDenyPattern.allow_all,
         description="regex patterns for inlet/outlet datasets, as <platform>:<name>, to keep",
@@ -145,6 +150,29 @@ class DatahubLineageConfig(ConfigModel):
             return DatahubGenericHook(connection_ids[0])
         else:
             return DatahubCompositeHook(connection_ids)
+
+    def task_allowed(self, dag_id: str, task_id: str) -> bool:
+        """Check a task against the task filter using both its bare task id
+        and its '<dag_id>.<task_id>' composite form.
+
+        A task is denied if either form matches a deny pattern; otherwise it
+        is allowed if either form matches an allow pattern. This lets patterns
+        scope rules to a single DAG (e.g. 'my_dag\\.my_task$') while bare
+        patterns (e.g. '.*_sensor') still apply across all DAGs. Note that a
+        '.' in a dag id is a regex wildcard unless escaped.
+        """
+        composite = f"{dag_id}.{task_id}"
+
+        # Deny wins over allow: a deny on either form filters the task even
+        # if the other form is matched by an allow pattern.
+        if self.task_filter_pattern.denied(task_id) or self.task_filter_pattern.denied(
+            composite
+        ):
+            return False
+
+        return self.task_filter_pattern.allowed(
+            task_id
+        ) or self.task_filter_pattern.allowed(composite)
 
 
 def get_lineage_config() -> DatahubLineageConfig:
@@ -212,6 +240,9 @@ def get_lineage_config() -> DatahubLineageConfig:
     dag_filter_pattern = AllowDenyPattern.model_validate_json(
         conf.get("datahub", "dag_filter_str", fallback='{"allow": [".*"]}')
     )
+    task_filter_pattern = AllowDenyPattern.model_validate_json(
+        conf.get("datahub", "task_filter_str", fallback='{"allow": [".*"]}')
+    )
     dataset_pattern = AllowDenyPattern.model_validate_json(
         conf.get("datahub", "dataset_pattern", fallback='{"allow": [".*"]}')
     )
@@ -252,6 +283,7 @@ def get_lineage_config() -> DatahubLineageConfig:
         datajob_url_link=datajob_url_link,
         render_templates=render_templates,
         dag_filter_pattern=dag_filter_pattern,
+        task_filter_pattern=task_filter_pattern,
         dataset_pattern=dataset_pattern,
         normalize_object_storage_urns=normalize_object_storage_urns,
         capture_ol_file_datasets=capture_ol_file_datasets,

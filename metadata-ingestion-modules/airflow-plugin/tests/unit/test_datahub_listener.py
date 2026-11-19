@@ -1,13 +1,15 @@
 """Unit tests for the Airflow 3 DataHub listener."""
 
 import sys
-from types import ModuleType, SimpleNamespace
+from types import MethodType, ModuleType, SimpleNamespace
 from typing import Any, Iterator, List
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 import datahub_airflow_plugin.airflow3.datahub_listener as listener_mod
+from datahub.configuration.common import AllowDenyPattern
+from datahub_airflow_plugin._config import DatahubLineageConfig
 from datahub_airflow_plugin.airflow3.datahub_listener import DataHubListener
 
 
@@ -376,3 +378,159 @@ class TestOnStarting:
         ):
             # Must not raise — on_starting runs synchronously on Airflow startup.
             DataHubListener.on_starting(stub, TaskRunnerMarker())
+
+
+def _make_filter_stub(dag_pattern: str, task_pattern: str) -> Any:
+    """Return a SimpleNamespace stub for filter-related listener methods.
+
+    Only the attributes read by _prepare_task_context, on_task_instance_running
+    and on_dag_start are needed.
+    """
+    config = SimpleNamespace(
+        render_templates=False,
+        log_level=None,
+        debug_emitter=False,
+        platform_instance=None,
+        dag_filter_pattern=AllowDenyPattern.model_validate_json(dag_pattern),
+        task_filter_pattern=AllowDenyPattern.model_validate_json(task_pattern),
+    )
+    # Reuse the production task_allowed logic (bare + dag.task composite
+    # matching) by binding it onto the stub config.
+    config.task_allowed = MethodType(DatahubLineageConfig.task_allowed, config)
+    stub = SimpleNamespace(
+        config=config,
+        check_kill_switch=lambda: False,
+        _set_log_level=lambda: None,
+    )
+    return stub
+
+
+def _make_task_instance(dag_id: str, task_id: str) -> Any:
+    task_instance = MagicMock()
+    task_instance.task_id = task_id
+    task_instance.dag_id = dag_id
+    task_instance.task.task_id = task_id
+    task_instance.task.dag.dag_id = dag_id
+    return task_instance
+
+
+class TestTaskFilterPattern:
+    """Task-level filtering mirrors the DAG-level dag_filter_pattern checks."""
+
+    def test_prepare_task_context_denies_filtered_task(self) -> None:
+        stub = _make_filter_stub('{"allow": [".*"]}', '{"deny": ["skip_.*"]}')
+        task_instance = _make_task_instance("my_dag", "skip_this_task")
+
+        result = DataHubListener._prepare_task_context(stub, task_instance)
+
+        assert result is None
+
+    def test_prepare_task_context_allows_unfiltered_task(self) -> None:
+        stub = _make_filter_stub('{"allow": [".*"]}', '{"deny": ["skip_.*"]}')
+        task_instance = _make_task_instance("my_dag", "real_task")
+
+        result = DataHubListener._prepare_task_context(stub, task_instance)
+
+        assert result is not None
+        _, task, _ = result
+        assert task.task_id == "real_task"
+
+    def test_prepare_task_context_dag_filter_still_applies(self) -> None:
+        stub = _make_filter_stub('{"deny": ["denied_dag"]}', '{"allow": [".*"]}')
+        task_instance = _make_task_instance("denied_dag", "real_task")
+
+        result = DataHubListener._prepare_task_context(stub, task_instance)
+
+        assert result is None
+
+    def test_on_task_instance_running_returns_early_for_filtered_task(self) -> None:
+        stub = _make_filter_stub('{"allow": [".*"]}', '{"deny": ["skip_.*"]}')
+        task_instance = _make_task_instance("my_dag", "skip_this_task")
+
+        # __wrapped__ bypasses the run_in_thread decorator so the early return
+        # is observable synchronously.
+        with patch.object(
+            listener_mod, "_get_dagrun_from_task_instance"
+        ) as mock_get_dagrun:
+            DataHubListener.on_task_instance_running.__wrapped__(
+                stub, None, task_instance
+            )
+
+        # No expensive work (template rendering, dagrun resolution) may happen.
+        mock_get_dagrun.assert_not_called()
+
+    def test_on_dag_start_skips_status_for_filtered_tasks(self) -> None:
+        stub = _make_filter_stub('{"allow": [".*"]}', '{"deny": ["skip_.*"]}')
+        emitter = MagicMock()
+        stub._get_emitter = lambda: emitter
+        stub._make_emit_callback = lambda: lambda err, msg: None
+
+        flow_urn = "urn:li:dataFlow:(airflow,PROD,my_dag)"
+        dag = SimpleNamespace(
+            dag_id="my_dag",
+            tasks=[
+                SimpleNamespace(task_id="skip_this_task"),
+                SimpleNamespace(task_id="real_task"),
+            ],
+        )
+        dag_run = SimpleNamespace(dag=dag, dag_id="my_dag", run_id="run_1")
+
+        with patch.object(
+            listener_mod.AirflowGenerator,
+            "generate_dataflow",
+            return_value=SimpleNamespace(
+                urn=flow_urn, tags=[], description="", emit=lambda *args, **kwargs: None
+            ),
+        ):
+            DataHubListener.on_dag_start(stub, dag_run)
+
+        emitted_urns = [call.args[0].entityUrn for call in emitter.emit.call_args_list]
+        assert flow_urn in emitted_urns
+        assert (
+            "urn:li:dataJob:(urn:li:dataFlow:(airflow,PROD,my_dag),real_task)"
+            in emitted_urns
+        )
+        assert (
+            "urn:li:dataJob:(urn:li:dataFlow:(airflow,PROD,my_dag),skip_this_task)"
+            not in emitted_urns
+        )
+
+
+class TestTaskFilterCompositePattern:
+    """task_filter_str patterns may match bare task ids or 'dag_id.task_id'."""
+
+    def test_scoped_deny_only_filters_one_dag(self) -> None:
+        stub = _make_filter_stub(
+            '{"allow": [".*"]}', '{"deny": ["my_dag\\\\.skip_.*$"]}'
+        )
+
+        assert not stub.config.task_allowed("my_dag", "skip_this_task")
+        assert stub.config.task_allowed("other_dag", "skip_this_task")
+        assert stub.config.task_allowed("my_dag", "real_task")
+
+    def test_bare_deny_still_applies_across_all_dags(self) -> None:
+        stub = _make_filter_stub('{"allow": [".*"]}', '{"deny": ["skip_.*"]}')
+
+        assert not stub.config.task_allowed("my_dag", "skip_this_task")
+        assert not stub.config.task_allowed("other_dag", "skip_this_task")
+        assert stub.config.task_allowed("my_dag", "real_task")
+
+    def test_scoped_allow_only_keeps_one_dag(self) -> None:
+        stub = _make_filter_stub('{"allow": [".*"]}', '{"allow": ["my_dag\\\\."]}')
+
+        assert stub.config.task_allowed("my_dag", "any_task")
+        assert not stub.config.task_allowed("other_dag", "any_task")
+
+    def test_deny_wins_over_scoped_allow(self) -> None:
+        stub = _make_filter_stub('{"allow": ["my_dag\\\\."]}', '{"deny": ["skip_.*"]}')
+
+        assert not stub.config.task_allowed("my_dag", "skip_this_task")
+        assert stub.config.task_allowed("my_dag", "real_task")
+
+    def test_same_task_id_in_two_dags_can_be_treated_differently(self) -> None:
+        stub = _make_filter_stub(
+            '{"allow": [".*"]}', '{"deny": ["drop_dag\\\\.skip_me$"]}'
+        )
+
+        assert not stub.config.task_allowed("drop_dag", "skip_me")
+        assert stub.config.task_allowed("keep_dag", "skip_me")
