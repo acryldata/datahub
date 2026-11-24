@@ -9,8 +9,21 @@ title = "DataHub betterleaks config"
 #   suppproject-id-1234567  -> dataplex docs sample GCP service account
 #   YOUR_ACCESS_TOKEN       -> curl "Bearer" placeholder in managed-datahub docs
 #   YOUR_API_KEY            -> curl "Bearer" placeholder in hightouch connector docs
+#   bXktc2VjcmV0LWpzb24     -> base64 of the literal "my-secret-json", the synthetic
+#                              fixture in test_sqlalchemy_uri_secrets.py, a test whose
+#                              whole subject is checking such values get masked
 #   test_password           -> metabase integration-test fixture (POSTGRES_PASSWORD / db user)
 #   Admin123!               -> metabase integration-test fixture (metabase admin login)
+#
+# Synthetic credentials in pytest test IDs, which CI copies into
+# metadata-ingestion/tests/integration_test_weights.json on every regeneration:
+#   PLANTED                 -> marker value in the agent redaction tests (test_redact.py)
+#   u:p@h/db, svc:p@a/ss@db -> URIs in the SQL secret-masking tests
+#   myhost:5432/mydb        -> JDBC URLs in the JDBC sanitize tests (admin:secret, password=...)
+#   password=p@ss-          -> SQL Server JDBC URL normalize/validate tests
+#   gms:8080@other.example  -> same-GMS-origin check (port parsed as a password)
+#   user:password@host:8123 -> clickhouse HTTP URL user-agent test
+#   password=abc\\n]        -> profiling log-scrub test
 #
 # matchesAny (regex) is used rather than containsAny: containsAny misses multi-line
 # matches (e.g. the multi-line RSA key block in archive.py).
@@ -21,8 +34,17 @@ filter.matchesAny(finding["match"], [
   "suppproject-id-1234567",
   "YOUR_ACCESS_TOKEN",
   "YOUR_API_KEY",
+  "bXktc2VjcmV0LWpzb24",
   "test_password",
   "Admin123!",
+  "PLANTED",
+  "postgresql://u:p@h/db",
+  "postgresql://svc:p@a/ss@db.example",
+  "myhost:5432/mydb",
+  "password=p@ss-",
+  "http://gms:8080@other.example",
+  "user:password@host:8123",
+  "^password=abc..n]$",
 ])
 '''
 
