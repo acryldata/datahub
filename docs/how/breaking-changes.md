@@ -148,14 +148,23 @@ On GMS, this delete now checks that the delete is allowed, removes the relations
 hold to the deleted one, then deletes it. A delete that is refused leaves those relationships in
 place. Deleting the entity first dropped them from the graph, so they stayed on the other entities.
 
-Deleting a tag, term, domain, user, group or other entity that more than 100 other entities point
-at is now refused, and nothing is deleted. The error says how many entities point at it. Either
-raise the limit with `DATAHUB_HARD_DELETE_GRAPH_REFERENCE_CLEANUP_LIMIT`
-(`hardDelete.graph-reference-cleanup-limit`, default `100`), or remove the references first with
-`datahub delete references --urn <urn>` and delete again. Set the limit to `0` to turn this
-cleanup off: the entity is deleted alone, as before, and the entities that pointed at it keep
-pointers to something that no longer exists. References that are not graph relationships are
-still removed. `ReferencesCleanup.choice()` reports which path ran.
+Removing the relationships of an entity that has more than 100 incoming relationships (a tag,
+term, domain, user, group or other entity) in one request can time out, so the limit is
+`hardDelete.graph-reference-cleanup-limit` (`DATAHUB_HARD_DELETE_GRAPH_REFERENCE_CLEANUP_LIMIT`,
+default `100`). `hardDelete.graph-reference-over-limit`
+(`DATAHUB_HARD_DELETE_GRAPH_REFERENCE_OVER_LIMIT`) sets what a delete over the limit does. The
+default, `SKIP`, deletes the entity without removing those relationships, as before this change: the
+entities that pointed at it keep pointers to something that no longer exists. GMS logs a warning
+that names the first ten of them and counts `datahub.hard_delete.graph_references_skipped`.
+`REFUSE` deletes nothing and returns an error that says how many relationships point at the entity.
+A limit of `0` puts every entity that has a referrer over the limit. References that are not graph
+relationships are still removed either way. `ReferencesCleanup.choice()` reports which path ran.
+
+To repair the references a skip left behind, [restore the indices](https://docs.datahub.com/docs/how/restore-indices/)
+of the entities that pointed at the deleted one, limited with `urnLike` and `aspectNames` to the
+aspect that holds the reference, then run `datahub delete references --urn <urn>`. The delete dropped
+the graph relationships, and `datahub delete references` finds referrers through the graph, so it
+finds nothing until restoring rebuilds them.
 
 If a delete fails because the entity was written to while it was being deleted (with
 `featureFlags.reliableHardDelete` on), the relationships to it are already removed and the entity
@@ -342,6 +351,45 @@ unpublished documents that have no lifecycle stage. `semanticSearchAcrossEntitie
 it runs the semantic search template. **Action:** none, unless a client filters on
 `showInGlobalContext` and expects documents hidden from global context to stay out.
 
+### Vector search templates need OpenSearch 3.5 or later ([#21596](https://github.com/datahub-project/datahub/pull/21596))
+
+On OpenSearch before 3.5, a search that a vector search template serves from the DataHub index now
+fails instead of returning an empty page. This covers a search that names
+`urn:li:searchTemplate:semantic` or `urn:li:searchTemplate:similarity` in the `searchTemplate`
+search flag, an entity URN that `semantic` sends to `similarity`, and a custom template whose ladder
+reaches a vector rung. Before 3.5 the OpenSearch k-NN plugin can apply these searches' filter to the
+wrong documents, so they could return an empty or incomplete page, depending on the filter; a search
+of this kind that returned results before now fails too. The search fails with a server error, GMS
+logs a warning once, and the `search.template.vectorRetrieval` metric counts it as `unavailable`. It
+fails whatever the template's `onFailure` says, and the `keywordFallbackOnEmbeddingFailure` search
+flag does not turn it into keyword results. Keyword search is not affected, including the rerank of
+the shipped `fulltext` template (`keywordRerank`), and neither is semantic search
+(`semanticSearchAcrossEntities`), which already stays on its own kNN search before 3.5. A template
+that an external vector store serves is not affected either. While GMS cannot read the OpenSearch
+version, or reads a version of 7 or above, which a cluster in compatibility mode reports whatever it
+runs, these searches run as before. **Action:** to use vector templates, upgrade OpenSearch to 3.5
+or later, then restart GMS, which keeps the version it has read until it restarts.
+
+### `searchDocuments` through a vector template honors its search flags ([#21596](https://github.com/datahub-project/datahub/pull/21596))
+
+`searchDocuments` with a vector template named in the `searchTemplate` search flag now applies the
+`minSimilarity` search flag, which it ignored before, and honors
+`keywordFallbackOnEmbeddingFailure`, as `searchAcrossEntities` does: with it set, a query that
+cannot be embedded gets the keyword search results for the same request, without the named template.
+The `searchDocuments` result does not say that it fell back. A `minSimilarity` outside -1 to 1, or
+one on a template whose embedding profile is not cosine, now fails the search as a bad request
+instead of being ignored. **Action:** none, unless a client sends such a `minSimilarity`.
+
+### Search template writes reject unknown `retrieval` values ([#21596](https://github.com/datahub-project/datahub/pull/21596))
+
+Writing a search template now fails when `retrieval.total`, `retrieval.facets`, `retrieval.page`, or
+`retrieval.authorization` holds a value DataHub does not define, whether the template sets it or
+inherits it from a parent. `total` accepts `candidates` and `facets` accepts `candidateUrns`. `page`
+and `authorization` have no value yet, so any value there is rejected. No release reads these fields
+and the shipped templates set none of them, so search results do not change, and a template that
+already stores another value still loads. **Action:** if a custom template sets one of these fields to
+another value, remove it before you next write that template or a template that inherits from it.
+
 ### Parent Data Product is now checked on every API
 
 Setting a Data Product's parent through OpenAPI, Rest.li or YAML now fails if the parent doesn't exist
@@ -410,6 +458,8 @@ Requirements:
 - Helm Chart: (TBD)
 
 ### Breaking Changes
+
+- [#21570](https://github.com/datahub-project/datahub/pull/21570) **(Ingestion / Qlik Sense)** On Qlik Cloud, a Qlik dataset that only an app's upstream lineage graph names, such as a QVD in a space the API key's user can't see, is now ingested only when the last reloads of the apps that load or store it give exactly one `lib://` path for it. It then gets that path, a browse path and containers under its space, connection and folders; its URN is unchanged. A dataset with no single path, for example a file name read through two connections, is no longer ingested: with stale metadata removal on, the first run after upgrading soft-deletes it, along with any tags, terms, owners or documentation added to it, and the tables that load it link to its URN without a dataset behind it. The run lists these under `graph_named_datasets_without_path`. **Action:** give the API key's user access to the spaces named in the "Qlik spaces the API key can't see" warning so these datasets are listed with their usual URNs, and move anything you attached to the soft-deleted datasets.
 
 - [#21538](https://github.com/datahub-project/datahub/pull/21538) **(Ingestion / Qlik Sense)** On Qlik Sense Enterprise with `read_data_model: true` and stateful ingestion, an app with a `BINARY` statement whose last read ingested BINARY tables, and whose data can't be opened this run, for example because section access now denies it to the service user, counts as partly read, so its last read is kept for up to `max_partial_reads_kept` runs. After that it is ingested without those tables, which stale metadata removal soft-deletes, with a "Qlik BINARY tables are no longer kept" warning. An app whose data was never readable is not affected. **Action:** to keep BINARY tables, give the Engine service user access to these apps' data in section access.
 
