@@ -120,6 +120,17 @@ Reference Links:
 | `ENTITY_SERVICE_ENABLE_RETENTION`          | `true`  | Enable entity retention       | GMS, MCE Consumer |
 | `ENTITY_SERVICE_APPLY_RETENTION_BOOTSTRAP` | `false` | Apply retention on bootstrap  | GMS, MCE Consumer |
 
+### Hard Delete Configuration
+
+Controls how a hard delete handles the graph relationships that point at the entity being deleted.
+
+| Environment Variable                                | Default | Description                                                                                                                                                                                                                                                                          | Components |
+| --------------------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
+| `DATAHUB_HARD_DELETE_GRAPH_REFERENCE_CLEANUP_LIMIT` | `100`   | Number of graph relationships to an entity above which a hard delete is over the limit.                                                                                                                                                                                              | GMS        |
+| `DATAHUB_HARD_DELETE_GRAPH_REFERENCE_OVER_LIMIT`    | `SKIP`  | What a hard delete over the limit does. `SKIP` deletes the entity and leaves the graph relationships to it in place, logging a warning and incrementing `datahub.hard_delete.graph_references_skipped`. `REFUSE` deletes nothing and fails the request with a 400. Case-insensitive. | GMS        |
+
+After a `SKIP`, the entities that pointed at the deleted one keep pointers to it. To repair them, restore the indices of those entities, then run `datahub delete references`. See [Breaking Changes](../how/breaking-changes.md) for the full behavior.
+
 ### Aspect Size Validation
 
 Protects against aspects exceeding deserialization limits. **Debugging flags - enable only when troubleshooting service crashes or memory pressure from oversized aspects.**
@@ -1140,6 +1151,15 @@ Reference Links:
 | `BOOTSTRAP_SYSTEM_UPDATE_DASHBOARD_INFO_BATCH_SIZE` | `1000`  | Dashboard info batch size            | System Update |
 | `BOOTSTRAP_SYSTEM_UPDATE_DASHBOARD_INFO_DELAY_MS`   | `30000` | Dashboard info delay in milliseconds | System Update |
 | `BOOTSTRAP_SYSTEM_UPDATE_DASHBOARD_INFO_CLL_LIMIT`  | `0`     | Dashboard info CLL limit             | System Update |
+
+### Post Info Configuration
+
+| Environment Variable                           | Default | Description                                       | Components    |
+| ---------------------------------------------- | ------- | ------------------------------------------------- | ------------- |
+| `BOOTSTRAP_SYSTEM_UPDATE_POST_INFO_ENABLED`    | `true`  | Enable reindexing posts to add the content type   | System Update |
+| `BOOTSTRAP_SYSTEM_UPDATE_POST_INFO_BATCH_SIZE` | `1000`  | Post info batch size                              | System Update |
+| `BOOTSTRAP_SYSTEM_UPDATE_POST_INFO_DELAY_MS`   | `1000`  | Post info delay in milliseconds                   | System Update |
+| `BOOTSTRAP_SYSTEM_UPDATE_POST_INFO_LIMIT`      | `0`     | Maximum number of posts to reindex (0 = no limit) | System Update |
 
 ### Browse Paths V2 Configuration
 
